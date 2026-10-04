@@ -1940,7 +1940,7 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
         .from('cronograma')
         .select()
         .eq('medicamento_id', widget.medicamento['id'])
-        .order('data_aplicacao');
+        .order('data_aplicacao', ascending: true);
   }
 
   List<String> _obterListaRodizio(String regiaoBase) {
