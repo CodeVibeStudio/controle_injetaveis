@@ -540,7 +540,10 @@ class _DashboardEcraState extends State<DashboardEcra> {
                           const Divider(),
                           if (proximaDose != null) ...[
                             Text(
-                              proximaDose!['medicamentos']['nome'],
+                              proximaDose!['medicamentos'] != null
+                                  ? proximaDose!['medicamentos']['nome']
+                                        .toString()
+                                  : 'Medicamento indisponível',
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -888,11 +891,19 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
 
   Future<void> _carregarCatalogo() async {
     try {
-      final resposta = await supabase.from('medicamentos').select('*');
+      // Chama a função SQL segura em vez de ler a tabela diretamente
+      final resposta = await supabase.rpc('obter_nomes_unicos');
+
       setState(() {
         listaCatalogo = List<Map<String, dynamic>>.from(resposta)
             .where((m) => !m['nome'].toString().startsWith('Mix'))
             .toList();
+        listaCatalogo.sort(
+          (a, b) => a['nome'].toString().toLowerCase().compareTo(
+            b['nome'].toString().toLowerCase(),
+          ),
+        );
+
         if (listaCatalogo.isNotEmpty && !modoEdicao) {
           modoNovoMedicamento = false;
         }
@@ -1476,7 +1487,69 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           );
         }
       } else {
+        // --- INÍCIO DO FILTRO DE QUALIDADE ---
+        String nomeDigitado = dados['nome'].toString().trim();
+
+        // Regra 1: Tamanho mínimo (impede abreviações como "A" ou "Tz")
+        if (nomeDigitado.length < 3) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Nome muito curto. Digite o nome completo do medicamento.',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return; // Aborta a gravação
+        }
+
+        // Regra 2: Filtro Anti-Palavrões
+        final palavrasProibidas = [
+          'merda',
+          'bosta',
+          'caralho',
+          'porra',
+          'buceta',
+          'pica',
+          'puta',
+          'foda',
+          'teste',
+        ];
+        final nomeMinusculo = nomeDigitado.toLowerCase();
+        for (var palavra in palavrasProibidas) {
+          if (nomeMinusculo.contains(palavra)) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Termo não permitido. Utilize apenas nomes de medicamentos.',
+                  ),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return; // Aborta a gravação
+          }
+        }
+
+        // Regra 3: Padronização (Primeira letra sempre Maiúscula)
+        nomeDigitado =
+            nomeDigitado[0].toUpperCase() + nomeDigitado.substring(1);
+
+        // Atualiza o dado limpo para ser enviado
+        dados['nome'] = nomeDigitado;
+        // --- FIM DO FILTRO DE QUALIDADE ---
+        // 1. Capturar o ID do utilizador
+        final usuarioId = supabase.auth.currentUser!.id;
+
+        // 2. Injetar o ID nos dados que já estavam prontos
+        dados['user_id'] = usuarioId;
+
+        // 3. Fazer o insert normal
         await supabase.from('medicamentos').insert(dados);
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1540,18 +1613,24 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                       : null,
                                 )
                               : DropdownButtonFormField<String>(
+                                  isExpanded:
+                                      true, // Garante que não ultrapassa a tela
                                   initialValue: nomeSelecionado,
                                   decoration: const InputDecoration(
                                     labelText: 'Catálogo (Selecionar)',
                                     border: OutlineInputBorder(),
                                   ),
+                                  // Forçamos a tipagem exata da lista aqui:
                                   items: listaCatalogo
-                                      .map(
-                                        (e) => DropdownMenuItem<String>(
-                                          value: e['nome'],
-                                          child: Text(e['nome']),
-                                        ),
-                                      )
+                                      .map<DropdownMenuItem<String>>((e) {
+                                        return DropdownMenuItem<String>(
+                                          value: e['nome'].toString(),
+                                          child: Text(
+                                            e['nome'].toString(),
+                                            overflow: TextOverflow.ellipsis, // Corta textos grandes com "..."
+                                          ),
+                                        );
+                                      })
                                       .toList(),
                                   onChanged: (val) {
                                     setState(() => nomeSelecionado = val!);
@@ -2043,7 +2122,17 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
         dataBase = dataBase.add(Duration(days: intervalo));
       }
 
+      // 1. Capturar o ID do utilizador
+      final usuarioId = supabase.auth.currentUser!.id;
+
+      // 2. Injetar o ID em TODAS as aplicações geradas no lote
+      for (var aplicacao in loteAplicacoes) {
+        aplicacao['user_id'] = usuarioId;
+      }
+
+      // 3. Fazer o insert do lote inteiro
       await supabase.from('cronograma').insert(loteAplicacoes);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
