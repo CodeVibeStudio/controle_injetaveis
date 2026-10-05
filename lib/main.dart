@@ -666,6 +666,61 @@ class _SetupEcraState extends State<SetupEcra> {
     return await supabase.from('medicamentos').select().order('criado_em');
   }
 
+  Future<void> _deletarMedicamento(dynamic id) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Excluir Medicamento',
+          style: TextStyle(color: Colors.red),
+        ),
+        content: const Text(
+          'Tem a certeza que deseja excluir este medicamento e todo o seu cronograma?\n\nEsta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Excluir', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      // 1. Apaga primeiro as aplicações agendadas para evitar erros de chave estrangeira
+      await supabase.from('cronograma').delete().eq('medicamento_id', id);
+
+      // 2. Apaga o medicamento
+      await supabase.from('medicamentos').delete().eq('id', id);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Medicamento excluído com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() {}); // Recarrega a lista na tela
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao excluir: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -761,6 +816,14 @@ class _SetupEcraState extends State<SetupEcra> {
                                     ),
                                   ).then((_) => setState(() {})),
                                 ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () =>
+                                      _deletarMedicamento(med['id']),
+                                ),
                                 const Icon(
                                   Icons.arrow_forward_ios,
                                   color: Colors.grey,
@@ -769,7 +832,7 @@ class _SetupEcraState extends State<SetupEcra> {
                               ],
                             ),
                           ],
-                        ),
+                        ), // <- Este fecho estava em falta
                         const Divider(),
                         if (med['detalhes_dose'] != null &&
                             med['detalhes_dose'].toString().isNotEmpty) ...[
@@ -1083,16 +1146,40 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
 
   void _aplicarPreenchimentoSeguro(String nome) {
     final med = listaCatalogo.firstWhere(
-      (element) => element['nome'] == nome,
+      (e) => e['nome'] == nome,
       orElse: () => {},
     );
-    if (med.isNotEmpty) {
-      setState(() {
-        _isMix = false;
-        volumeCtrl.text = med['volume_frasco_ml'].toString();
-        concentracaoCtrl.text = med['concentracao_mg_ml'].toString();
-        _recalcularEquivalencia();
-      });
+    if (med.isEmpty) return;
+
+    // Só preenche se o dado existir. Caso contrário, deixa em branco ('')
+    volumeCtrl.text = med['volume_frasco_ml'] != null
+        ? med['volume_frasco_ml'].toString()
+        : '';
+    concentracaoCtrl.text = med['concentracao_mg_ml'] != null
+        ? med['concentracao_mg_ml'].toString()
+        : '';
+    intervaloCtrl.text = med['intervalo_dias'] != null
+        ? med['intervalo_dias'].toString()
+        : '';
+    doseCtrl.text = med['dose_semanal'] != null
+        ? med['dose_semanal'].toString()
+        : '';
+    ampolasCtrl.text = med['qtd_ampolas'] != null
+        ? med['qtd_ampolas'].toString()
+        : '';
+
+    // Atualiza os dropdowns se a informação vier do Supabase
+    if (med['unidade'] != null) {
+      setState(() => unidadeSelecionada = med['unidade'].toString());
+    }
+    if (med['regiao_base'] != null) {
+      setState(() => regiaoSelecionada = med['regiao_base'].toString());
+    }
+    if (med['seringa_ui'] != null) {
+      setState(
+        () => seringaSelecionada =
+            int.tryParse(med['seringa_ui'].toString()) ?? 100,
+      );
     }
   }
 
@@ -1775,7 +1862,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                           labelText: 'Volume Frasco (mL)',
                           border: OutlineInputBorder(),
                         ),
-                        readOnly: !modoNovoMedicamento && !modoEdicao,
                         validator: (val) =>
                             val == null || val.isEmpty ? 'Obrigatório' : null,
                       ),
@@ -1802,7 +1888,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                             onPressed: _abrirCalculadoraSegura,
                           ),
                         ),
-                        readOnly: !modoNovoMedicamento && !modoEdicao,
                         validator: (val) =>
                             val == null || val.isEmpty ? 'Obrigatório' : null,
                       ),
@@ -1854,9 +1939,10 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                               (e) => DropdownMenuItem(value: e, child: Text(e)),
                             )
                             .toList(),
-                        onChanged: (val) =>
-                            setState(() => unidadeSelecionada = val!),
-                        validator: (val) => val == null ? 'Erro' : null,
+                        onChanged: (val) {
+                          setState(() => unidadeSelecionada = val!);
+                          _recalcularEquivalencia();
+                        },
                       ),
                     ),
                   ],
@@ -1922,7 +2008,10 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                           .toList(),
                       onChanged: _isMix
                           ? null
-                          : (val) => setState(() => seringaSelecionada = val!),
+                          : (val) {
+                              setState(() => seringaSelecionada = val!);
+                              _recalcularEquivalencia();
+                            },
                       validator: (val) => val == null ? 'Erro' : null,
                     ),
                   ),
@@ -2167,6 +2256,57 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
     }
   }
 
+  Future<void> _limparCronograma() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Limpar Cronograma',
+          style: TextStyle(color: Colors.red),
+        ),
+        content: const Text(
+          'Deseja apagar todas as datas agendadas para este medicamento?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Limpar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+    setState(() => carregando = true);
+
+    try {
+      await supabase
+          .from('cronograma')
+          .delete()
+          .eq('medicamento_id', widget.medicamento['id']);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cronograma apagado!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+    setState(() => carregando = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2174,6 +2314,13 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
         title: Text('Cronograma: ${widget.medicamento['nome']}'),
         backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_sweep),
+            tooltip: 'Limpar Cronograma',
+            onPressed: _limparCronograma,
+          ),
+        ],
       ),
       body: Column(
         children: [
