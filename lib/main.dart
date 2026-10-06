@@ -1877,9 +1877,18 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
+                        // --- NOVO GATILHO AUTOMÁTICO AQUI ---
+                        onTap: () {
+                          // Abre a calculadora automaticamente se for a primeira vez que toca (campo vazio)
+                          if (concentracaoCtrl.text.isEmpty) {
+                            _abrirCalculadoraSegura();
+                          }
+                        },
                         decoration: InputDecoration(
                           labelText: 'Concentração (mg/mL)',
                           border: const OutlineInputBorder(),
+                          // Mantemos o ícone clicável caso ele queira forçar a
+                          // abertura da calculadora depois de já ter preenchido algo
                           suffixIcon: IconButton(
                             icon: const Icon(
                               Icons.calculate,
