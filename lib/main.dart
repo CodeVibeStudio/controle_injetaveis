@@ -663,7 +663,14 @@ class _SetupEcraState extends State<SetupEcra> {
   final supabase = Supabase.instance.client;
 
   Future<List<dynamic>> obterMedicamentos() async {
-    return await supabase.from('medicamentos').select().order('criado_em');
+    final List<dynamic> res = await supabase
+        .from('medicamentos')
+        .select()
+        .order('criado_em');
+    // Filtra a lista para esconder os medicamentos que fazem parte de um Mix
+    return res
+        .where((m) => !m['nome'].toString().startsWith('[Oculto]'))
+        .toList();
   }
 
   Future<void> _deletarMedicamento(dynamic id) async {
@@ -954,13 +961,33 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
 
   Future<void> _carregarCatalogo() async {
     try {
-      // Chama a função SQL segura em vez de ler a tabela diretamente
       final resposta = await supabase.rpc('obter_nomes_unicos');
 
+      List<Map<String, dynamic>> listaProcessada = [];
+
+      for (var item in resposta) {
+        String nomeReal = item['nome'].toString();
+
+        // Ignora os Mixes, pois não faz sentido puxar um Mix para dentro do Catálogo
+        if (nomeReal.startsWith('Mix')) continue;
+
+        // Se o medicamento estiver oculto, removemos a tag apenas visualmente para o Catálogo
+        if (nomeReal.startsWith('[Oculto] ')) {
+          nomeReal = nomeReal.replaceFirst('[Oculto] ', '');
+          item['nome'] = nomeReal;
+        }
+
+        // Adiciona à lista final apenas se esse nome ainda não existir lá
+        // (evita duplicatas caso você tenha o mesmo medicamento ativo e oculto)
+        if (!listaProcessada.any(
+          (e) => e['nome'].toString().toLowerCase() == nomeReal.toLowerCase(),
+        )) {
+          listaProcessada.add(Map<String, dynamic>.from(item));
+        }
+      }
+
       setState(() {
-        listaCatalogo = List<Map<String, dynamic>>.from(resposta)
-            .where((m) => !m['nome'].toString().startsWith('Mix'))
-            .toList();
+        listaCatalogo = listaProcessada;
         listaCatalogo.sort(
           (a, b) => a['nome'].toString().toLowerCase().compareTo(
             b['nome'].toString().toLowerCase(),
@@ -996,11 +1023,30 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   }
 
   Future<void> _abrirSeletorDeMix() async {
-    if (listaCatalogo.length < 2) {
+    // 1. Busca os medicamentos reais configurados no banco do utilizador
+    setState(() => carregando = true);
+    List<dynamic> meusMedicamentos = [];
+    try {
+      meusMedicamentos = await supabase
+          .from('medicamentos')
+          .select()
+          .order('criado_em');
+    } catch (e) {
+      debugPrint('Erro ao buscar medicamentos para o Mix: $e');
+    }
+    setState(() => carregando = false);
+
+    // 2. Filtra a lista para não permitir misturar um Mix já existente
+    List<Map<String, dynamic>> listaMisturavel =
+        List<Map<String, dynamic>>.from(meusMedicamentos)
+            .where((m) => !m['nome'].toString().startsWith('Mix'))
+            .toList();
+
+    if (listaMisturavel.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Cadastre pelo menos 2 medicamentos primeiro para criar um Mix.',
+            'Configure pelo menos 2 medicamentos no seu Banco primeiro para criar um Mix.',
           ),
           backgroundColor: Colors.red,
         ),
@@ -1024,9 +1070,10 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                 width: double.maxFinite,
                 child: ListView.builder(
                   shrinkWrap: true,
-                  itemCount: listaCatalogo.length,
+                  itemCount: listaMisturavel.length,
                   itemBuilder: (context, index) {
-                    final med = listaCatalogo[index];
+                    final med = listaMisturavel[index];
+                    // Como os medicamentos do banco têm IDs únicos verdadeiros, a seleção individual funcionará agora!
                     final isSelected = selecionados.any(
                       (m) => m['id'] == med['id'],
                     );
@@ -1577,7 +1624,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         // --- INÍCIO DO FILTRO DE QUALIDADE ---
         String nomeDigitado = dados['nome'].toString().trim();
 
-        // Regra 1: Tamanho mínimo (impede abreviações como "A" ou "Tz")
         if (nomeDigitado.length < 3) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -1589,10 +1635,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
               ),
             );
           }
-          return; // Aborta a gravação
+          return;
         }
 
-        // Regra 2: Filtro Anti-Palavrões
         final palavrasProibidas = [
           'merda',
           'bosta',
@@ -1617,25 +1662,39 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                 ),
               );
             }
-            return; // Aborta a gravação
+            return;
           }
         }
 
-        // Regra 3: Padronização (Primeira letra sempre Maiúscula)
         nomeDigitado =
             nomeDigitado[0].toUpperCase() + nomeDigitado.substring(1);
-
-        // Atualiza o dado limpo para ser enviado
         dados['nome'] = nomeDigitado;
         // --- FIM DO FILTRO DE QUALIDADE ---
+
         // 1. Capturar o ID do utilizador
         final usuarioId = supabase.auth.currentUser!.id;
 
         // 2. Injetar o ID nos dados que já estavam prontos
         dados['user_id'] = usuarioId;
 
-        // 3. Fazer o insert normal
+        // 3. Fazer o insert normal do novo Mix
         await supabase.from('medicamentos').insert(dados);
+
+        // --- NOVA LÓGICA DE LIMPEZA ---
+        // Se acabámos de criar um Mix novo, OCULTAMOS os medicamentos base do Banco
+        if (_isMix && !modoEdicao) {
+          for (var baseMed in medicamentosBaseMix) {
+            await supabase
+                .from('cronograma')
+                .delete()
+                .eq('medicamento_id', baseMed['id']);
+            // Oculta o medicamento colocando [Oculto] na frente do nome
+            await supabase
+                .from('medicamentos')
+                .update({'nome': '[Oculto] ${baseMed['nome']}'})
+                .eq('id', baseMed['id']);
+          }
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1648,6 +1707,57 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       }
 
       if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+    setState(() => carregando = false);
+  }
+
+  Future<void> _desmembrarMix() async {
+    setState(() => carregando = true);
+    try {
+      final mixNome = widget.medicamentoEditado!['nome'].toString();
+
+      // 1. Puxar os medicamentos ocultados
+      final ocultos = await supabase
+          .from('medicamentos')
+          .select()
+          .like('nome', '[Oculto]%');
+
+      // 2. Retirar a máscara apenas dos medicamentos que fazem parte deste Mix
+      for (var o in ocultos) {
+        String nomeReal = o['nome'].toString().replaceFirst('[Oculto] ', '');
+        if (mixNome.contains(nomeReal)) {
+          await supabase
+              .from('medicamentos')
+              .update({'nome': nomeReal})
+              .eq('id', o['id']);
+        }
+      }
+
+      // 3. Destruir o Mix e o seu cronograma
+      await supabase
+          .from('cronograma')
+          .delete()
+          .eq('medicamento_id', widget.medicamentoEditado!['id']);
+      await supabase
+          .from('medicamentos')
+          .delete()
+          .eq('id', widget.medicamentoEditado!['id']);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Mix desmembrado! Ajuste as doses e crie novamente.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context); // Volta para a tela inicial
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1699,32 +1809,66 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                       ? 'Obrigatório'
                                       : null,
                                 )
-                              : DropdownButtonFormField<String>(
-                                  isExpanded:
-                                      true, // Garante que não ultrapassa a tela
-                                  initialValue: nomeSelecionado,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Catálogo (Selecionar)',
-                                    border: OutlineInputBorder(),
+                              : Autocomplete<String>(
+                                  initialValue: TextEditingValue(
+                                    text: nomeSelecionado ?? '',
                                   ),
-                                  // Forçamos a tipagem exata da lista aqui:
-                                  items: listaCatalogo
-                                      .map<DropdownMenuItem<String>>((e) {
-                                        return DropdownMenuItem<String>(
-                                          value: e['nome'].toString(),
-                                          child: Text(
-                                            e['nome'].toString(),
-                                            overflow: TextOverflow.ellipsis, // Corta textos grandes com "..."
-                                          ),
+                                  optionsBuilder: (TextEditingValue texto) {
+                                    if (texto.text.isEmpty) {
+                                      return listaCatalogo.map(
+                                        (e) => e['nome'].toString(),
+                                      );
+                                    }
+                                    return listaCatalogo
+                                        .map((e) => e['nome'].toString())
+                                        .where(
+                                          (opcao) =>
+                                              opcao.toLowerCase().contains(
+                                                texto.text.toLowerCase(),
+                                              ),
                                         );
-                                      })
-                                      .toList(),
-                                  onChanged: (val) {
-                                    setState(() => nomeSelecionado = val!);
-                                    _aplicarPreenchimentoSeguro(val!);
                                   },
-                                  validator: (val) =>
-                                      val == null ? 'Obrigatório' : null,
+                                  onSelected: (String selecao) {
+                                    setState(() => nomeSelecionado = selecao);
+                                    _aplicarPreenchimentoSeguro(selecao);
+                                  },
+                                  fieldViewBuilder:
+                                      (
+                                        context,
+                                        controller,
+                                        focusNode,
+                                        onFieldSubmitted,
+                                      ) {
+                                        return TextFormField(
+                                          controller: controller,
+                                          focusNode: focusNode,
+                                          decoration: const InputDecoration(
+                                            labelText:
+                                                'Catálogo (Pesquisar...)',
+                                            border: OutlineInputBorder(),
+                                            suffixIcon: Icon(
+                                              Icons.search,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                          validator: (val) {
+                                            if (val == null || val.isEmpty)
+                                              return 'Obrigatório';
+                                            final existe = listaCatalogo.any(
+                                              (e) =>
+                                                  e['nome'].toString() == val,
+                                            );
+                                            if (!existe)
+                                              return 'Selecione um item da lista';
+                                            return null;
+                                          },
+                                          onChanged: (val) {
+                                            setState(
+                                              () => nomeSelecionado = val,
+                                            );
+                                          },
+                                        );
+                                      },
                                 )),
                   ),
                   if (!modoEdicao &&
@@ -1805,11 +1949,12 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                     border: Border.all(color: Colors.orange),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Column(
+                  child: Column(
+                    // Removido o 'const' daqui
                     children: [
-                      Icon(Icons.science, color: Colors.orange, size: 32),
-                      SizedBox(height: 8),
-                      Text(
+                      const Icon(Icons.science, color: Colors.orange, size: 32),
+                      const SizedBox(height: 8),
+                      const Text(
                         'MODO MIX ATIVADO E TRANCADO',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
@@ -1817,9 +1962,12 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                         ),
                       ),
                       Text(
-                        'O Intervalo, Seringa e Região foram importados automaticamente dos medicamentos originais para garantir a segurança.',
+                        // Adicionado o texto dinâmico aqui
+                        modoEdicao
+                            ? 'Para alterar as doses originais, clique em DESMEMBRAR MIX no final da página. Isso devolverá os medicamentos ao Banco.'
+                            : 'O Intervalo, Seringa e Região foram importados automaticamente dos medicamentos originais para garantir a segurança.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13),
+                        style: const TextStyle(fontSize: 13),
                       ),
                     ],
                   ),
@@ -2070,25 +2218,51 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
               const SizedBox(height: 32),
               carregando
                   ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton.icon(
-                      onPressed: _guardarMedicamento,
-                      icon: const Icon(Icons.save, color: Colors.white),
-                      label: Text(
-                        modoEdicao
-                            ? 'ATUALIZAR MEDICAMENTO'
-                            : 'GUARDAR MEDICAMENTO',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: modoEdicao
-                            ? Colors.orange[800]
-                            : Colors.green[700],
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_isMix && modoEdicao)
+                          ElevatedButton.icon(
+                            onPressed: _desmembrarMix,
+                            icon: const Icon(
+                              Icons.call_split,
+                              color: Colors.white,
+                            ),
+                            label: const Text(
+                              'DESMEMBRAR MIX',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red[700],
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                          )
+                        else
+                          ElevatedButton.icon(
+                            onPressed: _guardarMedicamento,
+                            icon: const Icon(Icons.save, color: Colors.white),
+                            label: Text(
+                              modoEdicao
+                                  ? 'ATUALIZAR MEDICAMENTO'
+                                  : 'GUARDAR MEDICAMENTO',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: modoEdicao
+                                  ? Colors.orange[800]
+                                  : Colors.green[700],
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                          ),
+                      ],
                     ),
             ],
           ),
