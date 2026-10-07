@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -427,6 +428,38 @@ class _DashboardEcraState extends State<DashboardEcra> {
     super.initState();
     _pedirPermissaoNotificacoes();
     _carregarResumo();
+
+    // Assim que a tela é montada, ele roda a verificação
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _verificarTermos();
+    });
+  }
+
+  Future<void> _verificarTermos() async {
+    final usuarioId = supabase.auth.currentUser?.id;
+    if (usuarioId == null) return;
+
+    try {
+      // Verifica no banco de dados na nuvem se o utilizador já assinou
+      final resposta = await supabase
+          .from('aceites_termos')
+          .select()
+          .eq('user_id', usuarioId);
+
+      // Se a lista voltar vazia, ele ainda não aceitou
+      if (resposta.isEmpty) {
+        if (mounted) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const GuiaFaqEcra(obrigatorio: true),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Erro ao verificar termos: $e');
+    }
   }
 
   void _pedirPermissaoNotificacoes() async {
@@ -487,7 +520,18 @@ class _DashboardEcraState extends State<DashboardEcra> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'Guia e Termos',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const GuiaFaqEcra()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
+            tooltip: 'Sair',
             onPressed: () async => await supabase.auth.signOut(),
           ),
         ],
@@ -1852,14 +1896,16 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                             ),
                                           ),
                                           validator: (val) {
-                                            if (val == null || val.isEmpty)
+                                            if (val == null || val.isEmpty) {
                                               return 'Obrigatório';
+                                            }
                                             final existe = listaCatalogo.any(
                                               (e) =>
                                                   e['nome'].toString() == val,
                                             );
-                                            if (!existe)
+                                            if (!existe) {
                                               return 'Selecione um item da lista';
+                                            }
                                             return null;
                                           },
                                           onChanged: (val) {
@@ -2336,7 +2382,123 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
     return [regiaoBase];
   }
 
-  Future<void> gerarDoses() async {
+  Future<void> _abrirDialogoGeracao() async {
+    int opcaoSelecionada = 0; // 0 = Tudo, 1 = 1 Mês, 2 = Personalizado
+    final TextEditingController customCtrl = TextEditingController();
+
+    // Captura o intervalo de dias do medicamento atual
+    final int intervaloDias =
+        int.tryParse(widget.medicamento['intervalo_dias'].toString()) ?? 7;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.date_range, color: Color(0xFF1E3A8A)),
+                  SizedBox(width: 8),
+                  Text(
+                    'Período do Cronograma',
+                    style: TextStyle(fontSize: 18, color: Color(0xFF1E3A8A)),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<int>(
+                    title: const Text('Até acabar o frasco'),
+                    subtitle: const Text(
+                      'Calcula todas as doses possíveis (Padrão)',
+                    ),
+                    value: 0,
+                    groupValue: opcaoSelecionada,
+                    activeColor: Colors.green,
+                    onChanged: (val) =>
+                        setStateDialog(() => opcaoSelecionada = val!),
+                  ),
+                  RadioListTile<int>(
+                    title: const Text('Apenas 1 Mês (28 dias)'),
+                    subtitle: const Text(
+                      'Ideal para aumentar a dose no próximo mês (Titulação)',
+                    ),
+                    value: 1,
+                    groupValue: opcaoSelecionada,
+                    activeColor: Colors.orange,
+                    onChanged: (val) =>
+                        setStateDialog(() => opcaoSelecionada = val!),
+                  ),
+                  RadioListTile<int>(
+                    title: const Text('Personalizado'),
+                    value: 2,
+                    groupValue: opcaoSelecionada,
+                    activeColor: Colors.blue,
+                    onChanged: (val) =>
+                        setStateDialog(() => opcaoSelecionada = val!),
+                  ),
+                  if (opcaoSelecionada == 2)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 24,
+                        right: 24,
+                        top: 8,
+                      ),
+                      child: TextField(
+                        controller: customCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Quantidade de injeções',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text(
+                    'CANCELAR',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx); // Fecha o pop-up
+                    int? limiteDeInjecoes;
+
+                    if (opcaoSelecionada == 1) {
+                      limiteDeInjecoes = (28 / intervaloDias).floor();
+                      if (limiteDeInjecoes == 0) limiteDeInjecoes = 1;
+                    } else if (opcaoSelecionada == 2) {
+                      limiteDeInjecoes = int.tryParse(customCtrl.text);
+                      if (limiteDeInjecoes == null || limiteDeInjecoes <= 0) {
+                        return;
+                      }
+                    }
+
+                    gerarDoses(limite: limiteDeInjecoes);
+                  },
+                  child: const Text(
+                    'GERAR',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> gerarDoses({int? limite}) async {
     setState(() => carregando = true);
     try {
       String textoDoseAjustada = widget.medicamento['detalhes_dose'] ?? '';
@@ -2373,6 +2535,11 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       );
 
       for (int i = 0; i < totalDoses; i++) {
+        // NOVA TRAVA DE LIMITE AQUI:
+        if (limite != null && i >= limite) {
+          break;
+        }
+
         String localAtual = locaisRodizio[i % locaisRodizio.length];
 
         loteAplicacoes.add({
@@ -2545,7 +2712,7 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                             width: double.infinity,
                             height: 50,
                             child: ElevatedButton.icon(
-                              onPressed: gerarDoses,
+                              onPressed: _abrirDialogoGeracao,
                               icon: const Icon(
                                 Icons.calendar_month,
                                 color: Colors.white,
@@ -2654,6 +2821,272 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ==========================================================
+// ECRÃ DE GUIA, FAQ E TERMOS DE RESPONSABILIDADE
+// ==========================================================
+class GuiaFaqEcra extends StatefulWidget {
+  final bool obrigatorio;
+  const GuiaFaqEcra({super.key, this.obrigatorio = false});
+
+  @override
+  State<GuiaFaqEcra> createState() => _GuiaFaqEcraState();
+}
+
+class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
+  bool _aceitouTermos = false;
+
+  Widget _buildSectionCard({
+    required String titulo,
+    required Color cor,
+    required IconData icone,
+    required String conteudo,
+  }) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: cor.withOpacity(0.3)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icone, color: cor, size: 28),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    titulo,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: cor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(),
+            const SizedBox(height: 8),
+            Text(
+              conteudo,
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.5,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: !widget.obrigatorio,
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: !widget.obrigatorio,
+          title: const Text(
+            'Guia e Termos de Uso',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: const Color(0xFF1E3A8A),
+          foregroundColor: Colors.white,
+          actions: [
+            if (widget.obrigatorio)
+              IconButton(
+                icon: const Icon(Icons.logout),
+                tooltip: 'Sair do App',
+                onPressed: () async {
+                  await Supabase.instance.client.auth.signOut();
+                  if (context.mounted) Navigator.pop(context);
+                },
+              ),
+          ],
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _buildSectionCard(
+                    titulo: '🚨 AVISO MÉDICO IMPORTANTE',
+                    cor: Colors.red[900]!,
+                    icone: Icons.warning_amber_rounded,
+                    conteudo:
+                        'Este aplicativo é exclusivamente uma ferramenta de apoio logístico e matemático. ELE NÃO SUBSTITUI A ORIENTAÇÃO MÉDICA.\n\n'
+                        '• O aplicativo não receita, não prescreve e não recomenda tratamentos.\n'
+                        '• Em caso de dor extrema, febre, vermelhidão intensa, inchaço, falta de ar ou qualquer mal-estar após uma aplicação, PROCURE UMA EMERGÊNCIA HOSPITALAR IMEDIATAMENTE ou contacte o seu médico.\n'
+                        '• Nunca inicie ou altere dosagens sem o conhecimento e autorização do seu profissional de saúde.',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildSectionCard(
+                    titulo: '⚖️ TERMOS DE RESPONSABILIDADE',
+                    cor: Colors.orange[900]!,
+                    icone: Icons.gavel,
+                    conteudo:
+                        'Ao utilizar o Controle Injetáveis, o usuário declara estar plenamente ciente de que:\n\n'
+                        '1. O usuário assume TOTAL e exclusiva responsabilidade pelas doses inseridas, misturas (Mix) criadas e pelas aplicações realizadas no próprio corpo.\n'
+                        '2. Os desenvolvedores (CodeVibe Studio) NÃO se responsabilizam sob nenhuma hipótese por erros de preenchimento, cálculos equivocados gerados por introdução de dados incorretos, lesões, infecções ou quaisquer danos à saúde.\n'
+                        '3. O utilizador isenta os criadores do aplicativo de qualquer complicação clínica ou responsabilidade legal decorrente do uso desta ferramenta.',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildSectionCard(
+                    titulo: '🧼 HIGIENE E ASSEPSIA',
+                    cor: Colors.teal[800]!,
+                    icone: Icons.clean_hands,
+                    conteudo:
+                        'A falta de higiene pode causar infecções graves e abcessos. Siga rigorosamente os passos abaixo em todas as aplicações:\n\n'
+                        '• Lave muito bem as mãos com água e sabão antes de tocar nos materiais.\n'
+                        '• Limpe a borracha do bujão ou a ponta da ampola com algodão e Álcool 70%.\n'
+                        '• Faça a assepsia do local da injeção na pele com Álcool 70% e deixe secar naturalmente.\n'
+                        '• Utilize APENAS seringas e agulhas estéreis, de uso único (descartáveis). NUNCA reutilize agulhas ou seringas.\n'
+                        '• Descarte todo o material perfurocortante em recipiente adequado (ex: Descarpack) e entregue num posto de saúde. Não jogue no lixo comum!',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildSectionCard(
+                    titulo: '📱 COMO USAR O APLICATIVO',
+                    cor: const Color(0xFF1E3A8A),
+                    icone: Icons.help_center,
+                    conteudo:
+                        '• Banco de Medicamentos: Comece por aqui. Cadastre os seus frascos preenchendo a Concentração (mg/mL) e a Dose Semanal. O app calculará o volume e a seringa exata.\n\n'
+                        '• Calculadora Segura: Ao clicar no campo "Concentração", o app abre uma calculadora que divide os "mg totais" pelos "mL totais" do rótulo, prevenindo erros em peptídeos.\n\n'
+                        '• Criar Mix: Permite misturar 2 ou mais medicamentos na mesma seringa. Para garantir segurança, eles precisam estar configurados com o mesmo "Intervalo" e "Região Base".\n\n'
+                        '• Desmembrar Mix: Caso o médico peça para ajustar a dose de apenas 1 medicamento do seu Mix, clique neste botão. O Mix será desfeito, os medicamentos originais voltam ao Banco, você ajusta a dose e recria o Mix.\n\n'
+                        '• Gerar Cronograma: Ao clicar para gerar as datas, você pode escolher calcular "Até o frasco acabar" ou gerar "Apenas 1 Mês". Gerar por mês é ideal para tratamentos onde a dose vai aumentar gradativamente (Titulação).',
+                  ),
+                ],
+              ),
+            ),
+
+            if (widget.obrigatorio)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 6,
+                      offset: Offset(0, -3),
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: Checkbox(
+                              value: _aceitouTermos,
+                              activeColor: Colors.green[700],
+                              onChanged: (val) {
+                                setState(() => _aceitouTermos = val ?? false);
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              'Declaro que li as instruções, estou ciente dos riscos médicos e aceito os Termos de Responsabilidade e Isenção.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _aceitouTermos
+                              ? () async {
+                                  final usuarioId = Supabase
+                                      .instance
+                                      .client
+                                      .auth
+                                      .currentUser!
+                                      .id;
+
+                                  try {
+                                    // 1. Grava o aceite oficialmente na nuvem (Supabase)
+                                    await Supabase.instance.client
+                                        .from('aceites_termos')
+                                        .insert({'user_id': usuarioId});
+
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Termos aceitos e registados. Uso liberado!',
+                                              ),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                      Navigator.pop(
+                                        context,
+                                      ); // Libera a entrada no App
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Erro ao registar: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                }
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green[700],
+                            disabledBackgroundColor: Colors.grey[300],
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'ESTOU CIENTE E ACEITO',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
