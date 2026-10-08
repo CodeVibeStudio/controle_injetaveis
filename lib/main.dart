@@ -1,3 +1,4 @@
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +8,7 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 // ==========================================================
-// MOTOR DE NOTIFICAÇÕES
+// MOTOR DE NOTIFICAÇÕES CORRIGIDO
 // ==========================================================
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -18,12 +19,21 @@ Future<void> agendarNotificacao(
   String corpo,
   DateTime dataAgendada,
 ) async {
-  final dataHoraDisparo = tz.TZDateTime.from(
-    DateTime(dataAgendada.year, dataAgendada.month, dataAgendada.day, 8, 0),
-    tz.local,
-  );
+  // Agora extrai o momento exato (Data + Hora) do objeto dataAgendada
+  tz.TZDateTime dataHoraDisparo = tz.TZDateTime.from(dataAgendada, tz.local);
 
-  if (dataHoraDisparo.isBefore(tz.TZDateTime.now(tz.local))) return;
+  final agora = tz.TZDateTime.now(tz.local);
+
+  if (dataHoraDisparo.isBefore(agora)) {
+    if (dataAgendada.year == agora.year &&
+        dataAgendada.month == agora.month &&
+        dataAgendada.day == agora.day) {
+      dataHoraDisparo = agora.add(const Duration(minutes: 1));
+    } else {
+      // Se for de dias anteriores (passado), ignora o alarme
+      return;
+    }
+  }
 
   const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
     'canal_injetaveis',
@@ -31,7 +41,7 @@ Future<void> agendarNotificacao(
     channelDescription: 'Canal para avisar sobre os dias de aplicação.',
     importance: Importance.max,
     priority: Priority.high,
-    icon: '@mipmap/launcher_icon',
+    icon: '@mipmap/ic_launcher', // ÍCONE CORRIGIDO
   );
   const NotificationDetails platformDetails = NotificationDetails(
     android: androidDetails,
@@ -51,8 +61,40 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz.initializeTimeZones();
 
+  // Bypass dinâmico: Converte o retorno para dynamic para evitar que o
+  // compilador bloqueie a build devido a mudanças na API da classe TimezoneInfo.
+  final dynamic tzResult = await FlutterTimezone.getLocalTimezone();
+
+  // Fallback de segurança garantido para o fuso horário local
+  String timeZoneName = 'America/Sao_Paulo';
+
+  if (tzResult is String) {
+    timeZoneName = tzResult;
+  } else {
+    // Tenta extrair a string nas nomenclaturas mais comuns das versões recentes
+    try {
+      timeZoneName = tzResult.timezone;
+    } catch (_) {
+      try {
+        timeZoneName = tzResult.id;
+      } catch (_) {
+        try {
+          timeZoneName = tzResult.iana;
+        } catch (_) {
+          // Se a API mudar completamente no futuro, mantém o fallback America/Sao_Paulo
+          debugPrint(
+            'Aviso: Propriedade do TimezoneInfo não mapeada. Usando fallback.',
+          );
+        }
+      }
+    }
+  }
+
+  tz.setLocalLocation(tz.getLocation(timeZoneName));
+
   const AndroidInitializationSettings initSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/launcher_icon');
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+
   const InitializationSettings initSettings = InitializationSettings(
     android: initSettingsAndroid,
   );
@@ -123,6 +165,42 @@ class _LoginEcraState extends State<LoginEcra> {
   final passwordController = TextEditingController();
   bool carregando = false;
 
+  // NOVA FUNÇÃO: Traduz os erros técnicos do Supabase para português amigável
+  String _traduzirErro(Object erro) {
+    final String msg = erro.toString();
+    if (msg.contains('Invalid login credentials')) {
+      return 'Email ou palavra-passe incorretos.';
+    } else if (msg.contains('missing email or phone') ||
+        msg.contains('Anonymous sign-ins are disabled') ||
+        msg.contains('validation_failed')) {
+      return 'Por favor, preencha o email e a palavra-passe.';
+    } else if (msg.contains('User already registered')) {
+      return 'Este email já está registado no sistema.';
+    } else if (msg.contains('Password should be at least')) {
+      return 'A palavra-passe deve ter pelo menos 6 caracteres.';
+    } else if (msg.contains('Unable to validate email address')) {
+      return 'Formato de email inválido.';
+    }
+    return 'Ocorreu um erro. Verifique os dados e tente novamente.';
+  }
+
+  // NOVA FUNÇÃO: Cria um alerta visual moderno e amigável
+  void _mostrarAviso(String mensagem, Color cor) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          mensagem,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: cor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   Future<void> entrar() async {
     setState(() => carregando = true);
     try {
@@ -131,11 +209,7 @@ class _LoginEcraState extends State<LoginEcra> {
         password: passwordController.text.trim(),
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
-        );
-      }
+      _mostrarAviso(_traduzirErro(e), Colors.red[700]!);
     }
     setState(() => carregando = false);
   }
@@ -147,45 +221,33 @@ class _LoginEcraState extends State<LoginEcra> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+      _mostrarAviso(
+        'Conta criada! Verifique o seu email (e a pasta SPAM) para confirmar.',
+        Colors.green[700]!,
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
-        );
-      }
+      _mostrarAviso(_traduzirErro(e), Colors.red[700]!);
     }
     setState(() => carregando = false);
   }
 
   Future<void> recuperarSenha() async {
-    if (emailController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Por favor, digite o seu email para recuperar a senha.',
-          ),
-          backgroundColor: Colors.orange,
-        ),
+    if (emailController.text.trim().isEmpty) {
+      _mostrarAviso(
+        'Por favor, digite o seu email para recuperar a senha.',
+        Colors.orange[800]!,
       );
       return;
     }
     setState(() => carregando = true);
     try {
       await supabase.auth.resetPasswordForEmail(emailController.text.trim());
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Email de recuperação enviado!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      _mostrarAviso(
+        'Se o email existir, receberá um link de recuperação.',
+        Colors.green[700]!,
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
-        );
-      }
+      _mostrarAviso(_traduzirErro(e), Colors.red[700]!);
     }
     setState(() => carregando = false);
   }
@@ -952,6 +1014,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   int? seringaSelecionada;
   String? regiaoSelecionada;
   DateTime dataInicio = DateTime.now();
+  TimeOfDay horaInicio = const TimeOfDay(hour: 8, minute: 0); // NOVO ESTADO
 
   String textoDetalhesDose = '';
 
@@ -983,8 +1046,15 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           DateTime.tryParse(widget.medicamentoEditado!['data_inicio']) ??
           DateTime.now();
 
-      if (widget.medicamentoEditado!['detalhes_dose'] != null) {
-        textoDetalhesDose = widget.medicamentoEditado!['detalhes_dose'];
+      // NOVA RECUPERAÇÃO DA HORA
+      if (widget.medicamentoEditado!['hora_aplicacao'] != null) {
+        final partesHora = widget.medicamentoEditado!['hora_aplicacao']
+            .toString()
+            .split(':');
+        horaInicio = TimeOfDay(
+          hour: int.parse(partesHora[0]),
+          minute: int.parse(partesHora[1]),
+        );
       }
 
       if (nomeCtrl.text.startsWith('Mix:')) _isMix = true;
@@ -1523,6 +1593,22 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     }
   }
 
+  Future<void> _escolherHora(BuildContext context) async {
+    final TimeOfDay? selecionada = await showTimePicker(
+      context: context,
+      initialTime: horaInicio,
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(primary: Color(0xFF1E3A8A)),
+        ),
+        child: child!,
+      ),
+    );
+    if (selecionada != null && selecionada != horaInicio) {
+      setState(() => horaInicio = selecionada);
+    }
+  }
+
   Future<void> _guardarMedicamento() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -1626,6 +1712,8 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           'unidade_dose': 'mL',
           'intervalo_dias': intervaloFinal,
           'data_inicio': dataInicio.toIso8601String().split('T')[0],
+          'hora_aplicacao':
+              '${horaInicio.hour.toString().padLeft(2, '0')}:${horaInicio.minute.toString().padLeft(2, '0')}', // ADICIONADO
           'seringa_ui': seringaSelecionada,
           'regiao_rodizio': regiaoSelecionada,
           'detalhes_dose': textoDetalhesDose,
@@ -1645,6 +1733,8 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           'unidade_dose': unidadeSelecionada,
           'intervalo_dias': intervaloFinal,
           'data_inicio': dataInicio.toIso8601String().split('T')[0],
+          'hora_aplicacao':
+              '${horaInicio.hour.toString().padLeft(2, '0')}:${horaInicio.minute.toString().padLeft(2, '0')}', // ADICIONADO
           'seringa_ui': seringaSelecionada,
           'regiao_rodizio': regiaoSelecionada,
           'detalhes_dose': textoDetalhesDose,
@@ -2242,24 +2332,55 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                 ],
               ),
               const SizedBox(height: 16),
-              InkWell(
-                onTap: () => _escolherData(context),
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Data de Início',
-                    border: OutlineInputBorder(),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${dataInicio.day.toString().padLeft(2, '0')}/${dataInicio.month.toString().padLeft(2, '0')}/${dataInicio.year}',
-                        style: const TextStyle(fontSize: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _escolherData(context),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Data de Início',
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${dataInicio.day.toString().padLeft(2, '0')}/${dataInicio.month.toString().padLeft(2, '0')}/${dataInicio.year}',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const Icon(
+                              Icons.calendar_today,
+                              color: Colors.grey,
+                            ),
+                          ],
+                        ),
                       ),
-                      const Icon(Icons.calendar_today, color: Colors.grey),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 16), // Espaço entre os botões
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _escolherHora(context),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Hora da Aplicação',
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${horaInicio.hour.toString().padLeft(2, '0')}:${horaInicio.minute.toString().padLeft(2, '0')}',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const Icon(Icons.access_time, color: Colors.orange),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 32),
               carregando
@@ -2534,6 +2655,11 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
         widget.medicamento['data_inicio'].toString(),
       );
 
+      // LER HORA CONFIGURADA (com fallback para 08:00 por segurança)
+      String horaStr = widget.medicamento['hora_aplicacao'] ?? '08:00';
+      int horaDisp = int.parse(horaStr.split(':')[0]);
+      int minDisp = int.parse(horaStr.split(':')[1]);
+
       for (int i = 0; i < totalDoses; i++) {
         // NOVA TRAVA DE LIMITE AQUI:
         if (limite != null && i >= limite) {
@@ -2541,6 +2667,15 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
         }
 
         String localAtual = locaisRodizio[i % locaisRodizio.length];
+
+        // FUNDIR DATA E HORA AQUI
+        DateTime dataHoraExata = DateTime(
+          dataBase.year,
+          dataBase.month,
+          dataBase.day,
+          horaDisp,
+          minDisp,
+        );
 
         loteAplicacoes.add({
           'medicamento_id': widget.medicamento['id'],
@@ -2850,7 +2985,7 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: cor.withOpacity(0.3)),
+        side: BorderSide(color: cor.withValues(alpha: 0.3)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
