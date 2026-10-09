@@ -58,55 +58,91 @@ Future<void> agendarNotificacao(
 }
 
 void main() async {
+  // Garante que a ligação com o motor nativo está pronta
   WidgetsFlutterBinding.ensureInitialized();
-  tz.initializeTimeZones();
 
-  // Bypass dinâmico: Converte o retorno para dynamic para evitar que o
-  // compilador bloqueie a build devido a mudanças na API da classe TimezoneInfo.
-  final dynamic tzResult = await FlutterTimezone.getLocalTimezone();
+  try {
+    tz.initializeTimeZones();
 
-  // Fallback de segurança garantido para o fuso horário local
-  String timeZoneName = 'America/Sao_Paulo';
+    // Bypass dinâmico do Fuso Horário
+    final dynamic tzResult = await FlutterTimezone.getLocalTimezone();
+    String timeZoneName = 'America/Sao_Paulo';
 
-  if (tzResult is String) {
-    timeZoneName = tzResult;
-  } else {
-    // Tenta extrair a string nas nomenclaturas mais comuns das versões recentes
-    try {
-      timeZoneName = tzResult.timezone;
-    } catch (_) {
+    if (tzResult is String) {
+      timeZoneName = tzResult;
+    } else {
       try {
-        timeZoneName = tzResult.id;
+        timeZoneName = tzResult.timezone;
       } catch (_) {
         try {
-          timeZoneName = tzResult.iana;
+          timeZoneName = tzResult.id;
         } catch (_) {
-          // Se a API mudar completamente no futuro, mantém o fallback America/Sao_Paulo
-          debugPrint(
-            'Aviso: Propriedade do TimezoneInfo não mapeada. Usando fallback.',
-          );
+          try {
+            timeZoneName = tzResult.iana;
+          } catch (_) {}
         }
       }
     }
+
+    tz.setLocalLocation(tz.getLocation(timeZoneName));
+
+    const AndroidInitializationSettings initSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const InitializationSettings initSettings = InitializationSettings(
+      android: initSettingsAndroid,
+    );
+
+    await flutterLocalNotificationsPlugin.initialize(settings: initSettings);
+
+    // Inicializa o Supabase (Se falhar aqui por falta de internet, o catch apanha!)
+    await Supabase.initialize(
+      url: 'https://fdwrcrkjudadnwcqheoq.supabase.co',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkd3JjcmtqdWRhZG53Y3FoZW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2OTUyODUsImV4cCI6MjEwNjI3MTI4NX0.0nzSgxmFp3Tc7PGcMKyBP3cTUrzXlR9mlj3NcVkQFUE',
+    );
+
+    // Se tudo correr bem, arranca a aplicação normal
+    runApp(const InjetaveisApp());
+  } catch (e, stackTrace) {
+    debugPrint('Erro fatal na inicialização: $e\n$stackTrace');
+
+    // Impede a tela branca desenhando uma tela de erro de emergência
+    runApp(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.wifi_off, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Falha ao iniciar o aplicativo',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Verifique a sua ligação à internet e tente novamente. O aplicativo requer internet para sincronizar com o servidor seguro.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Detalhe técnico: $e',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
-
-  tz.setLocalLocation(tz.getLocation(timeZoneName));
-
-  const AndroidInitializationSettings initSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  const InitializationSettings initSettings = InitializationSettings(
-    android: initSettingsAndroid,
-  );
-
-  await flutterLocalNotificationsPlugin.initialize(settings: initSettings);
-
-  await Supabase.initialize(
-    url: 'https://fdwrcrkjudadnwcqheoq.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkd3JjcmtqdWRhZG53Y3FoZW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2OTUyODUsImV4cCI6MjEwNjI3MTI4NX0.0nzSgxmFp3Tc7PGcMKyBP3cTUrzXlR9mlj3NcVkQFUE',
-  );
-
-  runApp(const InjetaveisApp());
 }
 
 class InjetaveisApp extends StatelessWidget {
