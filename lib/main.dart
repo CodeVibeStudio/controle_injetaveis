@@ -3049,7 +3049,7 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
   }
 
   Future<void> _abrirDialogoGeracao() async {
-    int opcaoSelecionada = 0; // 0 = Tudo, 1 = 1 Mês, 2 = Personalizado
+    int opcaoSelecionada = 0; // 0=Tudo, 1=Semanas, 2=Meses, 3=Injeções
     final TextEditingController customCtrl = TextEditingController();
 
     // Captura o intervalo de dias do medicamento atual
@@ -3072,56 +3072,74 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                   ),
                 ],
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  RadioListTile<int>(
-                    title: const Text('Até acabar o frasco'),
-                    subtitle: const Text(
-                      'Calcula todas as doses possíveis (Padrão)',
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RadioListTile<int>(
+                      title: const Text('Até acabar o frasco'),
+                      value: 0,
+                      groupValue: opcaoSelecionada,
+                      activeColor: Colors.green,
+                      onChanged: (val) => setStateDialog(() {
+                        opcaoSelecionada = val!;
+                        customCtrl.clear();
+                      }),
                     ),
-                    value: 0,
-                    groupValue: opcaoSelecionada,
-                    activeColor: Colors.green,
-                    onChanged: (val) =>
-                        setStateDialog(() => opcaoSelecionada = val!),
-                  ),
-                  RadioListTile<int>(
-                    title: const Text('Apenas 1 Mês (28 dias)'),
-                    subtitle: const Text(
-                      'Ideal para aumentar a dose no próximo mês (Titulação)',
+                    RadioListTile<int>(
+                      title: const Text('Por Semanas'),
+                      subtitle: const Text('Ex: 8 Semanas de ciclo'),
+                      value: 1,
+                      groupValue: opcaoSelecionada,
+                      activeColor: Colors.orange,
+                      onChanged: (val) => setStateDialog(() {
+                        opcaoSelecionada = val!;
+                        customCtrl.clear();
+                      }),
                     ),
-                    value: 1,
-                    groupValue: opcaoSelecionada,
-                    activeColor: Colors.orange,
-                    onChanged: (val) =>
-                        setStateDialog(() => opcaoSelecionada = val!),
-                  ),
-                  RadioListTile<int>(
-                    title: const Text('Personalizado'),
-                    value: 2,
-                    groupValue: opcaoSelecionada,
-                    activeColor: Colors.blue,
-                    onChanged: (val) =>
-                        setStateDialog(() => opcaoSelecionada = val!),
-                  ),
-                  if (opcaoSelecionada == 2)
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: 24,
-                        right: 24,
-                        top: 8,
-                      ),
-                      child: TextField(
-                        controller: customCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Quantidade de injeções',
-                          border: OutlineInputBorder(),
+                    RadioListTile<int>(
+                      title: const Text('Por Meses'),
+                      subtitle: const Text('Ex: 3 Meses (90 dias)'),
+                      value: 2,
+                      groupValue: opcaoSelecionada,
+                      activeColor: Colors.blue,
+                      onChanged: (val) => setStateDialog(() {
+                        opcaoSelecionada = val!;
+                        customCtrl.clear();
+                      }),
+                    ),
+                    RadioListTile<int>(
+                      title: const Text('Por Qtd. de Injeções'),
+                      value: 3,
+                      groupValue: opcaoSelecionada,
+                      activeColor: Colors.purple,
+                      onChanged: (val) => setStateDialog(() {
+                        opcaoSelecionada = val!;
+                        customCtrl.clear();
+                      }),
+                    ),
+                    if (opcaoSelecionada != 0)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          left: 24,
+                          right: 24,
+                          top: 8,
+                        ),
+                        child: TextField(
+                          controller: customCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: opcaoSelecionada == 1
+                                ? 'Quantas semanas?'
+                                : (opcaoSelecionada == 2
+                                      ? 'Quantos meses?'
+                                      : 'Quantas injeções?'),
+                            border: const OutlineInputBorder(),
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -3136,19 +3154,31 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                     backgroundColor: Colors.green,
                   ),
                   onPressed: () {
-                    Navigator.pop(ctx); // Fecha o pop-up
                     int? limiteDeInjecoes;
 
-                    if (opcaoSelecionada == 1) {
-                      limiteDeInjecoes = (28 / intervaloDias).floor();
-                      if (limiteDeInjecoes == 0) limiteDeInjecoes = 1;
-                    } else if (opcaoSelecionada == 2) {
-                      limiteDeInjecoes = int.tryParse(customCtrl.text);
-                      if (limiteDeInjecoes == null || limiteDeInjecoes <= 0) {
-                        return;
+                    if (opcaoSelecionada != 0) {
+                      int valor = int.tryParse(customCtrl.text) ?? 0;
+                      if (valor <= 0)
+                        return; // Bloqueia se estiver vazio ou zero
+
+                      if (opcaoSelecionada == 1) {
+                        // Semanas -> converte para dias e divide pelo intervalo
+                        int totalDias = valor * 7;
+                        limiteDeInjecoes = (totalDias / intervaloDias).floor();
+                      } else if (opcaoSelecionada == 2) {
+                        // Meses -> converte para dias (aproximado 30) e divide
+                        int totalDias = valor * 30;
+                        limiteDeInjecoes = (totalDias / intervaloDias).floor();
+                      } else if (opcaoSelecionada == 3) {
+                        // Injeções exatas
+                        limiteDeInjecoes = valor;
                       }
+
+                      // Garante que gera pelo menos 1 injeção se a matemática der zero
+                      if (limiteDeInjecoes == 0) limiteDeInjecoes = 1;
                     }
 
+                    Navigator.pop(ctx); // Fecha o pop-up
                     gerarDoses(limite: limiteDeInjecoes);
                   },
                   child: const Text(
