@@ -1,5 +1,5 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -41,7 +41,7 @@ Future<void> agendarNotificacao(
     channelDescription: 'Canal para avisar sobre os dias de aplicação.',
     importance: Importance.max,
     priority: Priority.high,
-    icon: '@mipmap/ic_launcher', // ÍCONE CORRIGIDO
+    icon: '@mipmap/launcher_icon', // ÍCONE CORRIGIDO
   );
   const NotificationDetails platformDetails = NotificationDetails(
     android: androidDetails,
@@ -87,7 +87,7 @@ void main() async {
     tz.setLocalLocation(tz.getLocation(timeZoneName));
 
     const AndroidInitializationSettings initSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@mipmap/launcher_icon');
 
     const InitializationSettings initSettings = InitializationSettings(
       android: initSettingsAndroid,
@@ -151,7 +151,7 @@ class InjetaveisApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Sistema Injetáveis',
+      title: 'Controle de Injetáveis',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primaryColor: const Color(0xFF1E3A8A),
@@ -330,7 +330,7 @@ class _LoginEcraState extends State<LoginEcra> {
                       ),
                       const SizedBox(height: 16),
                       const Text(
-                        'Sistema Injetáveis',
+                        'Controle de Injetáveis',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -518,16 +518,24 @@ class DashboardEcra extends StatefulWidget {
 class _DashboardEcraState extends State<DashboardEcra> {
   final supabase = Supabase.instance.client;
   bool carregando = true;
-  Map<String, dynamic>? proximaDose;
-  Map<String, dynamic>? ultimaDose;
+  List<dynamic> proximasDoses = [];
+  List<dynamic> ultimasDoses = [];
+
+  // ==========================================
+  // VARIÁVEIS DO CÉREBRO DE EXAMES
+  // ==========================================
+  DateTime? proximaDataExame;
+  List<String> listaExamesSugeridos = [];
+  int diasParaExame = 999;
+  bool exigeExames = false;
 
   @override
   void initState() {
     super.initState();
     _pedirPermissaoNotificacoes();
     _carregarResumo();
+    _calcularExames(); // Chama a IA de Exames
 
-    // Assim que a tela é montada, ele roda a verificação
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _verificarTermos();
     });
@@ -536,15 +544,11 @@ class _DashboardEcraState extends State<DashboardEcra> {
   Future<void> _verificarTermos() async {
     final usuarioId = supabase.auth.currentUser?.id;
     if (usuarioId == null) return;
-
     try {
-      // Verifica no banco de dados na nuvem se o utilizador já assinou
       final resposta = await supabase
           .from('aceites_termos')
           .select()
           .eq('user_id', usuarioId);
-
-      // Se a lista voltar vazia, ele ainda não aceitou
       if (resposta.isEmpty) {
         if (mounted) {
           await Navigator.push(
@@ -571,6 +575,245 @@ class _DashboardEcraState extends State<DashboardEcra> {
     }
   }
 
+  // ==========================================
+  // O CÉREBRO ANALÍTICO (MOTOR CLÍNICO)
+  // ==========================================
+  Future<void> _calcularExames() async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      // 1. Busca os dados demográficos (Idade e Sexo)
+      final perfil = await supabase
+          .from('perfis')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
+      String genero = perfil != null && perfil['genero'] != null
+          ? perfil['genero']
+          : 'Masculino';
+      int idade = 30; // Idade padrão segura
+      if (perfil != null && perfil['data_nascimento'] != null) {
+        DateTime nascimento = DateTime.parse(perfil['data_nascimento']);
+        idade = DateTime.now().year - nascimento.year;
+      }
+
+      // 2. Busca os tratamentos ativos
+      final tratamentos = await supabase
+          .from('medicamentos')
+          .select('categoria_clinica, data_inicio')
+          .order('data_inicio', ascending: false);
+
+      if (tratamentos.isEmpty) {
+        setState(() => exigeExames = false);
+        return;
+      }
+
+      bool isHormonal = false;
+      bool isMetabolico = false;
+      DateTime inicioMaisRecente = DateTime.parse(
+        tratamentos.last['data_inicio'].toString(),
+      );
+
+      for (var med in tratamentos) {
+        String cat = med['categoria_clinica'].toString();
+        DateTime dt = DateTime.parse(med['data_inicio'].toString());
+
+        // Pega a data do medicamento que começou MAIS TARDE (para o período de adaptação bater certo)
+        if (dt.isAfter(inicioMaisRecente)) inicioMaisRecente = dt;
+
+        if (cat.contains('Testosterona') ||
+            cat.contains('DHT') ||
+            cat.contains('19-Nor') ||
+            cat.contains('Mix')) {
+          isHormonal = true;
+        } else if (cat.contains('GLP-1')) {
+          isMetabolico = true;
+        }
+      }
+
+      if (!isHormonal && !isMetabolico) {
+        setState(
+          () => exigeExames = false,
+        ); // Peptídeos leves e vitaminas não ativam este alerta agressivo
+        return;
+      }
+
+      // 3. Monta o Painel de Sangue Dinâmico
+      Set<String> exames = {
+        'Hemograma Completo',
+        'Perfil Lipídico Completo (HDL, LDL, Triglicerídeos)',
+        'Função Hepática (TGO, TGP, Gama-GT)',
+      };
+
+      if (isHormonal) {
+        exames.addAll(['Testosterona Total e Livre', 'Estradiol (E2)', 'SHBG']);
+        if (genero == 'Masculino' && idade >= 40) {
+          exames.add('PSA Total e Livre (Próstata)');
+        }
+      }
+
+      if (isMetabolico) {
+        exames.addAll([
+          'Glicemia em Jejum',
+          'Insulina Basal',
+          'Hemoglobina Glicada (HbA1c)',
+        ]);
+      }
+
+      // 4. Calcula o "Meio Termo" das datas
+      final historico = await supabase
+          .from('historico_exames')
+          .select()
+          .eq('user_id', userId)
+          .order('data_exame', ascending: false)
+          .limit(1);
+
+      DateTime dataAlvo;
+      if (historico.isEmpty) {
+        // Exame de Calibração (Pico de Empilhamento): 45 dias após começar o tratamento mais novo
+        dataAlvo = inicioMaisRecente.add(const Duration(days: 45));
+      } else {
+        // Exame de Manutenção: 120 dias após o último exame
+        DateTime ultimo = DateTime.parse(
+          historico.first['data_exame'].toString(),
+        );
+        dataAlvo = ultimo.add(const Duration(days: 120));
+      }
+
+      // Corrige para não pedir exames no passado caso tenha ignorado
+      if (dataAlvo.isBefore(DateTime.now())) {
+        dataAlvo = DateTime.now();
+      }
+
+      setState(() {
+        exigeExames = true;
+        proximaDataExame = dataAlvo;
+        listaExamesSugeridos = exames.toList();
+
+        // Zera as horas para cálculo puro de dias
+        DateTime hoje = DateTime(
+          DateTime.now().year,
+          DateTime.now().month,
+          DateTime.now().day,
+        );
+        DateTime alvo = DateTime(dataAlvo.year, dataAlvo.month, dataAlvo.day);
+        diasParaExame = alvo.difference(hoje).inDays;
+      });
+    } catch (e) {
+      debugPrint('Erro no Cérebro Analítico: $e');
+    }
+  }
+
+  Future<void> _registarExameFeito() async {
+    try {
+      final userId = supabase.auth.currentUser!.id;
+      await supabase.from('historico_exames').insert({
+        'user_id': userId,
+        'data_exame': DateTime.now().toIso8601String().split('T')[0],
+        'categoria_alvo': 'Painel Automático',
+      });
+
+      Navigator.pop(context); // Fecha o painel
+      _calcularExames(); // Recalcula a nova data (+120 dias)
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Exames registados! Nova janela de manutenção agendada.',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _abrirPainelExames() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.biotech, color: Colors.indigo, size: 32),
+                SizedBox(width: 8),
+                Text(
+                  'Sugestão de Laboratório',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.indigo,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Abaixo está a lista gerada de forma personalizada pelo algoritmo, baseada na sua idade, sexo e tratamentos ativos. Leve-a ao seu médico.',
+              style: TextStyle(color: Colors.black87),
+            ),
+            const SizedBox(height: 16),
+            ...listaExamesSugeridos.map(
+              (exame) => Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle_outline,
+                      color: Colors.green,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        exame,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: _registarExameFeito,
+                icon: const Icon(Icons.vaccines, color: Colors.white),
+                label: const Text(
+                  'JÁ COLETEI O SANGUE (REGISTRAR)',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _carregarResumo() async {
     setState(() => carregando = true);
     try {
@@ -578,18 +821,37 @@ class _DashboardEcraState extends State<DashboardEcra> {
           .from('cronograma')
           .select('*, medicamentos(nome)')
           .eq('status_aplicado', false)
-          .order('data_aplicacao', ascending: true)
-          .limit(1);
+          .order('data_aplicacao', ascending: true);
       final respUltima = await supabase
           .from('cronograma')
           .select('*, medicamentos(nome)')
           .eq('status_aplicado', true)
-          .order('data_aplicacao', ascending: false)
-          .limit(1);
+          .order('data_aplicacao', ascending: false);
+
+      List<dynamic> proximasFiltradas = [];
+      Set<String> medicamentosProximosVistos = {};
+      for (var dose in respProxima) {
+        String idMed = dose['medicamento_id'].toString();
+        if (!medicamentosProximosVistos.contains(idMed)) {
+          proximasFiltradas.add(dose);
+          medicamentosProximosVistos.add(idMed);
+        }
+      }
+
+      List<dynamic> ultimasFiltradas = [];
+      Set<String> medicamentosUltimosVistos = {};
+      for (var dose in respUltima) {
+        String idMed = dose['medicamento_id'].toString();
+        if (!medicamentosUltimosVistos.contains(idMed)) {
+          ultimasFiltradas.add(dose);
+          medicamentosUltimosVistos.add(idMed);
+        }
+      }
+
       if (mounted) {
         setState(() {
-          if (respProxima.isNotEmpty) proximaDose = respProxima.first;
-          if (respUltima.isNotEmpty) ultimaDose = respUltima.first;
+          proximasDoses = proximasFiltradas;
+          ultimasDoses = ultimasFiltradas;
         });
       }
     } catch (e) {
@@ -620,12 +882,18 @@ class _DashboardEcraState extends State<DashboardEcra> {
           IconButton(
             icon: const Icon(Icons.help_outline),
             tooltip: 'Guia e Termos',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const GuiaFaqEcra()),
-              );
-            },
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const GuiaFaqEcra()),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.account_circle),
+            tooltip: 'Meu Perfil',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PerfilEcra()),
+            ).then((_) => _calcularExames()),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -650,116 +918,267 @@ class _DashboardEcraState extends State<DashboardEcra> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Card(
-                    color: Colors.blue[50],
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+
+                  Expanded(
+                    child: SingleChildScrollView(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Row(
-                            children: [
-                              Icon(
-                                Icons.notification_important,
-                                color: Colors.blue,
-                                size: 28,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Próxima Aplicação',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
+                          // ==========================================================
+                          // O NOVO CARD INTELIGENTE DE EXAMES
+                          // ==========================================================
+                          if (exigeExames && proximaDataExame != null)
+                            Card(
+                              color: diasParaExame <= 0
+                                  ? Colors.red[50]
+                                  : (diasParaExame <= 15
+                                        ? Colors.orange[50]
+                                        : Colors.teal[50]),
+                              elevation: 4,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                  color: diasParaExame <= 0
+                                      ? Colors.red
+                                      : (diasParaExame <= 15
+                                            ? Colors.orange
+                                            : Colors.teal),
+                                  width: 1.5,
                                 ),
                               ),
-                            ],
-                          ),
-                          const Divider(),
-                          if (proximaDose != null) ...[
-                            Text(
-                              proximaDose!['medicamentos'] != null
-                                  ? proximaDose!['medicamentos']['nome']
-                                        .toString()
-                                  : 'Medicamento indisponível',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.biotech,
+                                          color: diasParaExame <= 0
+                                              ? Colors.red[800]
+                                              : (diasParaExame <= 15
+                                                    ? Colors.orange[800]
+                                                    : Colors.teal[800]),
+                                          size: 28,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            // 👇 ALTERADO PARA "Check-up de Biomarcadores" 👇
+                                            diasParaExame <= 0
+                                                ? 'Exames Atrasados'
+                                                : (diasParaExame <= 15
+                                                      ? 'Exames Próximos'
+                                                      : 'Check-up de Biomarcadores'),
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: diasParaExame <= 0
+                                                  ? Colors.red[800]
+                                                  : (diasParaExame <= 15
+                                                        ? Colors.orange[800]
+                                                        : Colors.teal[800]),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      // 👇 ALTERADO "controlo" para "controle" e "recolha" para "coleta" 👇
+                                      diasParaExame <= 0
+                                          ? 'A sua janela ideal de exames de controle já começou! Veja o que solicitar ao seu médico.'
+                                          : 'Próxima coleta sugerida em $diasParaExame dias (${proximaDataExame!.day.toString().padLeft(2, '0')}/${proximaDataExame!.month.toString().padLeft(2, '0')}).',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: OutlinedButton(
+                                        onPressed: _abrirPainelExames,
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: diasParaExame <= 0
+                                              ? Colors.red[800]
+                                              : Colors.teal[800],
+                                          side: BorderSide(
+                                            color: diasParaExame <= 0
+                                                ? Colors.red[800]!
+                                                : Colors.teal[800]!,
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'VER PAINEL SUGERIDO',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Data: ${_formatarData(proximaDose!['data_aplicacao'])}',
-                              style: const TextStyle(fontSize: 16),
+                          if (exigeExames) const SizedBox(height: 16),
+                          // ==========================================================
+
+                          Card(
+                            color: Colors.blue[50],
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            Text(
-                              'Local: ${proximaDose!['local_aplicacao']}',
-                              style: const TextStyle(fontSize: 16),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.notification_important,
+                                        color: Colors.blue,
+                                        size: 28,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Próxima Aplicação',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Divider(),
+                                  if (proximasDoses.isNotEmpty) ...[
+                                    ...proximasDoses.map(
+                                      (dose) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 12.0,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              dose['medicamentos'] != null
+                                                  ? dose['medicamentos']['nome']
+                                                        .toString()
+                                                  : 'Medicamento indisponível',
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF1E3A8A),
+                                              ),
+                                            ),
+                                            Text(
+                                              'Data: ${_formatarData(dose['data_aplicacao'])}',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            Text(
+                                              'Local: ${dose['local_aplicacao']}',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            Text(
+                                              'Dose: ${dose['dose_ajustada']}',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ] else
+                                    const Text(
+                                      'Nenhuma aplicação futura agendada.',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                ],
+                              ),
                             ),
-                            Text('Dose: ${proximaDose!['dose_ajustada']}'),
-                          ] else
-                            const Text(
-                              'Nenhuma aplicação futura agendada.',
-                              style: TextStyle(color: Colors.grey),
+                          ),
+                          const SizedBox(height: 16),
+                          Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                        size: 24,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Última Aplicação',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Divider(),
+                                  if (ultimasDoses.isNotEmpty) ...[
+                                    ...ultimasDoses.map(
+                                      (dose) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8.0,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              dose['medicamentos'] != null
+                                                  ? dose['medicamentos']['nome']
+                                                        .toString()
+                                                  : 'Medicamento indisponível',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            Text(
+                                              'Data: ${_formatarData(dose['data_aplicacao'])}',
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ] else
+                                    const Text(
+                                      'Nenhum histórico de aplicações.',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 16),
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: 24,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Última Aplicação',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Divider(),
-                          if (ultimaDose != null) ...[
-                            Text(
-                              ultimaDose!['medicamentos']['nome'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Data: ${_formatarData(ultimaDose!['data_aplicacao'])}',
-                            ),
-                          ] else
-                            const Text(
-                              'Nenhum histórico de aplicações.',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -767,7 +1186,10 @@ class _DashboardEcraState extends State<DashboardEcra> {
                         MaterialPageRoute(
                           builder: (context) => const SetupEcra(),
                         ),
-                      ).then((_) => _carregarResumo());
+                      ).then((_) {
+                        _carregarResumo();
+                        _calcularExames(); // Atualiza os exames se ele adicionar/remover um medicamento
+                      });
                     },
                     icon: const Icon(Icons.settings, color: Colors.white),
                     label: const Text(
@@ -993,6 +1415,17 @@ class _SetupEcraState extends State<SetupEcra> {
                             ),
                           ),
                           const SizedBox(height: 4),
+                        ] else if (med['dose_semanal'] != null &&
+                            med['dose_semanal'] > 0) ...[
+                          // Plano B: Se os detalhes_dose não existirem, mostra a dose semanal base!
+                          Text(
+                            'Dose Semanal: ${med['dose_semanal']} ${med['unidade_dose'] ?? 'mg'}',
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
                         ],
                         Text(
                           'Intervalo: A cada ${med['intervalo_dias']} dias',
@@ -1046,6 +1479,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   final doseCtrl = TextEditingController();
   final intervaloCtrl = TextEditingController();
 
+  String? categoriaSelecionada; // NOVA VARIÁVEL PARA A CATEGORIA
   String? unidadeSelecionada;
   int? seringaSelecionada;
   String? regiaoSelecionada;
@@ -1093,12 +1527,27 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         );
       }
 
+      if (widget.medicamentoEditado!['detalhes_dose'] != null) {
+        textoDetalhesDose = widget.medicamentoEditado!['detalhes_dose'];
+      }
+
+      categoriaSelecionada = widget.medicamentoEditado!['categoria_clinica'];
+
       if (nomeCtrl.text.startsWith('Mix:')) _isMix = true;
     }
 
     doseCtrl.addListener(_recalcularEquivalencia);
     concentracaoCtrl.addListener(_recalcularEquivalencia);
     intervaloCtrl.addListener(_recalcularEquivalencia);
+
+    // ==========================================================
+    // NOVO: FORÇA O RECÁLCULO IMEDIATO
+    // Se estiver a editar um medicamento normal (não-Mix), faz
+    // o cálculo automático assim que a tela abre.
+    // ==========================================================
+    if (modoEdicao && !_isMix) {
+      _recalcularEquivalencia();
+    }
   }
 
   @override
@@ -1645,6 +2094,57 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     }
   }
 
+  // ==========================================================
+  // MOTOR DE AUTO-CLASSIFICAÇÃO CLÍNICA
+  // ==========================================================
+  String _identificarCategoriaClinica(String nomeMedicamento) {
+    final nome = nomeMedicamento.toLowerCase();
+
+    // 1. Emagrecimento / Síndrome Metabólica
+    if (nome.contains('tirzepatida') ||
+        nome.contains('semaglutida') ||
+        nome.contains('ozempic') ||
+        nome.contains('mounjaro') ||
+        nome.contains('saxenda') ||
+        nome.contains('liraglutida')) {
+      return 'GLP-1';
+    }
+    // 2. Testosterona Base
+    else if (nome.contains('testosterona') ||
+        nome.contains('durateston') ||
+        nome.contains('enantato') ||
+        nome.contains('cipionato') ||
+        nome.contains('sustanon')) {
+      return 'Testosterona Base';
+    }
+    // 3. Derivados de DHT (Forte impacto lipídico e de próstata)
+    else if (nome.contains('masteron') ||
+        nome.contains('drostanolona') ||
+        nome.contains('primobolan') ||
+        nome.contains('oxandrolona') ||
+        nome.contains('stanozolol')) {
+      return 'Derivado DHT';
+    }
+    // 4. Derivados 19-Nor (Impacto em Prolactina)
+    else if (nome.contains('nandrolona') ||
+        nome.contains('deca') ||
+        nome.contains('trembolona')) {
+      return 'Derivado 19-Nor';
+    }
+    // 5. Peptídeos de Recuperação/GH
+    else if (nome.contains('ghk') ||
+        nome.contains('bpc') ||
+        nome.contains('tb-500') ||
+        nome.contains('tb500') ||
+        nome.contains('gh ') ||
+        nome.contains('somatropina')) {
+      return 'Peptídeos';
+    }
+
+    // Se a aplicação não reconhecer, classifica como genérico
+    return 'Outros';
+  }
+
   Future<void> _guardarMedicamento() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -1736,6 +2236,13 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           : nomeSelecionado;
       final intervaloFinal = int.parse(intervaloCtrl.text.replaceAll(',', '.'));
 
+      // ==========================================================
+      // APLICAÇÃO DA INTELIGÊNCIA AQUI
+      // ==========================================================
+      final categoriaAutomatica = _isMix
+          ? 'Mix Esteroides'
+          : _identificarCategoriaClinica(nomeFinal!);
+
       Map<String, dynamic> dados;
 
       if (_isMix && !modoEdicao) {
@@ -1749,10 +2256,11 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           'intervalo_dias': intervaloFinal,
           'data_inicio': dataInicio.toIso8601String().split('T')[0],
           'hora_aplicacao':
-              '${horaInicio.hour.toString().padLeft(2, '0')}:${horaInicio.minute.toString().padLeft(2, '0')}', // ADICIONADO
+              '${horaInicio.hour.toString().padLeft(2, '0')}:${horaInicio.minute.toString().padLeft(2, '0')}',
           'seringa_ui': seringaSelecionada,
           'regiao_rodizio': regiaoSelecionada,
           'detalhes_dose': textoDetalhesDose,
+          'categoria_clinica': categoriaAutomatica, // CAMPO INJETADO AQUI
         };
       } else {
         dados = {
@@ -1770,10 +2278,11 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           'intervalo_dias': intervaloFinal,
           'data_inicio': dataInicio.toIso8601String().split('T')[0],
           'hora_aplicacao':
-              '${horaInicio.hour.toString().padLeft(2, '0')}:${horaInicio.minute.toString().padLeft(2, '0')}', // ADICIONADO
+              '${horaInicio.hour.toString().padLeft(2, '0')}:${horaInicio.minute.toString().padLeft(2, '0')}',
           'seringa_ui': seringaSelecionada,
           'regiao_rodizio': regiaoSelecionada,
           'detalhes_dose': textoDetalhesDose,
+          'categoria_clinica': categoriaAutomatica, // CAMPO INJETADO AQUI
         };
       }
 
@@ -1980,6 +2489,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                       : null,
                                 )
                               : Autocomplete<String>(
+                                  // ... (código do autocomplete que já existe no seu app)
                                   initialValue: TextEditingValue(
                                     text: nomeSelecionado ?? '',
                                   ),
@@ -2034,11 +2544,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                             }
                                             return null;
                                           },
-                                          onChanged: (val) {
-                                            setState(
-                                              () => nomeSelecionado = val,
-                                            );
-                                          },
+                                          onChanged: (val) => setState(
+                                            () => nomeSelecionado = val,
+                                          ),
                                         );
                                       },
                                 )),
@@ -2083,6 +2591,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                           ),
                           onPressed: _limparSelecao,
                         ),
+                      // ... (resto dos botões de catálogo e mix)
                       if (modoNovoMedicamento && listaCatalogo.isNotEmpty)
                         OutlinedButton.icon(
                           icon: const Icon(Icons.list, color: Colors.blue),
@@ -2687,6 +3196,43 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       List<String> locaisRodizio = _obterListaRodizio(regiaoBase);
       List<Map<String, dynamic>> loteAplicacoes = [];
 
+      // ==========================================================
+      // NOVO MOTOR: RASTREAMENTO GLOBAL E ANTI-COLISÃO DIÁRIO
+      // ==========================================================
+      int indiceInicial = 0;
+      Set<String> locaisOcupadosGlobais = {};
+
+      try {
+        final usuarioId = supabase.auth.currentUser!.id;
+
+        // 1. Carrega todos os agendamentos futuros e passados do utilizador
+        final historico = await supabase
+            .from('cronograma')
+            .select('data_aplicacao, local_aplicacao')
+            .eq('user_id', usuarioId)
+            .order('data_aplicacao', ascending: false);
+
+        // 2. Regista todas as datas e locais já ocupados num "Calendário Virtual"
+        for (var item in historico) {
+          String data = item['data_aplicacao'].toString();
+          String local = item['local_aplicacao'].toString();
+          locaisOcupadosGlobais.add('$data|$local');
+        }
+
+        // 3. Encontra o último ponto usado nesta região para não começar do zero
+        for (var item in historico) {
+          String localSalvo = item['local_aplicacao'].toString();
+          int indexEncontrado = locaisRodizio.indexOf(localSalvo);
+          if (indexEncontrado != -1) {
+            indiceInicial = (indexEncontrado + 1) % locaisRodizio.length;
+            break;
+          }
+        }
+      } catch (e) {
+        debugPrint('Erro ao buscar histórico de colisões: $e');
+      }
+      // ==========================================================
+
       DateTime dataBase = DateTime.parse(
         widget.medicamento['data_inicio'].toString(),
       );
@@ -2697,12 +3243,32 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       int minDisp = int.parse(horaStr.split(':')[1]);
 
       for (int i = 0; i < totalDoses; i++) {
-        // NOVA TRAVA DE LIMITE AQUI:
+        // TRAVA DE LIMITE
         if (limite != null && i >= limite) {
           break;
         }
 
-        String localAtual = locaisRodizio[i % locaisRodizio.length];
+        String dataIso = dataBase.toIso8601String().split('T')[0];
+        String localAtual =
+            locaisRodizio[(indiceInicial + i) % locaisRodizio.length];
+
+        // ==========================================================
+        // DESVIO INTELIGENTE DE COLISÃO
+        // ==========================================================
+        int tentativas = 0;
+        // Enquanto o local atual já estiver agendado para aquele exato dia...
+        while (locaisOcupadosGlobais.contains('$dataIso|$localAtual') &&
+            tentativas < locaisRodizio.length) {
+          // ... avança o rodízio forçadamente para o próximo ponto livre daquela região
+          indiceInicial++;
+          localAtual =
+              locaisRodizio[(indiceInicial + i) % locaisRodizio.length];
+          tentativas++;
+        }
+
+        // Bloqueia este ponto recém-descoberto para ele não ser usado por outra dose
+        locaisOcupadosGlobais.add('$dataIso|$localAtual');
+        // ==========================================================
 
         // FUNDIR DATA E HORA AQUI
         DateTime dataHoraExata = DateTime(
@@ -3000,6 +3566,55 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
 // ==========================================================
 // ECRÃ DE GUIA, FAQ E TERMOS DE RESPONSABILIDADE
 // ==========================================================
+
+// TELA PARA VISUALIZAR AS IMAGENS COM ZOOM (PINÇA)
+class VisualizadorImagemEcra extends StatelessWidget {
+  final String caminhoImagem;
+  final String titulo;
+
+  const VisualizadorImagemEcra({
+    super.key,
+    required this.caminhoImagem,
+    required this.titulo,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: Text(titulo),
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          panEnabled: true, // Permite mover a imagem
+          boundaryMargin: const EdgeInsets.all(20),
+          minScale: 0.5,
+          maxScale: 4.0, // Zoom de até 4x
+          child: Image.asset(
+            caminhoImagem,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.broken_image, size: 64, color: Colors.grey),
+                SizedBox(height: 12),
+                Text(
+                  'Imagem não encontrada.\nCertifique-se de adicioná-la no pubspec.yaml',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class GuiaFaqEcra extends StatefulWidget {
   final bool obrigatorio;
   const GuiaFaqEcra({super.key, this.obrigatorio = false});
@@ -3060,6 +3675,36 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
     );
   }
 
+  Widget _buildImageButton({
+    required BuildContext context,
+    required String titulo,
+    required IconData icone,
+    required String caminhoImagem,
+  }) {
+    return Card(
+      elevation: 2,
+      child: ListTile(
+        leading: Icon(icone, color: const Color(0xFF1E3A8A)),
+        title: Text(
+          titulo,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        trailing: const Icon(Icons.zoom_in, color: Colors.orange),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VisualizadorImagemEcra(
+                caminhoImagem: caminhoImagem,
+                titulo: titulo,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -3091,6 +3736,162 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  // ==========================================
+                  // 1. BANCO DE IMAGENS DE PONTOS DE APLICAÇÃO
+                  // ==========================================
+                  Card(
+                    color: Colors.blue[50],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.map, color: Color(0xFF1E3A8A)),
+                              SizedBox(width: 8),
+                              Text(
+                                'MAPA DE PONTOS DE APLICAÇÃO',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Color(0xFF1E3A8A),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Clique na região para visualizar os locais exatos e fazer o rodízio correto:',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const Divider(),
+                          _buildImageButton(
+                            context: context,
+                            titulo: 'Pontos da Barriga (8 Pontos)',
+                            icone: Icons.accessibility_new,
+                            caminhoImagem: 'assets/regiao/barriga.png',
+                          ),
+                          _buildImageButton(
+                            context: context,
+                            titulo: 'Pontos dos Flancos (9 Pontos)',
+                            icone: Icons.airline_seat_flat_angled,
+                            caminhoImagem: 'assets/regiao/flancos.png',
+                          ),
+                          _buildImageButton(
+                            context: context,
+                            titulo: 'Pontos dos Glúteos ( IM - Quadrante )',
+                            icone: Icons.directions_run,
+                            caminhoImagem: 'assets/regiao/gluteos.png',
+                          ),
+                          _buildImageButton(
+                            context: context,
+                            titulo: 'Pontos da Coxa (Vasto Lateral)',
+                            icone: Icons.boy,
+                            caminhoImagem:
+                                'assets/regiao/coxa_vastolateral.png',
+                          ),
+                          _buildImageButton(
+                            context: context,
+                            titulo: 'Pontos do Deltoide (Braço)',
+                            icone: Icons.shutter_speed_sharp,
+                            caminhoImagem: 'assets/regiao/deltoide.png',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ==========================================
+                  // 2. GUIA DE SERINGAS E AGULHAS
+                  // ==========================================
+                  Card(
+                    color: Colors.orange[50],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.vaccines, color: Colors.orange),
+                              SizedBox(width: 8),
+                              Text(
+                                'GUIA DE SERINGAS E AGULHAS',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Colors.orange,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Entenda o material adequado para cada aplicação:',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const Divider(),
+                          _buildImageButton(
+                            context: context,
+                            titulo: 'Visualizar Agulhas e Seringas',
+                            icone: Icons.science_outlined,
+                            caminhoImagem: 'assets/regiao/agulhas_seringas.png',
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            '💉 AGULHAS RECOMENDADAS:',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const Text(
+                            '• Subcutânea (SC - Gordura): Agulhas curtas e finas, ex: 13x0.45mm ou 13x0.3mm (marrom/cinza). Aplicada em ângulo de 90° ou 45° dependendo do tecido adiposo.\n'
+                            '• Intramuscular (IM - Músculo): Agulhas longas para alcançar o músculo, ex: 25x0.7mm ou 30x0.7mm (preta/azul) e para volumes maiores 25x0.8mm (verde). Aplicar em ângulo de 90°.',
+                            style: TextStyle(fontSize: 13, height: 1.4),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            '🧪 SERINGAS E ESCALAS:',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const Text(
+                            '• Seringas de Insulina (100 UI = 1 mL): Escala detalhada. 10 UI equivalem a 0.1 mL. Ideal para microdoses subcutâneas de alta precisão.\n'
+                            '• Seringas de 3 mL ou 5 mL: Usadas para aplicações intramusculares que requerem maior volume de diluente ou óleo.',
+                            style: TextStyle(fontSize: 13, height: 1.4),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ==========================================
+                  // 3. NOVA SEÇÃO: INTELIGÊNCIA CLÍNICA
+                  // ==========================================
+                  _buildSectionCard(
+                    titulo: '🧬 INTELIGÊNCIA CLÍNICA E EXAMES',
+                    cor: Colors.teal[800]!,
+                    icone: Icons.biotech,
+                    conteudo:
+                        'O aplicativo possui um Motor Analítico Preditivo de segurança:\n\n'
+                        '• Meu Perfil (Ícone Superior): Preencha o seu sexo biológico e data de nascimento. Estes dados cruzam com os seus tratamentos para gerar painéis de exames precisos (ex: sugerir PSA apenas para homens acima de 40 anos).\n\n'
+                        '• Auto-Classificação: Ao registar um medicamento, o motor identifica a família clínica (ex: Derivado DHT, Análogo GLP-1, Peptídeo) e prepara o protocolo de risco e controle laboratorial.\n\n'
+                        '• Check-up de Biomarcadores: O algoritmo calcula a janela de "steady state" (estabilidade sanguínea). O alerta de primeira coleta surge 45 dias após o início de um novo tratamento. Após registar essa coleta, os exames de manutenção passarão a ser solicitados a cada 120 dias.',
+                  ),
+                  const SizedBox(height: 12),
+
                   _buildSectionCard(
                     titulo: '🚨 AVISO MÉDICO IMPORTANTE',
                     cor: Colors.red[900]!,
@@ -3108,22 +3909,23 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     icone: Icons.gavel,
                     conteudo:
                         'Ao utilizar o Controle Injetáveis, o usuário declara estar plenamente ciente de que:\n\n'
-                        '1. O usuário assume TOTAL e exclusiva responsabilidade pelas doses inseridas, misturas (Mix) criadas e pelas aplicações realizadas no próprio corpo.\n'
-                        '2. Os desenvolvedores (CodeVibe Studio) NÃO se responsabilizam sob nenhuma hipótese por erros de preenchimento, cálculos equivocados gerados por introdução de dados incorretos, lesões, infecções ou quaisquer danos à saúde.\n'
-                        '3. O utilizador isenta os criadores do aplicativo de qualquer complicação clínica ou responsabilidade legal decorrente do uso desta ferramenta.',
+                        '1. O usuário assume TOTAL e exclusiva responsabilidade pelas doses inseridas, misturas (Mix) criadas e aplicações realizadas.\n'
+                        '2. Os desenvolvedores (CodeVibe Studio) NÃO se responsabilizam por erros de preenchimento, cálculos equivocados gerados por introdução de dados incorretos ou danos à saúde.\n'
+                        '3. A lista do "Check-up de Biomarcadores" é uma sugestão puramente matemática baseada em protocolos de redução de danos. NÃO tem valor de pedido médico oficial.\n'
+                        '4. O utilizador isenta os criadores do aplicativo de qualquer complicação clínica ou responsabilidade legal decorrente do uso da ferramenta.',
                   ),
                   const SizedBox(height: 12),
                   _buildSectionCard(
                     titulo: '🧼 HIGIENE E ASSEPSIA',
-                    cor: Colors.teal[800]!,
+                    cor: Colors.blueGrey[700]!,
                     icone: Icons.clean_hands,
                     conteudo:
-                        'A falta de higiene pode causar infecções graves e abcessos. Siga rigorosamente os passos abaixo em todas as aplicações:\n\n'
-                        '• Lave muito bem as mãos com água e sabão antes de tocar nos materiais.\n'
-                        '• Limpe a borracha do bujão ou a ponta da ampola com algodão e Álcool 70%.\n'
-                        '• Faça a assepsia do local da injeção na pele com Álcool 70% e deixe secar naturalmente.\n'
-                        '• Utilize APENAS seringas e agulhas estéreis, de uso único (descartáveis). NUNCA reutilize agulhas ou seringas.\n'
-                        '• Descarte todo o material perfurocortante em recipiente adequado (ex: Descarpack) e entregue num posto de saúde. Não jogue no lixo comum!',
+                        'A falta de higiene pode causar infecções graves e abcessos. Siga rigorosamente:\n\n'
+                        '• Lave as mãos com água e sabão antes de tocar nos materiais.\n'
+                        '• Limpe a borracha do bujão com algodão e Álcool 70%.\n'
+                        '• Faça a assepsia da pele com Álcool 70% e deixe secar naturalmente antes de perfurar.\n'
+                        '• Utilize APENAS seringas e agulhas estéreis, de uso único (descartáveis).\n'
+                        '• Descarte o material perfurocortante em recipiente rígido adequado (Descarpack).',
                   ),
                   const SizedBox(height: 12),
                   _buildSectionCard(
@@ -3131,11 +3933,11 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     cor: const Color(0xFF1E3A8A),
                     icone: Icons.help_center,
                     conteudo:
-                        '• Banco de Medicamentos: Comece por aqui. Cadastre os seus frascos preenchendo a Concentração (mg/mL) e a Dose Semanal. O app calculará o volume e a seringa exata.\n\n'
-                        '• Calculadora Segura: Ao clicar no campo "Concentração", o app abre uma calculadora que divide os "mg totais" pelos "mL totais" do rótulo, prevenindo erros em peptídeos.\n\n'
-                        '• Criar Mix: Permite misturar 2 ou mais medicamentos na mesma seringa. Para garantir segurança, eles precisam estar configurados com o mesmo "Intervalo" e "Região Base".\n\n'
-                        '• Desmembrar Mix: Caso o médico peça para ajustar a dose de apenas 1 medicamento do seu Mix, clique neste botão. O Mix será desfeito, os medicamentos originais voltam ao Banco, você ajusta a dose e recria o Mix.\n\n'
-                        '• Gerar Cronograma: Ao clicar para gerar as datas, você pode escolher calcular "Até o frasco acabar" ou gerar "Apenas 1 Mês". Gerar por mês é ideal para tratamentos onde a dose vai aumentar gradativamente (Titulação).',
+                        '• Banco de Medicamentos: Comece por aqui. Cadastre os seus frascos preenchendo a Concentração (mg/mL) e a Dose Semanal.\n\n'
+                        '• Calculadora Segura: Ao clicar no campo "Concentração", o app abre uma calculadora que divide os "mg totais" pelos "mL totais" do rótulo.\n\n'
+                        '• Criar Mix: Permite agrupar medicamentos na mesma injeção. Eles precisam estar configurados com o mesmo "Intervalo" e "Região Base".\n\n'
+                        '• Desmembrar Mix: Caso queira alterar a dose de apenas 1 composto da sua mistura, use esta opção para libertá-los de volta ao Banco.\n\n'
+                        '• Gerar Cronograma: Gere datas "Até o frasco acabar" ou "Apenas 1 Mês" (ideal se você faz aumento gradativo de doses). O app automaticamente desviará agendamentos que colidam na mesma região e dia.',
                   ),
                 ],
               ),
@@ -3212,7 +4014,7 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                                           .showSnackBar(
                                             const SnackBar(
                                               content: Text(
-                                                'Termos aceitos e registados. Uso liberado!',
+                                                'Termos aceitos e registrados. Uso liberado!',
                                               ),
                                               backgroundColor: Colors.green,
                                             ),
@@ -3223,14 +4025,15 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                                     }
                                   } catch (e) {
                                     if (mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Erro ao registar: $e'),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Erro ao registrar: $e',
+                                              ),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
                                     }
                                   }
                                 }
@@ -3259,6 +4062,321 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ==========================================================
+// FORMATADOR AUTOMÁTICO DE DATA (MÁSCARA DD/MM/AAAA)
+// ==========================================================
+
+class DataInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Permite que o utilizador apague livremente (BackSpace)
+    if (oldValue.text.length > newValue.text.length) {
+      return newValue;
+    }
+
+    // Remove tudo o que não for número
+    final textoLimpo = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    String novoTexto = '';
+
+    for (int i = 0; i < textoLimpo.length; i++) {
+      // Adiciona a barra (/) automaticamente após o dia e o mês
+      if (i == 2 || i == 4) {
+        novoTexto += '/';
+      }
+      novoTexto += textoLimpo[i];
+    }
+
+    // Limita rigidamente a 10 caracteres para não ultrapassar DD/MM/AAAA
+    if (novoTexto.length > 10) novoTexto = novoTexto.substring(0, 10);
+
+    return TextEditingValue(
+      text: novoTexto,
+      selection: TextSelection.collapsed(offset: novoTexto.length),
+    );
+  }
+}
+
+// ==========================================================
+// ECRÃ DE PERFIL DO UTILIZADOR (INTELIGÊNCIA DEMOGRÁFICA)
+// ==========================================================
+class PerfilEcra extends StatefulWidget {
+  const PerfilEcra({super.key});
+
+  @override
+  State<PerfilEcra> createState() => _PerfilEcraState();
+}
+
+class _PerfilEcraState extends State<PerfilEcra> {
+  final supabase = Supabase.instance.client;
+  final _formKey = GlobalKey<FormState>();
+  bool carregando = true;
+
+  final nomeCtrl = TextEditingController();
+  final dataCtrl = TextEditingController(); // Novo controlador "inteligente"
+  String? generoSelecionado;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarPerfil();
+  }
+
+  Future<void> _carregarPerfil() async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final res = await supabase
+          .from('perfis')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (res != null) {
+        setState(() {
+          nomeCtrl.text = res['nome'] ?? '';
+          generoSelecionado = res['genero'];
+          if (res['data_nascimento'] != null) {
+            // Converte de AAAA-MM-DD (Base de Dados) para DD/MM/AAAA (Ecrã)
+            final partes = res['data_nascimento'].toString().split('-');
+            if (partes.length == 3) {
+              dataCtrl.text = '${partes[2]}/${partes[1]}/${partes[0]}';
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar perfil: $e');
+    }
+    setState(() => carregando = false);
+  }
+
+  Future<void> _salvarPerfil() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (generoSelecionado == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, selecione o sexo biológico.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Valida se a data está completa
+    if (dataCtrl.text.length != 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Digite uma data de nascimento válida (DD/MM/AAAA).'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => carregando = true);
+    final userId = supabase.auth.currentUser!.id;
+
+    try {
+      // Converte de DD/MM/AAAA (Ecrã) para AAAA-MM-DD (Base de Dados)
+      final partes = dataCtrl.text.split('/');
+      final dataFormatadaBanco = '${partes[2]}-${partes[1]}-${partes[0]}';
+
+      await supabase.from('perfis').upsert({
+        'id': userId,
+        'nome': nomeCtrl.text.trim(),
+        'genero': generoSelecionado,
+        'data_nascimento': dataFormatadaBanco,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Perfil biológico atualizado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao salvar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+    setState(() => carregando = false);
+  }
+
+  Future<void> _escolherData() async {
+    DateTime dataInicial = DateTime(1990);
+
+    // Se já tiver algo digitado, o calendário tenta abrir logo no ano correto
+    if (dataCtrl.text.length == 10) {
+      try {
+        final p = dataCtrl.text.split('/');
+        dataInicial = DateTime(
+          int.parse(p[2]),
+          int.parse(p[1]),
+          int.parse(p[0]),
+        );
+      } catch (_) {}
+    }
+
+    final DateTime? selecionada = await showDatePicker(
+      context: context,
+      initialDate: dataInicial,
+      firstDate: DateTime(1920),
+      lastDate: DateTime.now(),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(primary: Color(0xFF1E3A8A)),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (selecionada != null) {
+      setState(() {
+        // Preenche o campo de texto automaticamente no formato perfeito se o utilizador usar o calendário
+        dataCtrl.text =
+            '${selecionada.day.toString().padLeft(2, '0')}/${selecionada.month.toString().padLeft(2, '0')}/${selecionada.year}';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Meu Perfil',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF1E3A8A),
+        foregroundColor: Colors.white,
+      ),
+      body: carregando
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  children: [
+                    const Icon(
+                      Icons.account_circle,
+                      size: 80,
+                      color: Color(0xFF1E3A8A),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Dados Biológicos',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E3A8A),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Estas informações são essenciais para que o aplicativo cruze a sua idade e sexo biológico, gerando painéis de exames clínicos precisos e totalmente seguros.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 24),
+
+                    TextFormField(
+                      controller: nomeCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome Completo',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person),
+                      ),
+                      validator: (val) =>
+                          val == null || val.isEmpty ? 'Obrigatório' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    DropdownButtonFormField<String>(
+                      initialValue: generoSelecionado,
+                      decoration: const InputDecoration(
+                        labelText: 'Sexo Biológico',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.wc),
+                      ),
+                      items: ['Masculino', 'Feminino']
+                          .map(
+                            (e) => DropdownMenuItem(value: e, child: Text(e)),
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => generoSelecionado = val),
+                      validator: (val) => val == null ? 'Obrigatório' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ==========================================================
+                    // NOVO CAMPO MISTO (DIGITAÇÃO INTELIGENTE + CALENDÁRIO)
+                    // ==========================================================
+                    TextFormField(
+                      controller: dataCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [DataInputFormatter()],
+                      decoration: InputDecoration(
+                        labelText: 'Data de Nascimento (DD/MM/AAAA)',
+                        hintText: 'Ex: 15/08/1985',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.cake),
+                        suffixIcon: IconButton(
+                          icon: const Icon(
+                            Icons.calendar_month,
+                            color: Color(0xFF1E3A8A),
+                          ),
+                          tooltip: 'Escolher no Calendário',
+                          onPressed: _escolherData,
+                        ),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.isEmpty) return 'Obrigatório';
+                        if (val.length != 10) return 'Data incompleta';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 32),
+
+                    ElevatedButton.icon(
+                      onPressed: _salvarPerfil,
+                      icon: const Icon(Icons.save, color: Colors.white),
+                      label: const Text(
+                        'SALVAR PERFIL',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[700],
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 }
