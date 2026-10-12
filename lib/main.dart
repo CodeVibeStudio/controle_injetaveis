@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -528,6 +531,60 @@ class _DashboardEcraState extends State<DashboardEcra> {
   List<String> listaExamesSugeridos = [];
   int diasParaExame = 999;
   bool exigeExames = false;
+
+  // FUNÇÃO PARA DESTACAR 'UI' E 'NOME DO MEDICAMENTO'
+  Widget _formatarTextoDose(String textoOriginal) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'([\d,.]+\s*UI)|(\([^)]+\))');
+    int lastMatchEnd = 0;
+
+    for (final match in regex.allMatches(textoOriginal)) {
+      final matchString = match.group(0)!;
+
+      if (match.start > lastMatchEnd) {
+        spans.add(
+          TextSpan(text: textoOriginal.substring(lastMatchEnd, match.start)),
+        );
+      }
+
+      if (matchString.contains('UI')) {
+        spans.add(
+          TextSpan(
+            text: matchString,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 17,
+              color: Colors.deepPurple[700],
+            ),
+          ),
+        );
+      } else if (matchString.startsWith('(')) {
+        spans.add(
+          TextSpan(
+            text: matchString,
+            style: TextStyle(
+              // <-- 'const' removido
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Colors.teal[800],
+            ),
+          ),
+        );
+      }
+      lastMatchEnd = match.end;
+    }
+
+    if (lastMatchEnd < textoOriginal.length) {
+      spans.add(TextSpan(text: textoOriginal.substring(lastMatchEnd)));
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 14, color: Colors.black87),
+        children: spans,
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -1126,11 +1183,8 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                                   fontSize: 14,
                                                 ),
                                               ),
-                                              Text(
+                                              _formatarTextoDose(
                                                 'Dose: ${dose['dose_ajustada']}',
-                                                style: const TextStyle(
-                                                  fontSize: 14,
-                                                ),
                                               ),
                                             ],
                                           ),
@@ -1263,6 +1317,60 @@ class SetupEcra extends StatefulWidget {
 
 class _SetupEcraState extends State<SetupEcra> {
   final supabase = Supabase.instance.client;
+
+  // 👇 COLE ESTA FUNÇÃO AQUI 👇
+  Widget _formatarTextoDose(String textoOriginal) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'([\d,.]+\s*UI)|(\([^)]+\))');
+    int lastMatchEnd = 0;
+
+    for (final match in regex.allMatches(textoOriginal)) {
+      final matchString = match.group(0)!;
+
+      if (match.start > lastMatchEnd) {
+        spans.add(
+          TextSpan(text: textoOriginal.substring(lastMatchEnd, match.start)),
+        );
+      }
+
+      if (matchString.contains('UI')) {
+        spans.add(
+          TextSpan(
+            text: matchString,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 17,
+              color: Colors.deepPurple[700],
+            ),
+          ),
+        );
+      } else if (matchString.startsWith('(')) {
+        spans.add(
+          TextSpan(
+            text: matchString,
+            style: TextStyle(
+              // <-- 'const' removido
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Colors.teal[800],
+            ),
+          ),
+        );
+      }
+      lastMatchEnd = match.end;
+    }
+
+    if (lastMatchEnd < textoOriginal.length) {
+      spans.add(TextSpan(text: textoOriginal.substring(lastMatchEnd)));
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 14, color: Colors.black87),
+        children: spans,
+      ),
+    );
+  }
 
   Future<List<dynamic>> obterMedicamentos() async {
     final List<dynamic> res = await supabase
@@ -1445,13 +1553,7 @@ class _SetupEcraState extends State<SetupEcra> {
                         const Divider(),
                         if (med['detalhes_dose'] != null &&
                             med['detalhes_dose'].toString().isNotEmpty) ...[
-                          Text(
-                            'Dose: ${med['detalhes_dose']}',
-                            style: const TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          _formatarTextoDose('Dose: ${med['detalhes_dose']}'),
                           const SizedBox(height: 4),
                         ] else if (med['dose_semanal'] != null &&
                             med['dose_semanal'] > 0) ...[
@@ -3036,6 +3138,80 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
   final supabase = Supabase.instance.client;
   bool carregando = false;
 
+  // 👇 COLE A MESMA FUNÇÃO AQUI TAMBÉM 👇
+  Widget _formatarTextoDose(String textoOriginal) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'([\d,.]+\s*UI)|(\([^)]+\))');
+    int lastMatchEnd = 0;
+
+    for (final match in regex.allMatches(textoOriginal)) {
+      final matchString = match.group(0)!;
+
+      if (match.start > lastMatchEnd) {
+        spans.add(
+          TextSpan(text: textoOriginal.substring(lastMatchEnd, match.start)),
+        );
+      }
+
+      if (matchString.contains('UI')) {
+        spans.add(
+          TextSpan(
+            text: matchString,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 17,
+              color: Colors.deepPurple[700],
+            ),
+          ),
+        );
+      } else if (matchString.startsWith('(')) {
+        spans.add(
+          TextSpan(
+            text: matchString,
+            style: TextStyle(
+              // <-- 'const' removido
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Colors.teal[800],
+            ),
+          ),
+        );
+      }
+      lastMatchEnd = match.end;
+    }
+
+    if (lastMatchEnd < textoOriginal.length) {
+      spans.add(TextSpan(text: textoOriginal.substring(lastMatchEnd)));
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 14, color: Colors.black87),
+        children: spans,
+      ),
+    );
+  }
+
+  Timer? _timerTelaLigada;
+
+  @override
+  void initState() {
+    super.initState();
+    WakelockPlus.enable();
+
+    _timerTelaLigada = Timer(const Duration(minutes: 5), () {
+      WakelockPlus.disable();
+    });
+  }
+
+  @override
+  void dispose() {
+    // Segurança de bateria ao sair da tela
+    _timerTelaLigada?.cancel();
+    WakelockPlus.disable();
+    super.dispose();
+  }
+
   Future<List<dynamic>> obterCronograma() async {
     return await supabase
         .from('cronograma')
@@ -3610,14 +3786,23 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                                 : corTexto,
                           ),
                         ),
-                        subtitle: Text(
-                          '${dose['dose_ajustada']}\nLocal: ${dose['local_aplicacao']}',
-                          style: TextStyle(
-                            color: dose['status_aplicado']
-                                ? Colors.grey
-                                : corTexto,
-                          ),
-                        ),
+                        subtitle: dose['status_aplicado']
+                            ? Text(
+                                '${dose['dose_ajustada']}\nLocal: ${dose['local_aplicacao']}',
+                                style: const TextStyle(color: Colors.grey),
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _formatarTextoDose(
+                                    '${dose['dose_ajustada']}',
+                                  ),
+                                  Text(
+                                    'Local: ${dose['local_aplicacao']}',
+                                    style: TextStyle(color: corTexto),
+                                  ),
+                                ],
+                              ),
                         isThreeLine: true,
                       ),
                     );
