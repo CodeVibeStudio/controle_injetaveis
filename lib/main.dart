@@ -534,23 +534,30 @@ class _DashboardEcraState extends State<DashboardEcra> {
     super.initState();
     _pedirPermissaoNotificacoes();
     _carregarResumo();
-    _calcularExames(); // Chama a IA de Exames
+    _calcularExames();
 
+    // Chama a nossa nova verificação em cadeia
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _verificarTermos();
+      _verificarPendencias();
     });
   }
 
-  Future<void> _verificarTermos() async {
+  // ==========================================
+  // FUNIL DE ONBOARDING OBRIGATÓRIO
+  // ==========================================
+  Future<void> _verificarPendencias() async {
     final usuarioId = supabase.auth.currentUser?.id;
     if (usuarioId == null) return;
+
     try {
-      final resposta = await supabase
+      // 1. Verifica se já aceitou os Termos
+      final respostaTermos = await supabase
           .from('aceites_termos')
           .select()
           .eq('user_id', usuarioId);
-      if (resposta.isEmpty) {
+      if (respostaTermos.isEmpty) {
         if (mounted) {
+          // Bloqueia no ecrã de termos
           await Navigator.push(
             context,
             MaterialPageRoute(
@@ -559,8 +566,31 @@ class _DashboardEcraState extends State<DashboardEcra> {
           );
         }
       }
+
+      // 2. Verifica se o Perfil Biológico está preenchido (Logo após os termos)
+      if (!mounted) return;
+      final perfil = await supabase
+          .from('perfis')
+          .select()
+          .eq('id', usuarioId)
+          .maybeSingle();
+
+      // Se não existir perfil, ou faltar dados vitais, força o ecrã de perfil!
+      if (perfil == null ||
+          perfil['genero'] == null ||
+          perfil['data_nascimento'] == null) {
+        if (mounted) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PerfilEcra(obrigatorio: true),
+            ),
+          );
+          _calcularExames(); // Recalcula a IA de exames assim que ele preencher o perfil
+        }
+      }
     } catch (e) {
-      debugPrint('Erro ao verificar termos: $e');
+      debugPrint('Erro ao verificar pendências: $e');
     }
   }
 
@@ -3158,8 +3188,9 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
 
                     if (opcaoSelecionada != 0) {
                       int valor = int.tryParse(customCtrl.text) ?? 0;
-                      if (valor <= 0)
+                      if (valor <= 0) {
                         return; // Bloqueia se estiver vazio ou zero
+                      }
 
                       if (opcaoSelecionada == 1) {
                         // Semanas -> converte para dias e divide pelo intervalo
@@ -3760,336 +3791,339 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
               ),
           ],
         ),
-        body: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // ==========================================
-                  // 1. BANCO DE IMAGENS DE PONTOS DE APLICAÇÃO
-                  // ==========================================
-                  Card(
-                    color: Colors.blue[50],
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.map, color: Color(0xFF1E3A8A)),
-                              SizedBox(width: 8),
-                              Text(
-                                'MAPA DE PONTOS DE APLICAÇÃO',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Color(0xFF1E3A8A),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // ==========================================
+                    // 1. BANCO DE IMAGENS DE PONTOS DE APLICAÇÃO
+                    // ==========================================
+                    Card(
+                      color: Colors.blue[50],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.map, color: Color(0xFF1E3A8A)),
+                                SizedBox(width: 8),
+                                Text(
+                                  'MAPA DE PONTOS DE APLICAÇÃO',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Color(0xFF1E3A8A),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Clique na região para visualizar os locais exatos e fazer o rodízio correto:',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.black87,
+                              ],
                             ),
-                          ),
-                          const Divider(),
-                          _buildImageButton(
-                            context: context,
-                            titulo: 'Pontos da Barriga (8 Pontos)',
-                            icone: Icons.accessibility_new,
-                            caminhoImagem: 'assets/regiao/barriga.png',
-                          ),
-                          _buildImageButton(
-                            context: context,
-                            titulo: 'Pontos dos Flancos (9 Pontos)',
-                            icone: Icons.airline_seat_flat_angled,
-                            caminhoImagem: 'assets/regiao/flancos.png',
-                          ),
-                          _buildImageButton(
-                            context: context,
-                            titulo: 'Pontos dos Glúteos ( IM - Quadrante )',
-                            icone: Icons.directions_run,
-                            caminhoImagem: 'assets/regiao/gluteos.png',
-                          ),
-                          _buildImageButton(
-                            context: context,
-                            titulo: 'Pontos da Coxa (Vasto Lateral)',
-                            icone: Icons.boy,
-                            caminhoImagem:
-                                'assets/regiao/coxa_vastolateral.png',
-                          ),
-                          _buildImageButton(
-                            context: context,
-                            titulo: 'Pontos do Deltoide (Braço)',
-                            icone: Icons.shutter_speed_sharp,
-                            caminhoImagem: 'assets/regiao/deltoide.png',
-                          ),
-                        ],
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Clique na região para visualizar os locais exatos e fazer o rodízio correto:',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const Divider(),
+                            _buildImageButton(
+                              context: context,
+                              titulo: 'Pontos da Barriga (8 Pontos)',
+                              icone: Icons.accessibility_new,
+                              caminhoImagem: 'assets/regiao/barriga.png',
+                            ),
+                            _buildImageButton(
+                              context: context,
+                              titulo: 'Pontos dos Flancos (9 Pontos)',
+                              icone: Icons.airline_seat_flat_angled,
+                              caminhoImagem: 'assets/regiao/flancos.png',
+                            ),
+                            _buildImageButton(
+                              context: context,
+                              titulo: 'Pontos dos Glúteos ( IM - Quadrante )',
+                              icone: Icons.directions_run,
+                              caminhoImagem: 'assets/regiao/gluteos.png',
+                            ),
+                            _buildImageButton(
+                              context: context,
+                              titulo: 'Pontos da Coxa (Vasto Lateral)',
+                              icone: Icons.boy,
+                              caminhoImagem:
+                                  'assets/regiao/coxa_vastolateral.png',
+                            ),
+                            _buildImageButton(
+                              context: context,
+                              titulo: 'Pontos do Deltoide (Braço)',
+                              icone: Icons.shutter_speed_sharp,
+                              caminhoImagem: 'assets/regiao/deltoide.png',
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-                  // ==========================================
-                  // 2. GUIA DE SERINGAS E AGULHAS
-                  // ==========================================
-                  Card(
-                    color: Colors.orange[50],
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.vaccines, color: Colors.orange),
-                              SizedBox(width: 8),
-                              Text(
-                                'GUIA DE SERINGAS E AGULHAS',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.orange,
+                    // ==========================================
+                    // 2. GUIA DE SERINGAS E AGULHAS
+                    // ==========================================
+                    Card(
+                      color: Colors.orange[50],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.vaccines, color: Colors.orange),
+                                SizedBox(width: 8),
+                                Text(
+                                  'GUIA DE SERINGAS E AGULHAS',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.orange,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Entenda o material adequado para cada aplicação:',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.black87,
+                              ],
                             ),
-                          ),
-                          const Divider(),
-                          _buildImageButton(
-                            context: context,
-                            titulo: 'Visualizar Agulhas e Seringas',
-                            icone: Icons.science_outlined,
-                            caminhoImagem: 'assets/regiao/agulhas_seringas.png',
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            '💉 AGULHAS RECOMENDADAS:',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const Text(
-                            '• Subcutânea (SC - Gordura): Agulhas curtas e finas, ex: 13x0.45mm ou 13x0.3mm (marrom/cinza). Aplicada em ângulo de 90° ou 45° dependendo do tecido adiposo.\n'
-                            '• Intramuscular (IM - Músculo): Agulhas longas para alcançar o músculo, ex: 25x0.7mm ou 30x0.7mm (preta/azul) e para volumes maiores 25x0.8mm (verde). Aplicar em ângulo de 90°.',
-                            style: TextStyle(fontSize: 13, height: 1.4),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            '🧪 SERINGAS E ESCALAS:',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const Text(
-                            '• Seringas de Insulina (100 UI = 1 mL): Escala detalhada. 10 UI equivalem a 0.1 mL. Ideal para microdoses subcutâneas de alta precisão.\n'
-                            '• Seringas de 3 mL ou 5 mL: Usadas para aplicações intramusculares que requerem maior volume de diluente ou óleo.',
-                            style: TextStyle(fontSize: 13, height: 1.4),
-                          ),
-                        ],
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Entenda o material adequado para cada aplicação:',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const Divider(),
+                            _buildImageButton(
+                              context: context,
+                              titulo: 'Visualizar Agulhas e Seringas',
+                              icone: Icons.science_outlined,
+                              caminhoImagem:
+                                  'assets/regiao/agulhas_seringas.png',
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              '💉 AGULHAS RECOMENDADAS:',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const Text(
+                              '• Subcutânea (SC - Gordura): Agulhas curtas e finas, ex: 13x0.45mm ou 13x0.3mm (marrom/cinza). Aplicada em ângulo de 90° ou 45° dependendo do tecido adiposo.\n'
+                              '• Intramuscular (IM - Músculo): Agulhas longas para alcançar o músculo, ex: 25x0.7mm ou 30x0.7mm (preta/azul) e para volumes maiores 25x0.8mm (verde). Aplicar em ângulo de 90°.',
+                              style: TextStyle(fontSize: 13, height: 1.4),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              '🧪 SERINGAS E ESCALAS:',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const Text(
+                              '• Seringas de Insulina (100 UI = 1 mL): Escala detalhada. 10 UI equivalem a 0.1 mL. Ideal para microdoses subcutâneas de alta precisão.\n'
+                              '• Seringas de 3 mL ou 5 mL: Usadas para aplicações intramusculares que requerem maior volume de diluente ou óleo.',
+                              style: TextStyle(fontSize: 13, height: 1.4),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-                  // ==========================================
-                  // 3. NOVA SEÇÃO: INTELIGÊNCIA CLÍNICA
-                  // ==========================================
-                  _buildSectionCard(
-                    titulo: '🧬 INTELIGÊNCIA CLÍNICA E EXAMES',
-                    cor: Colors.teal[800]!,
-                    icone: Icons.biotech,
-                    conteudo:
-                        'O aplicativo possui um Motor Analítico Preditivo de segurança:\n\n'
-                        '• Meu Perfil (Ícone Superior): Preencha o seu sexo biológico e data de nascimento. Estes dados cruzam com os seus tratamentos para gerar painéis de exames precisos (ex: sugerir PSA apenas para homens acima de 40 anos).\n\n'
-                        '• Auto-Classificação: Ao registar um medicamento, o motor identifica a família clínica (ex: Derivado DHT, Análogo GLP-1, Peptídeo) e prepara o protocolo de risco e controle laboratorial.\n\n'
-                        '• Check-up de Biomarcadores: O algoritmo calcula a janela de "steady state" (estabilidade sanguínea). O alerta de primeira coleta surge 45 dias após o início de um novo tratamento. Após registar essa coleta, os exames de manutenção passarão a ser solicitados a cada 120 dias.',
-                  ),
-                  const SizedBox(height: 12),
+                    // ==========================================
+                    // 3. NOVA SEÇÃO: INTELIGÊNCIA CLÍNICA
+                    // ==========================================
+                    _buildSectionCard(
+                      titulo: '🧬 INTELIGÊNCIA CLÍNICA E EXAMES',
+                      cor: Colors.teal[800]!,
+                      icone: Icons.biotech,
+                      conteudo:
+                          'O aplicativo possui um Motor Analítico Preditivo de segurança:\n\n'
+                          '• Meu Perfil (Ícone Superior): Preencha o seu sexo biológico e data de nascimento. Estes dados cruzam com os seus tratamentos para gerar painéis de exames precisos (ex: sugerir PSA apenas para homens acima de 40 anos).\n\n'
+                          '• Auto-Classificação: Ao registar um medicamento, o motor identifica a família clínica (ex: Derivado DHT, Análogo GLP-1, Peptídeo) e prepara o protocolo de risco e controle laboratorial.\n\n'
+                          '• Check-up de Biomarcadores: O algoritmo calcula a janela de "steady state" (estabilidade sanguínea). O alerta de primeira coleta surge 45 dias após o início de um novo tratamento. Após registar essa coleta, os exames de manutenção passarão a ser solicitados a cada 120 dias.',
+                    ),
+                    const SizedBox(height: 12),
 
-                  _buildSectionCard(
-                    titulo: '🚨 AVISO MÉDICO IMPORTANTE',
-                    cor: Colors.red[900]!,
-                    icone: Icons.warning_amber_rounded,
-                    conteudo:
-                        'Este aplicativo é exclusivamente uma ferramenta de apoio logístico e matemático. ELE NÃO SUBSTITUI A ORIENTAÇÃO MÉDICA.\n\n'
-                        '• O aplicativo não receita, não prescreve e não recomenda tratamentos.\n'
-                        '• Em caso de dor extrema, febre, vermelhidão intensa, inchaço, falta de ar ou qualquer mal-estar após uma aplicação, PROCURE UMA EMERGÊNCIA HOSPITALAR IMEDIATAMENTE ou contacte o seu médico.\n'
-                        '• Nunca inicie ou altere dosagens sem o conhecimento e autorização do seu profissional de saúde.',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSectionCard(
-                    titulo: '⚖️ TERMOS DE RESPONSABILIDADE',
-                    cor: Colors.orange[900]!,
-                    icone: Icons.gavel,
-                    conteudo:
-                        'Ao utilizar o Controle Injetáveis, o usuário declara estar plenamente ciente de que:\n\n'
-                        '1. O usuário assume TOTAL e exclusiva responsabilidade pelas doses inseridas, misturas (Mix) criadas e aplicações realizadas.\n'
-                        '2. Os desenvolvedores (CodeVibe Studio) NÃO se responsabilizam por erros de preenchimento, cálculos equivocados gerados por introdução de dados incorretos ou danos à saúde.\n'
-                        '3. A lista do "Check-up de Biomarcadores" é uma sugestão puramente matemática baseada em protocolos de redução de danos. NÃO tem valor de pedido médico oficial.\n'
-                        '4. O utilizador isenta os criadores do aplicativo de qualquer complicação clínica ou responsabilidade legal decorrente do uso da ferramenta.',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSectionCard(
-                    titulo: '🧼 HIGIENE E ASSEPSIA',
-                    cor: Colors.blueGrey[700]!,
-                    icone: Icons.clean_hands,
-                    conteudo:
-                        'A falta de higiene pode causar infecções graves e abcessos. Siga rigorosamente:\n\n'
-                        '• Lave as mãos com água e sabão antes de tocar nos materiais.\n'
-                        '• Limpe a borracha do bujão com algodão e Álcool 70%.\n'
-                        '• Faça a assepsia da pele com Álcool 70% e deixe secar naturalmente antes de perfurar.\n'
-                        '• Utilize APENAS seringas e agulhas estéreis, de uso único (descartáveis).\n'
-                        '• Descarte o material perfurocortante em recipiente rígido adequado (Descarpack).',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSectionCard(
-                    titulo: '📱 COMO USAR O APLICATIVO',
-                    cor: const Color(0xFF1E3A8A),
-                    icone: Icons.help_center,
-                    conteudo:
-                        '• Banco de Medicamentos: Comece por aqui. Cadastre os seus frascos preenchendo a Concentração (mg/mL) e a Dose Semanal.\n\n'
-                        '• Calculadora Segura: Ao clicar no campo "Concentração", o app abre uma calculadora que divide os "mg totais" pelos "mL totais" do rótulo.\n\n'
-                        '• Criar Mix: Permite agrupar medicamentos na mesma injeção. Eles precisam estar configurados com o mesmo "Intervalo" e "Região Base".\n\n'
-                        '• Desmembrar Mix: Caso queira alterar a dose de apenas 1 composto da sua mistura, use esta opção para libertá-los de volta ao Banco.\n\n'
-                        '• Gerar Cronograma: Gere datas "Até o frasco acabar" ou "Apenas 1 Mês" (ideal se você faz aumento gradativo de doses). O app automaticamente desviará agendamentos que colidam na mesma região e dia.',
-                  ),
-                ],
-              ),
-            ),
-
-            if (widget.obrigatorio)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 6,
-                      offset: Offset(0, -3),
+                    _buildSectionCard(
+                      titulo: '🚨 AVISO MÉDICO IMPORTANTE',
+                      cor: Colors.red[900]!,
+                      icone: Icons.warning_amber_rounded,
+                      conteudo:
+                          'Este aplicativo é exclusivamente uma ferramenta de apoio logístico e matemático. ELE NÃO SUBSTITUI A ORIENTAÇÃO MÉDICA.\n\n'
+                          '• O aplicativo não receita, não prescreve e não recomenda tratamentos.\n'
+                          '• Em caso de dor extrema, febre, vermelhidão intensa, inchaço, falta de ar ou qualquer mal-estar após uma aplicação, PROCURE UMA EMERGÊNCIA HOSPITALAR IMEDIATAMENTE ou contacte o seu médico.\n'
+                          '• Nunca inicie ou altere dosagens sem o conhecimento e autorização do seu profissional de saúde.',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildSectionCard(
+                      titulo: '⚖️ TERMOS DE RESPONSABILIDADE',
+                      cor: Colors.orange[900]!,
+                      icone: Icons.gavel,
+                      conteudo:
+                          'Ao utilizar o Controle Injetáveis, o usuário declara estar plenamente ciente de que:\n\n'
+                          '1. O usuário assume TOTAL e exclusiva responsabilidade pelas doses inseridas, misturas (Mix) criadas e aplicações realizadas.\n'
+                          '2. Os desenvolvedores (CodeVibe Studio) NÃO se responsabilizam por erros de preenchimento, cálculos equivocados gerados por introdução de dados incorretos ou danos à saúde.\n'
+                          '3. A lista do "Check-up de Biomarcadores" é uma sugestão puramente matemática baseada em protocolos de redução de danos. NÃO tem valor de pedido médico oficial.\n'
+                          '4. O utilizador isenta os criadores do aplicativo de qualquer complicação clínica ou responsabilidade legal decorrente do uso da ferramenta.',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildSectionCard(
+                      titulo: '🧼 HIGIENE E ASSEPSIA',
+                      cor: Colors.blueGrey[700]!,
+                      icone: Icons.clean_hands,
+                      conteudo:
+                          'A falta de higiene pode causar infecções graves e abcessos. Siga rigorosamente:\n\n'
+                          '• Lave as mãos com água e sabão antes de tocar nos materiais.\n'
+                          '• Limpe a borracha do bujão com algodão e Álcool 70%.\n'
+                          '• Faça a assepsia da pele com Álcool 70% e deixe secar naturalmente antes de perfurar.\n'
+                          '• Utilize APENAS seringas e agulhas estéreis, de uso único (descartáveis).\n'
+                          '• Descarte o material perfurocortante em recipiente rígido adequado (Descarpack).',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildSectionCard(
+                      titulo: '📱 COMO USAR O APLICATIVO',
+                      cor: const Color(0xFF1E3A8A),
+                      icone: Icons.help_center,
+                      conteudo:
+                          '• Banco de Medicamentos: Comece por aqui. Cadastre os seus frascos preenchendo a Concentração (mg/mL) e a Dose Semanal.\n\n'
+                          '• Calculadora Segura: Ao clicar no campo "Concentração", o app abre uma calculadora que divide os "mg totais" pelos "mL totais" do rótulo.\n\n'
+                          '• Criar Mix: Permite agrupar medicamentos na mesma injeção. Eles precisam estar configurados com o mesmo "Intervalo" e "Região Base".\n\n'
+                          '• Desmembrar Mix: Caso queira alterar a dose de apenas 1 composto da sua mistura, use esta opção para libertá-los de volta ao Banco.\n\n'
+                          '• Gerar Cronograma: Gere datas "Até o frasco acabar" ou "Apenas 1 Mês" (ideal se você faz aumento gradativo de doses). O app automaticamente desviará agendamentos que colidam na mesma região e dia.',
                     ),
                   ],
                 ),
-                child: SafeArea(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: Checkbox(
-                              value: _aceitouTermos,
-                              activeColor: Colors.green[700],
-                              onChanged: (val) {
-                                setState(() => _aceitouTermos = val ?? false);
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'Declaro que li as instruções, estou ciente dos riscos médicos e aceito os Termos de Responsabilidade e Isenção.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _aceitouTermos
-                              ? () async {
-                                  final usuarioId = Supabase
-                                      .instance
-                                      .client
-                                      .auth
-                                      .currentUser!
-                                      .id;
+              ),
 
-                                  try {
-                                    // 1. Grava o aceite oficialmente na nuvem (Supabase)
-                                    await Supabase.instance.client
-                                        .from('aceites_termos')
-                                        .insert({'user_id': usuarioId});
-
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'Termos aceitos e registrados. Uso liberado!',
-                                              ),
-                                              backgroundColor: Colors.green,
-                                            ),
-                                          );
-                                      Navigator.pop(
-                                        context,
-                                      ); // Libera a entrada no App
-                                    }
-                                  } catch (e) {
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Erro ao registrar: $e',
-                                              ),
-                                              backgroundColor: Colors.red,
-                                            ),
-                                          );
-                                    }
-                                  }
-                                }
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green[700],
-                            disabledBackgroundColor: Colors.grey[300],
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text(
-                            'ESTOU CIENTE E ACEITO',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
+              if (widget.obrigatorio)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 6,
+                        offset: Offset(0, -3),
                       ),
                     ],
                   ),
+                  child: SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: Checkbox(
+                                value: _aceitouTermos,
+                                activeColor: Colors.green[700],
+                                onChanged: (val) {
+                                  setState(() => _aceitouTermos = val ?? false);
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'Declaro que li as instruções, estou ciente dos riscos médicos e aceito os Termos de Responsabilidade e Isenção.',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _aceitouTermos
+                                ? () async {
+                                    final usuarioId = Supabase
+                                        .instance
+                                        .client
+                                        .auth
+                                        .currentUser!
+                                        .id;
+
+                                    try {
+                                      // 1. Grava o aceite oficialmente na nuvem (Supabase)
+                                      await Supabase.instance.client
+                                          .from('aceites_termos')
+                                          .insert({'user_id': usuarioId});
+
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Termos aceitos e registrados. Uso liberado!',
+                                                ),
+                                                backgroundColor: Colors.green,
+                                              ),
+                                            );
+                                        Navigator.pop(
+                                          context,
+                                        ); // Libera a entrada no App
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Erro ao registrar: $e',
+                                                ),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                      }
+                                    }
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green[700],
+                              disabledBackgroundColor: Colors.grey[300],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'ESTOU CIENTE E ACEITO',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -4137,7 +4171,8 @@ class DataInputFormatter extends TextInputFormatter {
 // ECRÃ DE PERFIL DO UTILIZADOR (INTELIGÊNCIA DEMOGRÁFICA)
 // ==========================================================
 class PerfilEcra extends StatefulWidget {
-  const PerfilEcra({super.key});
+  final bool obrigatorio;
+  const PerfilEcra({super.key, this.obrigatorio = false});
 
   @override
   State<PerfilEcra> createState() => _PerfilEcraState();
@@ -4149,7 +4184,7 @@ class _PerfilEcraState extends State<PerfilEcra> {
   bool carregando = true;
 
   final nomeCtrl = TextEditingController();
-  final dataCtrl = TextEditingController(); // Novo controlador "inteligente"
+  final dataCtrl = TextEditingController();
   String? generoSelecionado;
 
   @override
@@ -4168,13 +4203,11 @@ class _PerfilEcraState extends State<PerfilEcra> {
           .select()
           .eq('id', userId)
           .maybeSingle();
-
       if (res != null) {
         setState(() {
           nomeCtrl.text = res['nome'] ?? '';
           generoSelecionado = res['genero'];
           if (res['data_nascimento'] != null) {
-            // Converte de AAAA-MM-DD (Base de Dados) para DD/MM/AAAA (Ecrã)
             final partes = res['data_nascimento'].toString().split('-');
             if (partes.length == 3) {
               dataCtrl.text = '${partes[2]}/${partes[1]}/${partes[0]}';
@@ -4190,7 +4223,6 @@ class _PerfilEcraState extends State<PerfilEcra> {
 
   Future<void> _salvarPerfil() async {
     if (!_formKey.currentState!.validate()) return;
-
     if (generoSelecionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -4200,8 +4232,6 @@ class _PerfilEcraState extends State<PerfilEcra> {
       );
       return;
     }
-
-    // Valida se a data está completa
     if (dataCtrl.text.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -4216,7 +4246,6 @@ class _PerfilEcraState extends State<PerfilEcra> {
     final userId = supabase.auth.currentUser!.id;
 
     try {
-      // Converte de DD/MM/AAAA (Ecrã) para AAAA-MM-DD (Base de Dados)
       final partes = dataCtrl.text.split('/');
       final dataFormatadaBanco = '${partes[2]}-${partes[1]}-${partes[0]}';
 
@@ -4230,29 +4259,26 @@ class _PerfilEcraState extends State<PerfilEcra> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Perfil biológico atualizado com sucesso!'),
+            content: Text('Perfil salvo com sucesso!'),
             backgroundColor: Colors.green,
           ),
         );
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao salvar: $e'),
             backgroundColor: Colors.red,
           ),
         );
-      }
     }
     setState(() => carregando = false);
   }
 
   Future<void> _escolherData() async {
     DateTime dataInicial = DateTime(1990);
-
-    // Se já tiver algo digitado, o calendário tenta abrir logo no ano correto
     if (dataCtrl.text.length == 10) {
       try {
         final p = dataCtrl.text.split('/');
@@ -4263,7 +4289,6 @@ class _PerfilEcraState extends State<PerfilEcra> {
         );
       } catch (_) {}
     }
-
     final DateTime? selecionada = await showDatePicker(
       context: context,
       initialDate: dataInicial,
@@ -4276,10 +4301,8 @@ class _PerfilEcraState extends State<PerfilEcra> {
         child: child!,
       ),
     );
-
     if (selecionada != null) {
       setState(() {
-        // Preenche o campo de texto automaticamente no formato perfeito se o utilizador usar o calendário
         dataCtrl.text =
             '${selecionada.day.toString().padLeft(2, '0')}/${selecionada.month.toString().padLeft(2, '0')}/${selecionada.year}';
       });
@@ -4288,125 +4311,137 @@ class _PerfilEcraState extends State<PerfilEcra> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Meu Perfil',
-          style: TextStyle(fontWeight: FontWeight.bold),
+    return PopScope(
+      canPop: !widget.obrigatorio,
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: !widget.obrigatorio,
+          title: const Text(
+            'Meu Perfil',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: const Color(0xFF1E3A8A),
+          foregroundColor: Colors.white,
+          actions: [
+            if (widget.obrigatorio)
+              IconButton(
+                icon: const Icon(Icons.logout),
+                tooltip: 'Sair do App',
+                onPressed: () async {
+                  await Supabase.instance.client.auth.signOut();
+                },
+              ),
+          ],
         ),
-        backgroundColor: const Color(0xFF1E3A8A),
-        foregroundColor: Colors.white,
-      ),
-      body: carregando
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: ListView(
-                  children: [
-                    const Icon(
-                      Icons.account_circle,
-                      size: 80,
-                      color: Color(0xFF1E3A8A),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Dados Biológicos',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E3A8A),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Estas informações são essenciais para que o aplicativo cruze a sua idade e sexo biológico, gerando painéis de exames clínicos precisos e totalmente seguros.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 24),
-
-                    TextFormField(
-                      controller: nomeCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Nome Completo',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.person),
-                      ),
-                      validator: (val) =>
-                          val == null || val.isEmpty ? 'Obrigatório' : null,
-                    ),
-                    const SizedBox(height: 16),
-
-                    DropdownButtonFormField<String>(
-                      initialValue: generoSelecionado,
-                      decoration: const InputDecoration(
-                        labelText: 'Sexo Biológico',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.wc),
-                      ),
-                      items: ['Masculino', 'Feminino']
-                          .map(
-                            (e) => DropdownMenuItem(value: e, child: Text(e)),
-                          )
-                          .toList(),
-                      onChanged: (val) =>
-                          setState(() => generoSelecionado = val),
-                      validator: (val) => val == null ? 'Obrigatório' : null,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // ==========================================================
-                    // NOVO CAMPO MISTO (DIGITAÇÃO INTELIGENTE + CALENDÁRIO)
-                    // ==========================================================
-                    TextFormField(
-                      controller: dataCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [DataInputFormatter()],
-                      decoration: InputDecoration(
-                        labelText: 'Data de Nascimento (DD/MM/AAAA)',
-                        hintText: 'Ex: 15/08/1985',
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.cake),
-                        suffixIcon: IconButton(
-                          icon: const Icon(
-                            Icons.calendar_month,
+        body: SafeArea(
+          child: carregando
+              ? const Center(child: CircularProgressIndicator())
+              : Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Form(
+                    key: _formKey,
+                    child: ListView(
+                      children: [
+                        const Icon(
+                          Icons.account_circle,
+                          size: 80,
+                          color: Color(0xFF1E3A8A),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Dados Biológicos',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                             color: Color(0xFF1E3A8A),
                           ),
-                          tooltip: 'Escolher no Calendário',
-                          onPressed: _escolherData,
                         ),
-                      ),
-                      validator: (val) {
-                        if (val == null || val.isEmpty) return 'Obrigatório';
-                        if (val.length != 10) return 'Data incompleta';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 32),
-
-                    ElevatedButton.icon(
-                      onPressed: _salvarPerfil,
-                      icon: const Icon(Icons.save, color: Colors.white),
-                      label: const Text(
-                        'SALVAR PERFIL',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Estas informações são essenciais para que o aplicativo cruze a sua idade e sexo biológico, gerando painéis de exames clínicos precisos e totalmente seguros.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: Colors.grey),
                         ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green[700],
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
+                        const SizedBox(height: 24),
+                        TextFormField(
+                          controller: nomeCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Nome Completo',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.person),
+                          ),
+                          validator: (val) =>
+                              val == null || val.isEmpty ? 'Obrigatório' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        DropdownButtonFormField<String>(
+                          value: generoSelecionado,
+                          decoration: const InputDecoration(
+                            labelText: 'Sexo Biológico',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.wc),
+                          ),
+                          items: ['Masculino', 'Feminino']
+                              .map(
+                                (e) =>
+                                    DropdownMenuItem(value: e, child: Text(e)),
+                              )
+                              .toList(),
+                          onChanged: (val) =>
+                              setState(() => generoSelecionado = val),
+                          validator: (val) =>
+                              val == null ? 'Obrigatório' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: dataCtrl,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [DataInputFormatter()],
+                          decoration: InputDecoration(
+                            labelText: 'Data de Nascimento (DD/MM/AAAA)',
+                            hintText: 'Ex: 15/08/1985',
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.cake),
+                            suffixIcon: IconButton(
+                              icon: const Icon(
+                                Icons.calendar_month,
+                                color: Color(0xFF1E3A8A),
+                              ),
+                              tooltip: 'Escolher no Calendário',
+                              onPressed: _escolherData,
+                            ),
+                          ),
+                          validator: (val) {
+                            if (val == null || val.isEmpty)
+                              return 'Obrigatório';
+                            if (val.length != 10) return 'Data incompleta';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 32),
+                        ElevatedButton.icon(
+                          onPressed: _salvarPerfil,
+                          icon: const Icon(Icons.save, color: Colors.white),
+                          label: const Text(
+                            'SALVAR PERFIL',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green[700],
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+        ),
+      ),
     );
   }
 }
