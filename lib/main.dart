@@ -767,80 +767,85 @@ class _DashboardEcraState extends State<DashboardEcra> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
+      builder: (context) {
+        // 👇 ADICIONE A LINHA DO SAFEAREA AQUI 👇
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.biotech, color: Colors.indigo, size: 32),
-                SizedBox(width: 8),
-                Text(
-                  'Sugestão de Laboratório',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Abaixo está a lista gerada de forma personalizada pelo algoritmo, baseada na sua idade, sexo e tratamentos ativos. Leve-a ao seu médico.',
-              style: TextStyle(color: Colors.black87),
-            ),
-            const SizedBox(height: 16),
-            ...listaExamesSugeridos.map(
-              (exame) => Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Row(
+                const Row(
                   children: [
-                    const Icon(
-                      Icons.check_circle_outline,
-                      color: Colors.green,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        exame,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                    Icon(Icons.biotech, color: Colors.indigo, size: 32),
+                    SizedBox(width: 8),
+                    Text(
+                      'Sugestão de Laboratório',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.indigo,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: _registarExameFeito,
-                icon: const Icon(Icons.vaccines, color: Colors.white),
-                label: const Text(
-                  'JÁ COLETEI O SANGUE (REGISTRAR)',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(height: 16),
+                const Text(
+                  'Abaixo está a lista gerada de forma personalizada pelo algoritmo, baseada na sua idade, sexo e tratamentos ativos. Leve-a ao seu médico.',
+                  style: TextStyle(color: Colors.black87),
+                ),
+                const SizedBox(height: 16),
+                ...listaExamesSugeridos.map(
+                  (exame) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.check_circle_outline,
+                          color: Colors.green,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            exame,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[700],
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: _registarExameFeito,
+                    icon: const Icon(Icons.vaccines, color: Colors.white),
+                    label: const Text(
+                      'JÁ COLETEI O SANGUE (REGISTRAR)',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[700],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -932,314 +937,317 @@ class _DashboardEcraState extends State<DashboardEcra> {
           ),
         ],
       ),
-      body: carregando
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Resumo Clínico',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E3A8A),
+      body: SafeArea(
+        child: carregando
+            ? const Center(child: CircularProgressIndicator())
+            : Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Resumo Clínico',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E3A8A),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // ==========================================================
-                          // O NOVO CARD INTELIGENTE DE EXAMES
-                          // ==========================================================
-                          if (exigeExames && proximaDataExame != null)
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // ==========================================================
+                            // O NOVO CARD INTELIGENTE DE EXAMES
+                            // ==========================================================
+                            if (exigeExames && proximaDataExame != null)
+                              Card(
+                                color: diasParaExame <= 0
+                                    ? Colors.red[50]
+                                    : (diasParaExame <= 15
+                                          ? Colors.orange[50]
+                                          : Colors.teal[50]),
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                    color: diasParaExame <= 0
+                                        ? Colors.red
+                                        : (diasParaExame <= 15
+                                              ? Colors.orange
+                                              : Colors.teal),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.biotech,
+                                            color: diasParaExame <= 0
+                                                ? Colors.red[800]
+                                                : (diasParaExame <= 15
+                                                      ? Colors.orange[800]
+                                                      : Colors.teal[800]),
+                                            size: 28,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              // 👇 ALTERADO PARA "Check-up de Biomarcadores" 👇
+                                              diasParaExame <= 0
+                                                  ? 'Exames Atrasados'
+                                                  : (diasParaExame <= 15
+                                                        ? 'Exames Próximos'
+                                                        : 'Check-up de Biomarcadores'),
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: diasParaExame <= 0
+                                                    ? Colors.red[800]
+                                                    : (diasParaExame <= 15
+                                                          ? Colors.orange[800]
+                                                          : Colors.teal[800]),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        // 👇 ALTERADO "controlo" para "controle" e "recolha" para "coleta" 👇
+                                        diasParaExame <= 0
+                                            ? 'A sua janela ideal de exames de controle já começou! Veja o que solicitar ao seu médico.'
+                                            : 'Próxima coleta sugerida em $diasParaExame dias (${proximaDataExame!.day.toString().padLeft(2, '0')}/${proximaDataExame!.month.toString().padLeft(2, '0')}).',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: OutlinedButton(
+                                          onPressed: _abrirPainelExames,
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: diasParaExame <= 0
+                                                ? Colors.red[800]
+                                                : Colors.teal[800],
+                                            side: BorderSide(
+                                              color: diasParaExame <= 0
+                                                  ? Colors.red[800]!
+                                                  : Colors.teal[800]!,
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'VER PAINEL SUGERIDO',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            if (exigeExames) const SizedBox(height: 16),
+                            // ==========================================================
+
                             Card(
-                              color: diasParaExame <= 0
-                                  ? Colors.red[50]
-                                  : (diasParaExame <= 15
-                                        ? Colors.orange[50]
-                                        : Colors.teal[50]),
+                              color: Colors.blue[50],
                               elevation: 4,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(
-                                  color: diasParaExame <= 0
-                                      ? Colors.red
-                                      : (diasParaExame <= 15
-                                            ? Colors.orange
-                                            : Colors.teal),
-                                  width: 1.5,
-                                ),
                               ),
                               child: Padding(
                                 padding: const EdgeInsets.all(16.0),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
+                                    const Row(
                                       children: [
                                         Icon(
-                                          Icons.biotech,
-                                          color: diasParaExame <= 0
-                                              ? Colors.red[800]
-                                              : (diasParaExame <= 15
-                                                    ? Colors.orange[800]
-                                                    : Colors.teal[800]),
+                                          Icons.notification_important,
+                                          color: Colors.blue,
                                           size: 28,
                                         ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            // 👇 ALTERADO PARA "Check-up de Biomarcadores" 👇
-                                            diasParaExame <= 0
-                                                ? 'Exames Atrasados'
-                                                : (diasParaExame <= 15
-                                                      ? 'Exames Próximos'
-                                                      : 'Check-up de Biomarcadores'),
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: diasParaExame <= 0
-                                                  ? Colors.red[800]
-                                                  : (diasParaExame <= 15
-                                                        ? Colors.orange[800]
-                                                        : Colors.teal[800]),
-                                            ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Próxima Aplicação',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.blue,
                                           ),
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      // 👇 ALTERADO "controlo" para "controle" e "recolha" para "coleta" 👇
-                                      diasParaExame <= 0
-                                          ? 'A sua janela ideal de exames de controle já começou! Veja o que solicitar ao seu médico.'
-                                          : 'Próxima coleta sugerida em $diasParaExame dias (${proximaDataExame!.day.toString().padLeft(2, '0')}/${proximaDataExame!.month.toString().padLeft(2, '0')}).',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 12),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: OutlinedButton(
-                                        onPressed: _abrirPainelExames,
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: diasParaExame <= 0
-                                              ? Colors.red[800]
-                                              : Colors.teal[800],
-                                          side: BorderSide(
-                                            color: diasParaExame <= 0
-                                                ? Colors.red[800]!
-                                                : Colors.teal[800]!,
+                                    const Divider(),
+                                    if (proximasDoses.isNotEmpty) ...[
+                                      ...proximasDoses.map(
+                                        (dose) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 12.0,
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                dose['medicamentos'] != null
+                                                    ? dose['medicamentos']['nome']
+                                                          .toString()
+                                                    : 'Medicamento indisponível',
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF1E3A8A),
+                                                ),
+                                              ),
+                                              Text(
+                                                'Data: ${_formatarData(dose['data_aplicacao'])}',
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                              Text(
+                                                'Local: ${dose['local_aplicacao']}',
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                              Text(
+                                                'Dose: ${dose['dose_ajustada']}',
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        child: const Text(
-                                          'VER PAINEL SUGERIDO',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
                                       ),
-                                    ),
+                                    ] else
+                                      const Text(
+                                        'Nenhuma aplicação futura agendada.',
+                                        style: TextStyle(color: Colors.grey),
+                                      ),
                                   ],
                                 ),
                               ),
                             ),
-                          if (exigeExames) const SizedBox(height: 16),
-                          // ==========================================================
-
-                          Card(
-                            color: Colors.blue[50],
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Row(
-                                    children: [
-                                      Icon(
-                                        Icons.notification_important,
-                                        color: Colors.blue,
-                                        size: 28,
-                                      ),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        'Próxima Aplicação',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.blue,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const Divider(),
-                                  if (proximasDoses.isNotEmpty) ...[
-                                    ...proximasDoses.map(
-                                      (dose) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 12.0,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              dose['medicamentos'] != null
-                                                  ? dose['medicamentos']['nome']
-                                                        .toString()
-                                                  : 'Medicamento indisponível',
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF1E3A8A),
-                                              ),
-                                            ),
-                                            Text(
-                                              'Data: ${_formatarData(dose['data_aplicacao'])}',
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            Text(
-                                              'Local: ${dose['local_aplicacao']}',
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            Text(
-                                              'Dose: ${dose['dose_ajustada']}',
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ] else
-                                    const Text(
-                                      'Nenhuma aplicação futura agendada.',
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                ],
+                            const SizedBox(height: 16),
+                            Card(
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Row(
-                                    children: [
-                                      Icon(
-                                        Icons.check_circle,
-                                        color: Colors.green,
-                                        size: 24,
-                                      ),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        'Última Aplicação',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Row(
+                                      children: [
+                                        Icon(
+                                          Icons.check_circle,
                                           color: Colors.green,
+                                          size: 24,
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const Divider(),
-                                  if (ultimasDoses.isNotEmpty) ...[
-                                    ...ultimasDoses.map(
-                                      (dose) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 8.0,
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Última Aplicação',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green,
+                                          ),
                                         ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              dose['medicamentos'] != null
-                                                  ? dose['medicamentos']['nome']
-                                                        .toString()
-                                                  : 'Medicamento indisponível',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
+                                      ],
+                                    ),
+                                    const Divider(),
+                                    if (ultimasDoses.isNotEmpty) ...[
+                                      ...ultimasDoses.map(
+                                        (dose) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 8.0,
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                dose['medicamentos'] != null
+                                                    ? dose['medicamentos']['nome']
+                                                          .toString()
+                                                    : 'Medicamento indisponível',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
-                                            ),
-                                            Text(
-                                              'Data: ${_formatarData(dose['data_aplicacao'])}',
-                                            ),
-                                          ],
+                                              Text(
+                                                'Data: ${_formatarData(dose['data_aplicacao'])}',
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ] else
-                                    const Text(
-                                      'Nenhum histórico de aplicações.',
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                ],
+                                    ] else
+                                      const Text(
+                                        'Nenhum histórico de aplicações.',
+                                        style: TextStyle(color: Colors.grey),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SetupEcra(),
+                          ],
                         ),
-                      ).then((_) {
-                        _carregarResumo();
-                        _calcularExames(); // Atualiza os exames se ele adicionar/remover um medicamento
-                      });
-                    },
-                    icon: const Icon(Icons.settings, color: Colors.white),
-                    label: const Text(
-                      'GERIR MEDICAMENTOS',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3A8A),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SetupEcra(),
+                          ),
+                        ).then((_) {
+                          _carregarResumo();
+                          _calcularExames(); // Atualiza os exames se ele adicionar/remover um medicamento
+                        });
+                      },
+                      icon: const Icon(Icons.settings, color: Colors.white),
+                      label: const Text(
+                        'GERIR MEDICAMENTOS',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E3A8A),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }
@@ -3686,6 +3694,40 @@ class GuiaFaqEcra extends StatefulWidget {
 
 class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
   bool _aceitouTermos = false;
+  bool _chegouAoFim = false;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_verificarScroll);
+
+    // Libera automaticamente caso a tela do usuário seja tão grande que não precise rolar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients &&
+          _scrollController.position.maxScrollExtent <= 0) {
+        setState(() => _chegouAoFim = true);
+      }
+    });
+  }
+
+  void _verificarScroll() {
+    // Usamos uma margem de 50 pixels antes do fim absoluto para garantir que dispare
+    if (_scrollController.hasClients &&
+        _scrollController.offset >=
+            _scrollController.position.maxScrollExtent - 50 &&
+        !_chegouAoFim) {
+      setState(() {
+        _chegouAoFim = true;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   Widget _buildSectionCard({
     required String titulo,
@@ -3796,11 +3838,120 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
             children: [
               Expanded(
                 child: ListView(
+                  controller: _scrollController,
                   padding: const EdgeInsets.all(16),
                   children: [
-                    // ==========================================
-                    // 1. BANCO DE IMAGENS DE PONTOS DE APLICAÇÃO
-                    // ==========================================
+                    // 1. TERMOS DE RESPONSABILIDADE
+                    _buildSectionCard(
+                      titulo: '⚖️ TERMOS DE RESPONSABILIDADE',
+                      cor: Colors.orange[900]!,
+                      icone: Icons.gavel,
+                      conteudo: 'Ao utilizar o Controle Injetáveis, o usuário declara estar plenamente ciente de que:\n\n1. O usuário assume TOTAL e exclusiva responsabilidade pelas doses inseridas, misturas (Mix) criadas e aplicações realizadas.\n2. Os desenvolvedores (CodeVibe Studio) NÃO se responsabilizam por erros de preenchimento, cálculos equivocados gerados por introdução de dados incorretos ou danos à saúde.\n3. A lista do "Check-up de Biomarcadores" é uma sugestão puramente matemática baseada em protocolos de redução de danos. NÃO tem valor de pedido médico oficial.\n4. O utilizador isenta os criadores do aplicativo de qualquer complicação clínica ou responsabilidade legal decorrente do uso da ferramenta.',
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 2. AVISO MÉDICO IMPORTANTE
+                    _buildSectionCard(
+                      titulo: '🚨 AVISO MÉDICO IMPORTANTE',
+                      cor: Colors.red[900]!,
+                      icone: Icons.warning_amber_rounded,
+                      conteudo: 'Este aplicativo é exclusivamente uma ferramenta de apoio logístico e matemático. ELE NÃO SUBSTITUI A ORIENTAÇÃO MÉDICA.\n\n• O aplicativo não receita, não prescreve e não recomenda tratamentos.\n• Em caso de dor extrema, febre, vermelhidão intensa, inchaço, falta de ar ou qualquer mal-estar após uma aplicação, PROCURE UMA EMERGÊNCIA HOSPITALAR IMEDIATAMENTE ou contate o seu médico.\n• Nunca inicie ou altere dosagens sem o conhecimento e autorização do seu profissional de saúde.',
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 3. HIGIENE E ASSEPSIA
+                    _buildSectionCard(
+                      titulo: '🧼 HIGIENE E ASSEPSIA',
+                      cor: Colors.blueGrey[700]!,
+                      icone: Icons.clean_hands,
+                      conteudo: 'A falta de higiene pode causar infecções graves e abcessos. Siga rigorosamente:\n\n• Lave as mãos com água e sabão antes de tocar nos materiais.\n• Limpe a borracha do bujão com algodão e Álcool 70%.\n• Faça a assepsia da pele com Álcool 70% e deixe secar naturalmente antes de perfurar.\n• Utilize APENAS seringas e agulhas estéreis, de uso único (descartáveis).\n• Descarte o material perfurocortante em recipiente rígido adequado (Descarpack).',
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 4. COMO USAR O APLICATIVO
+                    _buildSectionCard(
+                      titulo: '📱 COMO USAR O APLICATIVO',
+                      cor: const Color(0xFF1E3A8A),
+                      icone: Icons.help_center,
+                      conteudo: '• Banco de Medicamentos: Comece por aqui. Cadastre os seus frascos preenchendo a Concentração (mg/mL) e a Dose Semanal.\n\n• Calculadora Segura: Ao clicar no campo "Concentração", o app abre uma calculadora que divide os "mg totais" pelos "mL totais" do rótulo.\n\n• Criar Mix: Permite agrupar medicamentos na mesma injeção. Eles precisam estar configurados com o mesmo "Intervalo" e "Região Base".\n\n• Desmembrar Mix: Caso queira alterar a dose de apenas 1 composto da sua mistura, use esta opção para libertá-los de volta ao Banco.\n\n• Gerar Cronograma: Gere datas "Até o frasco acabar" ou "Apenas 1 Mês". O app automaticamente desviará agendamentos que colidam na mesma região e dia.',
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 5. INTELIGÊNCIA CLÍNICA E EXAMES
+                    _buildSectionCard(
+                      titulo: '🧬 INTELIGÊNCIA CLÍNICA E EXAMES',
+                      cor: Colors.teal[800]!,
+                      icone: Icons.biotech,
+                      conteudo: 'O aplicativo possui um Motor Analítico Preditivo de segurança:\n\n• Meu Perfil (Ícone Superior): Preencha o seu sexo biológico e data de nascimento. Estes dados cruzam com os seus tratamentos para gerar painéis de exames precisos.\n\n• Auto-Classificação: Ao registrar um medicamento, o motor identifica a família clínica e prepara o protocolo de risco e controle laboratorial.\n\n• Check-up de Biomarcadores: O algoritmo calcula a janela de "steady state" (estabilidade sanguínea). O alerta de primeira coleta surge 45 dias após o início de um novo tratamento. Após registrar essa coleta, os exames de manutenção passarão a ser solicitados a cada 120 dias.',
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 6. GUIA DE SERINGAS E AGULHAS
+                    Card(
+                      color: Colors.orange[50],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.vaccines, color: Colors.orange),
+                                SizedBox(width: 8),
+                                Text(
+                                  'GUIA DE SERINGAS E AGULHAS',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.orange,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Entenda o material adequado para cada aplicação:',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const Divider(),
+                            _buildImageButton(
+                              context: context,
+                              titulo: 'Visualizar Agulhas e Seringas',
+                              icone: Icons.science_outlined,
+                              caminhoImagem:
+                                  'assets/regiao/agulhas_seringas.png',
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              '💉 AGULHAS RECOMENDADAS:',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const Text(
+                              '• Subcutânea (SC - Gordura): Agulhas curtas e finas, ex: 13x0.45mm ou 13x0.3mm (marrom/cinza). Aplicada em ângulo de 90° ou 45° dependendo do tecido adiposo.\n• Intramuscular (IM - Músculo): Agulhas longas para alcançar o músculo, ex: 25x0.7mm ou 30x0.7mm (preta/azul) e para volumes maiores 25x0.8mm (verde). Aplicar em ângulo de 90°.',
+                              style: TextStyle(fontSize: 13, height: 1.4),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              '🧪 SERINGAS E ESCALAS:',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const Text(
+                              '• Seringas de Insulina (100 UI = 1 mL): Escala detalhada. 10 UI equivalem a 0.1 mL. Ideal para microdoses subcutâneas de alta precisão.\n• Seringas de 3 mL ou 5 mL: Usadas para aplicações intramusculares que requerem maior volume de diluente ou óleo.',
+                              style: TextStyle(fontSize: 13, height: 1.4),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 7. MAPA DE PONTOS DE APLICAÇÃO
                     Card(
                       color: Colors.blue[50],
                       shape: RoundedRectangleBorder(
@@ -3869,139 +4020,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-
-                    // ==========================================
-                    // 2. GUIA DE SERINGAS E AGULHAS
-                    // ==========================================
-                    Card(
-                      color: Colors.orange[50],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.vaccines, color: Colors.orange),
-                                SizedBox(width: 8),
-                                Text(
-                                  'GUIA DE SERINGAS E AGULHAS',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: Colors.orange,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Entenda o material adequado para cada aplicação:',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const Divider(),
-                            _buildImageButton(
-                              context: context,
-                              titulo: 'Visualizar Agulhas e Seringas',
-                              icone: Icons.science_outlined,
-                              caminhoImagem:
-                                  'assets/regiao/agulhas_seringas.png',
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              '💉 AGULHAS RECOMENDADAS:',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const Text(
-                              '• Subcutânea (SC - Gordura): Agulhas curtas e finas, ex: 13x0.45mm ou 13x0.3mm (marrom/cinza). Aplicada em ângulo de 90° ou 45° dependendo do tecido adiposo.\n'
-                              '• Intramuscular (IM - Músculo): Agulhas longas para alcançar o músculo, ex: 25x0.7mm ou 30x0.7mm (preta/azul) e para volumes maiores 25x0.8mm (verde). Aplicar em ângulo de 90°.',
-                              style: TextStyle(fontSize: 13, height: 1.4),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              '🧪 SERINGAS E ESCALAS:',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const Text(
-                              '• Seringas de Insulina (100 UI = 1 mL): Escala detalhada. 10 UI equivalem a 0.1 mL. Ideal para microdoses subcutâneas de alta precisão.\n'
-                              '• Seringas de 3 mL ou 5 mL: Usadas para aplicações intramusculares que requerem maior volume de diluente ou óleo.',
-                              style: TextStyle(fontSize: 13, height: 1.4),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // ==========================================
-                    // 3. NOVA SEÇÃO: INTELIGÊNCIA CLÍNICA
-                    // ==========================================
-                    _buildSectionCard(
-                      titulo: '🧬 INTELIGÊNCIA CLÍNICA E EXAMES',
-                      cor: Colors.teal[800]!,
-                      icone: Icons.biotech,
-                      conteudo:
-                          'O aplicativo possui um Motor Analítico Preditivo de segurança:\n\n'
-                          '• Meu Perfil (Ícone Superior): Preencha o seu sexo biológico e data de nascimento. Estes dados cruzam com os seus tratamentos para gerar painéis de exames precisos (ex: sugerir PSA apenas para homens acima de 40 anos).\n\n'
-                          '• Auto-Classificação: Ao registar um medicamento, o motor identifica a família clínica (ex: Derivado DHT, Análogo GLP-1, Peptídeo) e prepara o protocolo de risco e controle laboratorial.\n\n'
-                          '• Check-up de Biomarcadores: O algoritmo calcula a janela de "steady state" (estabilidade sanguínea). O alerta de primeira coleta surge 45 dias após o início de um novo tratamento. Após registar essa coleta, os exames de manutenção passarão a ser solicitados a cada 120 dias.',
-                    ),
-                    const SizedBox(height: 12),
-
-                    _buildSectionCard(
-                      titulo: '🚨 AVISO MÉDICO IMPORTANTE',
-                      cor: Colors.red[900]!,
-                      icone: Icons.warning_amber_rounded,
-                      conteudo:
-                          'Este aplicativo é exclusivamente uma ferramenta de apoio logístico e matemático. ELE NÃO SUBSTITUI A ORIENTAÇÃO MÉDICA.\n\n'
-                          '• O aplicativo não receita, não prescreve e não recomenda tratamentos.\n'
-                          '• Em caso de dor extrema, febre, vermelhidão intensa, inchaço, falta de ar ou qualquer mal-estar após uma aplicação, PROCURE UMA EMERGÊNCIA HOSPITALAR IMEDIATAMENTE ou contacte o seu médico.\n'
-                          '• Nunca inicie ou altere dosagens sem o conhecimento e autorização do seu profissional de saúde.',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSectionCard(
-                      titulo: '⚖️ TERMOS DE RESPONSABILIDADE',
-                      cor: Colors.orange[900]!,
-                      icone: Icons.gavel,
-                      conteudo:
-                          'Ao utilizar o Controle Injetáveis, o usuário declara estar plenamente ciente de que:\n\n'
-                          '1. O usuário assume TOTAL e exclusiva responsabilidade pelas doses inseridas, misturas (Mix) criadas e aplicações realizadas.\n'
-                          '2. Os desenvolvedores (CodeVibe Studio) NÃO se responsabilizam por erros de preenchimento, cálculos equivocados gerados por introdução de dados incorretos ou danos à saúde.\n'
-                          '3. A lista do "Check-up de Biomarcadores" é uma sugestão puramente matemática baseada em protocolos de redução de danos. NÃO tem valor de pedido médico oficial.\n'
-                          '4. O utilizador isenta os criadores do aplicativo de qualquer complicação clínica ou responsabilidade legal decorrente do uso da ferramenta.',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSectionCard(
-                      titulo: '🧼 HIGIENE E ASSEPSIA',
-                      cor: Colors.blueGrey[700]!,
-                      icone: Icons.clean_hands,
-                      conteudo:
-                          'A falta de higiene pode causar infecções graves e abcessos. Siga rigorosamente:\n\n'
-                          '• Lave as mãos com água e sabão antes de tocar nos materiais.\n'
-                          '• Limpe a borracha do bujão com algodão e Álcool 70%.\n'
-                          '• Faça a assepsia da pele com Álcool 70% e deixe secar naturalmente antes de perfurar.\n'
-                          '• Utilize APENAS seringas e agulhas estéreis, de uso único (descartáveis).\n'
-                          '• Descarte o material perfurocortante em recipiente rígido adequado (Descarpack).',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSectionCard(
-                      titulo: '📱 COMO USAR O APLICATIVO',
-                      cor: const Color(0xFF1E3A8A),
-                      icone: Icons.help_center,
-                      conteudo:
-                          '• Banco de Medicamentos: Comece por aqui. Cadastre os seus frascos preenchendo a Concentração (mg/mL) e a Dose Semanal.\n\n'
-                          '• Calculadora Segura: Ao clicar no campo "Concentração", o app abre uma calculadora que divide os "mg totais" pelos "mL totais" do rótulo.\n\n'
-                          '• Criar Mix: Permite agrupar medicamentos na mesma injeção. Eles precisam estar configurados com o mesmo "Intervalo" e "Região Base".\n\n'
-                          '• Desmembrar Mix: Caso queira alterar a dose de apenas 1 composto da sua mistura, use esta opção para libertá-los de volta ao Banco.\n\n'
-                          '• Gerar Cronograma: Gere datas "Até o frasco acabar" ou "Apenas 1 Mês" (ideal se você faz aumento gradativo de doses). O app automaticamente desviará agendamentos que colidam na mesma região e dia.',
-                    ),
                   ],
                 ),
               ),
@@ -4023,9 +4041,23 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ],
                   ),
                   child: SafeArea(
+                    top: false,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (!_chegouAoFim)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 8.0),
+                            child: Text(
+                              '⬇️ Role a tela até o final para habilitar o aceite.',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -4035,18 +4067,26 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                               child: Checkbox(
                                 value: _aceitouTermos,
                                 activeColor: Colors.green[700],
-                                onChanged: (val) {
-                                  setState(() => _aceitouTermos = val ?? false);
-                                },
+                                // Se não chegou ao fim, a checkbox fica desabilitada (retorna null)
+                                onChanged: _chegouAoFim
+                                    ? (val) {
+                                        setState(
+                                          () => _aceitouTermos = val ?? false,
+                                        );
+                                      }
+                                    : null,
                               ),
                             ),
                             const SizedBox(width: 12),
-                            const Expanded(
+                            Expanded(
                               child: Text(
                                 'Declaro que li as instruções, estou ciente dos riscos médicos e aceito os Termos de Responsabilidade e Isenção.',
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
+                                  color: _chegouAoFim
+                                      ? Colors.black
+                                      : Colors.grey,
                                 ),
                               ),
                             ),
@@ -4065,13 +4105,10 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                                         .auth
                                         .currentUser!
                                         .id;
-
                                     try {
-                                      // 1. Grava o aceite oficialmente na nuvem (Supabase)
                                       await Supabase.instance.client
                                           .from('aceites_termos')
                                           .insert({'user_id': usuarioId});
-
                                       if (mounted) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
@@ -4082,9 +4119,7 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                                                 backgroundColor: Colors.green,
                                               ),
                                             );
-                                        Navigator.pop(
-                                          context,
-                                        ); // Libera a entrada no App
+                                        Navigator.pop(context);
                                       }
                                     } catch (e) {
                                       if (mounted) {
@@ -4266,13 +4301,14 @@ class _PerfilEcraState extends State<PerfilEcra> {
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao salvar: $e'),
             backgroundColor: Colors.red,
           ),
         );
+      }
     }
     setState(() => carregando = false);
   }
@@ -4376,7 +4412,7 @@ class _PerfilEcraState extends State<PerfilEcra> {
                         ),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
-                          value: generoSelecionado,
+                          initialValue: generoSelecionado,
                           decoration: const InputDecoration(
                             labelText: 'Sexo Biológico',
                             border: OutlineInputBorder(),
@@ -4413,8 +4449,9 @@ class _PerfilEcraState extends State<PerfilEcra> {
                             ),
                           ),
                           validator: (val) {
-                            if (val == null || val.isEmpty)
+                            if (val == null || val.isEmpty) {
                               return 'Obrigatório';
+                            }
                             if (val.length != 10) return 'Data incompleta';
                             return null;
                           },
