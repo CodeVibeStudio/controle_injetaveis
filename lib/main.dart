@@ -3138,7 +3138,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
   final supabase = Supabase.instance.client;
   bool carregando = false;
 
-  // 👇 COLE A MESMA FUNÇÃO AQUI TAMBÉM 👇
   Widget _formatarTextoDose(String textoOriginal) {
     final spans = <TextSpan>[];
     final regex = RegExp(r'([\d,.]+\s*UI)|(\([^)]+\))');
@@ -3654,164 +3653,169 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            color: Colors.blue[100],
-            child: Text(
-              'Seringa: ${widget.medicamento['seringa_ui']} UI | Intervalo: ${widget.medicamento['intervalo_dias']} dias',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E3A8A),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              color: Colors.blue[100],
+              child: Text(
+                'Seringa: ${widget.medicamento['seringa_ui']} UI | Intervalo: ${widget.medicamento['intervalo_dias']} dias',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E3A8A),
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: FutureBuilder<List<dynamic>>(
-              future: obterCronograma(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting ||
-                    carregando) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final doses = snapshot.data ?? [];
-                if (doses.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'Nenhum cronograma gerado ainda.',
-                            style: TextStyle(color: Colors.grey, fontSize: 16),
-                          ),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 50,
-                            child: ElevatedButton.icon(
-                              onPressed: _abrirDialogoGeracao,
-                              icon: const Icon(
-                                Icons.calendar_month,
-                                color: Colors.white,
+            Expanded(
+              child: FutureBuilder<List<dynamic>>(
+                future: obterCronograma(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting ||
+                      carregando) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final doses = snapshot.data ?? [];
+                  if (doses.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Nenhum cronograma gerado ainda.',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 16,
                               ),
-                              label: const Text(
-                                'GERAR CRONOGRAMA',
-                                style: TextStyle(
+                            ),
+                            const SizedBox(height: 20),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: ElevatedButton.icon(
+                                onPressed: _abrirDialogoGeracao,
+                                icon: const Icon(
+                                  Icons.calendar_month,
                                   color: Colors.white,
-                                  fontWeight: FontWeight.bold,
                                 ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green[700],
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                                label: const Text(
+                                  'GERAR CRONOGRAMA',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green[700],
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  itemCount: doses.length,
-                  itemBuilder: (context, index) {
-                    final dose = doses[index];
-                    final partesData = dose['data_aplicacao'].toString().split(
-                      '-',
                     );
-                    final dataFormatada =
-                        '${partesData[2]}/${partesData[1]}/${partesData[0]}';
+                  }
+                  return ListView.builder(
+                    itemCount: doses.length,
+                    itemBuilder: (context, index) {
+                      final dose = doses[index];
+                      final partesData = dose['data_aplicacao']
+                          .toString()
+                          .split('-');
+                      final dataFormatada =
+                          '${partesData[2]}/${partesData[1]}/${partesData[0]}';
 
-                    final bool isUltimasDuas = index >= doses.length - 2;
-                    final bool isPendenteEFinal =
-                        isUltimasDuas && !dose['status_aplicado'];
+                      final bool isUltimasDuas = index >= doses.length - 2;
+                      final bool isPendenteEFinal =
+                          isUltimasDuas && !dose['status_aplicado'];
 
-                    Color? corFundo = dose['status_aplicado']
-                        ? Colors.green[50]
-                        : (isPendenteEFinal ? Colors.red[100] : Colors.white);
-                    Color corTexto = isPendenteEFinal
-                        ? Colors.red[900]!
-                        : Colors.black;
+                      Color? corFundo = dose['status_aplicado']
+                          ? Colors.green[50]
+                          : (isPendenteEFinal ? Colors.red[100] : Colors.white);
+                      Color corTexto = isPendenteEFinal
+                          ? Colors.red[900]!
+                          : Colors.black;
 
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      color: corFundo,
-                      shape: isPendenteEFinal
-                          ? RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: const BorderSide(
-                                color: Colors.red,
-                                width: 2,
-                              ),
-                            )
-                          : RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                      child: ListTile(
-                        onTap: () => alternarStatusDose(
-                          dose['id'],
-                          dose['status_aplicado'],
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
                         ),
-                        leading: Icon(
-                          dose['status_aplicado']
-                              ? Icons.check_circle
-                              : (isPendenteEFinal
-                                    ? Icons.warning_amber_rounded
-                                    : Icons.circle_outlined),
-                          color: dose['status_aplicado']
-                              ? Colors.green
-                              : (isPendenteEFinal ? Colors.red : Colors.grey),
-                          size: 32,
-                        ),
-                        title: Text(
-                          dataFormatada,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            decoration: dose['status_aplicado']
-                                ? TextDecoration.lineThrough
-                                : null,
-                            color: dose['status_aplicado']
-                                ? Colors.grey
-                                : corTexto,
-                          ),
-                        ),
-                        subtitle: dose['status_aplicado']
-                            ? Text(
-                                '${dose['dose_ajustada']}\nLocal: ${dose['local_aplicacao']}',
-                                style: const TextStyle(color: Colors.grey),
+                        color: corFundo,
+                        shape: isPendenteEFinal
+                            ? RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: const BorderSide(
+                                  color: Colors.red,
+                                  width: 2,
+                                ),
                               )
-                            : Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _formatarTextoDose(
-                                    '${dose['dose_ajustada']}',
-                                  ),
-                                  Text(
-                                    'Local: ${dose['local_aplicacao']}',
-                                    style: TextStyle(color: corTexto),
-                                  ),
-                                ],
+                            : RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                        isThreeLine: true,
-                      ),
-                    );
-                  },
-                );
-              },
+                        child: ListTile(
+                          onTap: () => alternarStatusDose(
+                            dose['id'],
+                            dose['status_aplicado'],
+                          ),
+                          leading: Icon(
+                            dose['status_aplicado']
+                                ? Icons.check_circle
+                                : (isPendenteEFinal
+                                      ? Icons.warning_amber_rounded
+                                      : Icons.circle_outlined),
+                            color: dose['status_aplicado']
+                                ? Colors.green
+                                : (isPendenteEFinal ? Colors.red : Colors.grey),
+                            size: 32,
+                          ),
+                          title: Text(
+                            dataFormatada,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              decoration: dose['status_aplicado']
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                              color: dose['status_aplicado']
+                                  ? Colors.grey
+                                  : corTexto,
+                            ),
+                          ),
+                          subtitle: dose['status_aplicado']
+                              ? Text(
+                                  '${dose['dose_ajustada']}\nLocal: ${dose['local_aplicacao']}',
+                                  style: const TextStyle(color: Colors.grey),
+                                )
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _formatarTextoDose(
+                                      '${dose['dose_ajustada']}',
+                                    ),
+                                    Text(
+                                      'Local: ${dose['local_aplicacao']}',
+                                      style: TextStyle(color: corTexto),
+                                    ),
+                                  ],
+                                ),
+                          isThreeLine: true,
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
