@@ -3212,11 +3212,41 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
   }
 
   Future<List<dynamic>> obterCronograma() async {
-    return await supabase
+    // 1. Busca os dados brutos no Supabase (sem a ordenação antiga do banco)
+    final resposta = await supabase
         .from('cronograma')
         .select()
-        .eq('medicamento_id', widget.medicamento['id'])
-        .order('data_aplicacao', ascending: true);
+        .eq('medicamento_id', widget.medicamento['id']);
+
+    // 2. Transforma a resposta numa lista que podemos modificar
+    List<dynamic> doses = List.from(resposta);
+
+    // 3. Aplica a inteligência de UX (Ordenação em 2 níveis)
+    doses.sort((a, b) {
+      // Verifica o status (Atenção: na sua base de dados a coluna chama-se 'status_aplicado')
+      bool aplicadoA = a['status_aplicado'] == true;
+      bool aplicadoB = b['status_aplicado'] == true;
+
+      // Nível 1: Separa PENDENTES (sobe) de REALIZADAS (desce)
+      if (aplicadoA != aplicadoB) {
+        return aplicadoA ? 1 : -1;
+      }
+
+      // Nível 2: Desempata pelas Datas
+      DateTime dataA = DateTime.parse(a['data_aplicacao'].toString());
+      DateTime dataB = DateTime.parse(b['data_aplicacao'].toString());
+
+      if (!aplicadoA) {
+        // PARA AS PENDENTES: Crescente (a mais próxima primeiro)
+        return dataA.compareTo(dataB);
+      } else {
+        // PARA AS REALIZADAS: Decrescente (a última que aplicou fica no topo)
+        return dataB.compareTo(dataA);
+      }
+    });
+
+    // 4. Devolve a lista já organizada para a tela desenhar
+    return doses;
   }
 
   List<String> _obterListaRodizio(String regiaoBase) {
