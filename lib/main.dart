@@ -4017,48 +4017,88 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
     super.dispose();
   }
 
-  Widget _buildSectionCard({
+  Widget _buildExpandableCard({
     required String titulo,
     required Color cor,
     required IconData icone,
-    required String conteudo,
+    required Widget conteudo,
+    Color? corFundo,
   }) {
+    // 1. MODO PRIMEIRO ACESSO (Tudo aberto, sem opção de fechar para forçar a leitura)
+    if (widget.obrigatorio) {
+      return Card(
+        color: corFundo ?? Colors.white,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: cor.withValues(alpha: 0.3)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icone, color: cor, size: 28),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      titulo,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: cor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(),
+              const SizedBox(height: 8),
+              conteudo,
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 2. MODO ACESSO NORMAL (Cartões recolhidos e expansíveis para um visual limpo)
     return Card(
+      color: corFundo ?? Colors.white,
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: cor.withValues(alpha: 0.3)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icone, color: cor, size: 28),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    titulo,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: cor,
-                    ),
-                  ),
-                ),
-              ],
+      clipBehavior: Clip
+          .antiAlias, // Garante que a animação não sai das bordas arredondadas
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+        ), // Esconde a linha do ExpansionTile
+        child: ExpansionTile(
+          iconColor: cor,
+          collapsedIconColor: cor,
+          leading: Icon(icone, color: cor, size: 28),
+          title: Text(
+            titulo,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: cor,
             ),
-            const Divider(),
-            const SizedBox(height: 8),
-            Text(
-              conteudo,
-              style: const TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: Colors.black87,
+          ),
+          children: [
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 16,
+                right: 16,
+                bottom: 16,
+                top: 12,
               ),
+              child: conteudo,
             ),
           ],
         ),
@@ -4092,6 +4132,28 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildDicionarioItem(String termo, String definicao) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6.0),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(
+            fontSize: 13,
+            color: Colors.black87,
+            height: 1.4,
+          ),
+          children: [
+            TextSpan(
+              text: '• $termo: ',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            TextSpan(text: definicao),
+          ],
+        ),
       ),
     );
   }
@@ -4130,185 +4192,344 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                   padding: const EdgeInsets.all(16),
                   children: [
                     // 1. TERMOS DE RESPONSABILIDADE
-                    _buildSectionCard(
+                    _buildExpandableCard(
                       titulo: '⚖️ TERMOS DE RESPONSABILIDADE',
                       cor: Colors.orange[900]!,
                       icone: Icons.gavel,
-                      conteudo: 'Ao utilizar o Controle Injetáveis, o usuário declara estar plenamente ciente de que:\n\n1. O usuário assume TOTAL e exclusiva responsabilidade pelas doses inseridas, misturas (Mix) criadas e aplicações realizadas.\n2. Os desenvolvedores (CodeVibe Studio) NÃO se responsabilizam por erros de preenchimento, cálculos equivocados gerados por introdução de dados incorretos ou danos à saúde.\n3. A lista do "Check-up de Biomarcadores" é uma sugestão puramente matemática baseada em protocolos de redução de danos. NÃO tem valor de pedido médico oficial.\n4. O utilizador isenta os criadores do aplicativo de qualquer complicação clínica ou responsabilidade legal decorrente do uso da ferramenta.',
+                      conteudo: const Text(
+                        'Ao utilizar o Controle Injetáveis, o usuário declara estar plenamente ciente de que:\n\n1. O usuário assume TOTAL e exclusiva responsabilidade pelas doses inseridas, misturas (Mix) criadas e aplicações realizadas.\n2. Os desenvolvedores (CodeVibe Studio) NÃO se responsabilizam por erros de preenchimento, cálculos equivocados gerados por introdução de dados incorretos ou danos à saúde.\n3. A lista do "Check-up de Biomarcadores" é uma sugestão puramente matemática baseada em protocolos de redução de danos. NÃO tem valor de pedido médico oficial.\n4. O utilizador isenta os criadores do aplicativo de qualquer complicação clínica ou responsabilidade legal decorrente do uso da ferramenta.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
 
                     // 2. AVISO MÉDICO IMPORTANTE
-                    _buildSectionCard(
+                    _buildExpandableCard(
                       titulo: '🚨 AVISO MÉDICO IMPORTANTE',
                       cor: Colors.red[900]!,
                       icone: Icons.warning_amber_rounded,
-                      conteudo: 'Este aplicativo é exclusivamente uma ferramenta de apoio logístico e matemático. ELE NÃO SUBSTITUI A ORIENTAÇÃO MÉDICA.\n\n• O aplicativo não receita, não prescreve e não recomenda tratamentos.\n• Em caso de dor extrema, febre, vermelhidão intensa, inchaço, falta de ar ou qualquer mal-estar após uma aplicação, PROCURE UMA EMERGÊNCIA HOSPITALAR IMEDIATAMENTE ou contate o seu médico.\n• Nunca inicie ou altere dosagens sem o conhecimento e autorização do seu profissional de saúde.',
+                      conteudo: const Text(
+                        'Este aplicativo é exclusivamente uma ferramenta de apoio logístico e matemático. ELE NÃO SUBSTITUI A ORIENTAÇÃO MÉDICA.\n\n• O aplicativo não receita, não prescreve e não recomenda tratamentos.\n• Em caso de dor extrema, febre, vermelhidão intensa, inchaço, falta de ar ou qualquer mal-estar após uma aplicação, PROCURE UMA EMERGÊNCIA HOSPITALAR IMEDIATAMENTE ou contate o seu médico.\n• Nunca inicie ou altere dosagens sem o conhecimento e autorização do seu profissional de saúde.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
 
                     // 3. HIGIENE E ASSEPSIA
-                    _buildSectionCard(
+                    _buildExpandableCard(
                       titulo: '🧼 HIGIENE E ASSEPSIA',
                       cor: Colors.blueGrey[700]!,
                       icone: Icons.clean_hands,
-                      conteudo: 'A falta de higiene pode causar infecções graves e abcessos. Siga rigorosamente:\n\n• Lave as mãos com água e sabão antes de tocar nos materiais.\n• Limpe a borracha do bujão com algodão e Álcool 70%.\n• Faça a assepsia da pele com Álcool 70% e deixe secar naturalmente antes de perfurar.\n• Utilize APENAS seringas e agulhas estéreis, de uso único (descartáveis).\n• Descarte o material perfurocortante em recipiente rígido adequado (Descarpack).',
+                      conteudo: const Text(
+                        'A falta de higiene pode causar infecções graves e abcessos. Siga rigorosamente:\n\n• Lave as mãos com água e sabão antes de tocar nos materiais.\n• Limpe a borracha do bujão com algodão e Álcool 70%.\n• Faça a assepsia da pele com Álcool 70% e deixe secar naturalmente antes de perfurar.\n• Utilize APENAS seringas e agulhas estéreis, de uso único (descartáveis).\n• Descarte o material perfurocortante em recipiente rígido adequado (Descarpack).',
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
 
                     // 4. COMO USAR O APLICATIVO
-                    _buildSectionCard(
+                    _buildExpandableCard(
                       titulo: '📱 COMO USAR O APLICATIVO',
                       cor: const Color(0xFF1E3A8A),
                       icone: Icons.help_center,
-                      conteudo: '• Banco de Medicamentos: Comece por aqui. Cadastre os seus frascos preenchendo a Concentração (mg/mL) e a Dose Semanal.\n\n• Calculadora Segura: Ao clicar no campo "Concentração", o app abre uma calculadora que divide os "mg totais" pelos "mL totais" do rótulo.\n\n• Criar Mix: Permite agrupar medicamentos na mesma injeção. Eles precisam estar configurados com o mesmo "Intervalo" e "Região Base".\n\n• Desmembrar Mix: Caso queira alterar a dose de apenas 1 composto da sua mistura, use esta opção para libertá-los de volta ao Banco.\n\n• Gerar Cronograma: Gere datas "Até o frasco acabar" ou "Apenas 1 Mês". O app automaticamente desviará agendamentos que colidam na mesma região e dia.',
+                      conteudo: const Text(
+                        '• Banco de Medicamentos: Comece por aqui. Cadastre os seus frascos preenchendo a Concentração (mg/mL) e a Dose Semanal.\n\n• Calculadora Segura: Ao clicar no campo "Concentração", o app abre uma calculadora que divide os "mg totais" pelos "mL totais" do rótulo.\n\n• Criar Mix: Permite agrupar medicamentos na mesma injeção. Eles precisam estar configurados com o mesmo "Intervalo" e "Região Base".\n\n• Desmembrar Mix: Caso queira alterar a dose de apenas 1 composto da sua mistura, use esta opção para libertá-los de volta ao Banco.\n\n• Gerar Cronograma: Gere datas "Até o frasco acabar" ou "Apenas 1 Mês". O app automaticamente desviará agendamentos que colidam na mesma região e dia.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
 
                     // 5. INTELIGÊNCIA CLÍNICA E EXAMES
-                    _buildSectionCard(
+                    _buildExpandableCard(
                       titulo: '🧬 INTELIGÊNCIA CLÍNICA E EXAMES',
                       cor: Colors.teal[800]!,
                       icone: Icons.biotech,
-                      conteudo: 'O aplicativo possui um Motor Analítico Preditivo de segurança:\n\n• Meu Perfil (Ícone Superior): Preencha o seu sexo biológico e data de nascimento. Estes dados cruzam com os seus tratamentos para gerar painéis de exames precisos.\n\n• Auto-Classificação: Ao registrar um medicamento, o motor identifica a família clínica e prepara o protocolo de risco e controle laboratorial.\n\n• Check-up de Biomarcadores: O algoritmo calcula a janela de "steady state" (estabilidade sanguínea). O alerta de primeira coleta surge 45 dias após o início de um novo tratamento. Após registrar essa coleta, os exames de manutenção passarão a ser solicitados a cada 120 dias.',
+                      conteudo: const Text(
+                        'O aplicativo possui um Motor Analítico Preditivo de segurança:\n\n• Meu Perfil (Ícone Superior): Preencha o seu sexo biológico e data de nascimento. Estes dados cruzam com os seus tratamentos para gerar painéis de exames precisos.\n\n• Auto-Classificação: Ao registrar um medicamento, o motor identifica a família clínica e prepara o protocolo de risco e controle laboratorial.\n\n• Check-up de Biomarcadores: O algoritmo calcula a janela de "steady state" (estabilidade sanguínea). O alerta de primeira coleta surge 45 dias após o início de um novo tratamento. Após registrar essa coleta, os exames de manutenção passarão a ser solicitados a cada 120 dias.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
 
                     // 6. GUIA DE SERINGAS E AGULHAS
-                    Card(
-                      color: Colors.orange[50],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.vaccines, color: Colors.orange),
-                                SizedBox(width: 8),
-                                Text(
-                                  'GUIA DE SERINGAS E AGULHAS',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: Colors.orange,
-                                  ),
-                                ),
-                              ],
+                    _buildExpandableCard(
+                      titulo: 'GUIA DE SERINGAS E AGULHAS',
+                      cor: Colors.orange,
+                      icone: Icons.vaccines,
+                      corFundo: Colors.orange[50],
+                      conteudo: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Entenda o material adequado para cada aplicação:',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.black87,
                             ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Entenda o material adequado para cada aplicação:',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const Divider(),
-                            _buildImageButton(
-                              context: context,
-                              titulo: 'Visualizar Agulhas e Seringas',
-                              icone: Icons.science_outlined,
-                              caminhoImagem:
-                                  'assets/regiao/agulhas_seringas.png',
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              '💉 AGULHAS RECOMENDADAS:',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const Text(
-                              '• Subcutânea (SC - Gordura): Agulhas curtas e finas, ex: 13x0.45mm ou 13x0.3mm (marrom/cinza). Aplicada em ângulo de 90° ou 45° dependendo do tecido adiposo.\n• Intramuscular (IM - Músculo): Agulhas longas para alcançar o músculo, ex: 25x0.7mm ou 30x0.7mm (preta/azul) e para volumes maiores 25x0.8mm (verde). Aplicar em ângulo de 90°.',
-                              style: TextStyle(fontSize: 13, height: 1.4),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              '🧪 SERINGAS E ESCALAS:',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const Text(
-                              '• Seringas de Insulina (100 UI = 1 mL): Escala detalhada. 10 UI equivalem a 0.1 mL. Ideal para microdoses subcutâneas de alta precisão.\n• Seringas de 3 mL ou 5 mL: Usadas para aplicações intramusculares que requerem maior volume de diluente ou óleo.',
-                              style: TextStyle(fontSize: 13, height: 1.4),
-                            ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildImageButton(
+                            context: context,
+                            titulo: 'Visualizar Agulhas e Seringas',
+                            icone: Icons.science_outlined,
+                            caminhoImagem: 'assets/regiao/agulhas_seringas.png',
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            '💉 AGULHAS RECOMENDADAS:',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const Text(
+                            '• Subcutânea (SC - Gordura): Agulhas curtas e finas, ex: 13x0.45mm ou 13x0.3mm (marrom/cinza). Aplicada em ângulo de 90° ou 45° dependendo do tecido adiposo.\n• Intramuscular (IM - Músculo): Agulhas longas para alcançar o músculo, ex: 25x0.7mm ou 30x0.7mm (preta/azul) e para volumes maiores 25x0.8mm (verde). Aplicar em ângulo de 90°.',
+                            style: TextStyle(fontSize: 13, height: 1.4),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            '🧪 SERINGAS E ESCALAS:',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const Text(
+                            '• Seringas de Insulina (100 UI = 1 mL): Escala detalhada. 10 UI equivalem a 0.1 mL. Ideal para microdoses subcutâneas de alta precisão.\n• Seringas de 3 mL ou 5 mL: Usadas para aplicações intramusculares que requerem maior volume de diluente ou óleo.',
+                            style: TextStyle(fontSize: 13, height: 1.4),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 12),
 
                     // 7. MAPA DE PONTOS DE APLICAÇÃO
-                    Card(
-                      color: Colors.blue[50],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.map, color: Color(0xFF1E3A8A)),
-                                SizedBox(width: 8),
-                                Text(
-                                  'MAPA DE PONTOS DE APLICAÇÃO',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: Color(0xFF1E3A8A),
-                                  ),
-                                ),
-                              ],
+                    _buildExpandableCard(
+                      titulo: 'MAPA DE PONTOS DE APLICAÇÃO',
+                      cor: const Color(0xFF1E3A8A),
+                      icone: Icons.map,
+                      corFundo: Colors.blue[50],
+                      conteudo: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Clique na região para visualizar os locais exatos e fazer o rodízio correto:',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.black87,
                             ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Clique na região para visualizar os locais exatos e fazer o rodízio correto:',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const Divider(),
-                            _buildImageButton(
-                              context: context,
-                              titulo: 'Pontos da Barriga (8 Pontos)',
-                              icone: Icons.accessibility_new,
-                              caminhoImagem: 'assets/regiao/barriga.png',
-                            ),
-                            _buildImageButton(
-                              context: context,
-                              titulo: 'Pontos dos Flancos (9 Pontos)',
-                              icone: Icons.airline_seat_flat_angled,
-                              caminhoImagem: 'assets/regiao/flancos.png',
-                            ),
-                            _buildImageButton(
-                              context: context,
-                              titulo: 'Pontos dos Glúteos ( IM - Quadrante )',
-                              icone: Icons.directions_run,
-                              caminhoImagem: 'assets/regiao/gluteos.png',
-                            ),
-                            _buildImageButton(
-                              context: context,
-                              titulo: 'Pontos da Coxa (Vasto Lateral)',
-                              icone: Icons.boy,
-                              caminhoImagem:
-                                  'assets/regiao/coxa_vastolateral.png',
-                            ),
-                            _buildImageButton(
-                              context: context,
-                              titulo: 'Pontos do Deltoide (Braço)',
-                              icone: Icons.shutter_speed_sharp,
-                              caminhoImagem: 'assets/regiao/deltoide.png',
-                            ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildImageButton(
+                            context: context,
+                            titulo: 'Pontos da Barriga (8 Pontos)',
+                            icone: Icons.accessibility_new,
+                            caminhoImagem: 'assets/regiao/barriga.png',
+                          ),
+                          _buildImageButton(
+                            context: context,
+                            titulo: 'Pontos dos Flancos (9 Pontos)',
+                            icone: Icons.airline_seat_flat_angled,
+                            caminhoImagem: 'assets/regiao/flancos.png',
+                          ),
+                          _buildImageButton(
+                            context: context,
+                            titulo: 'Pontos dos Glúteos ( IM - Quadrante )',
+                            icone: Icons.directions_run,
+                            caminhoImagem: 'assets/regiao/gluteos.png',
+                          ),
+                          _buildImageButton(
+                            context: context,
+                            titulo: 'Pontos da Coxa (Vasto Lateral)',
+                            icone: Icons.boy,
+                            caminhoImagem:
+                                'assets/regiao/coxa_vastolateral.png',
+                          ),
+                          _buildImageButton(
+                            context: context,
+                            titulo: 'Pontos do Deltoide (Braço)',
+                            icone: Icons.shutter_speed_sharp,
+                            caminhoImagem: 'assets/regiao/deltoide.png',
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                    const SizedBox(height: 12),
+
+                    // 8. DICIONÁRIO MAROMBA E CLÍNICO
+                    _buildExpandableCard(
+                      titulo: 'DICIONÁRIO MAROMBA E CLÍNICO',
+                      cor: Colors.purple,
+                      icone: Icons.menu_book,
+                      corFundo: Colors.purple[50],
+                      conteudo: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'O dialeto das academias e dos tratamentos, traduzido de forma direta:',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            '💪 SOBRE O SHAPE (CORPO)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.purple,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          _buildDicionarioItem(
+                            'Shape',
+                            'O corpo, a sua condição física atual.',
+                          ),
+                          _buildDicionarioItem(
+                            'BF (Body Fat)',
+                            'Percentual de gordura corporal. Quanto menor, mais "seco" e definido fica.',
+                          ),
+                          _buildDicionarioItem(
+                            'Pump',
+                            'O inchaço e a sensação de músculo cheio de sangue logo após o exercício.',
+                          ),
+                          _buildDicionarioItem(
+                            'Fibrado / Seco',
+                            'Corpo com percentual de gordura muito baixo, mostrando muita definição muscular.',
+                          ),
+                          _buildDicionarioItem(
+                            'Retido',
+                            'Corpo inchado por excesso de líquidos, escondendo a definição dos músculos.',
+                          ),
+                          _buildDicionarioItem(
+                            'Mamute / Monstro',
+                            'Pessoa extremamente musculosa e forte.',
+                          ),
+                          _buildDicionarioItem(
+                            'Fordo',
+                            'Forte e Gordo. Tem muito volume muscular e força bruta, mas o BF é alto e não tem definição.',
+                          ),
+                          _buildDicionarioItem(
+                            'Frango',
+                            'Quem foge do treino, pega pouco peso, foca só nos braços ou não tem dedicação.',
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            '🏋️ SOBRE O TREINO',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.purple,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          _buildDicionarioItem(
+                            'Treinar fofo',
+                            'Fazer o exercício sem esforço real, parando muito antes de cansar.',
+                          ),
+                          _buildDicionarioItem(
+                            'Ir até a falha',
+                            'Fazer o exercício até o músculo travar e não aguentar mais nenhuma repetição.',
+                          ),
+                          _buildDicionarioItem(
+                            'Bater PR',
+                            'Bater o seu recorde pessoal (Personal Record) de carga num exercício.',
+                          ),
+                          _buildDicionarioItem(
+                            'Cardio',
+                            'Exercícios aeróbicos (esteira, bicicleta, escada).',
+                          ),
+                          _buildDicionarioItem(
+                            'AEJ',
+                            'Aeróbico em Jejum (fazer o cardio logo após acordar, antes da primeira refeição).',
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            '🥦 SOBRE A DIETA',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.purple,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          _buildDicionarioItem(
+                            'Bater os macros',
+                            'Atingir a meta exata de proteínas, carboidratos e gorduras do dia.',
+                          ),
+                          _buildDicionarioItem(
+                            'Bulking (ou Off)',
+                            'Fase de comer bastante (superávit calórico) para ganhar volume e massa muscular.',
+                          ),
+                          _buildDicionarioItem(
+                            'Cutting',
+                            'Fase de comer menos (déficit calórico) para perder gordura e "secar".',
+                          ),
+                          _buildDicionarioItem(
+                            'Ref livre',
+                            'Uma refeição fora da dieta (antigo "dia do lixo", mas restrito a apenas uma refeição isolada).',
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            '💉 SOBRE OS INJETÁVEIS E "ADITIVOS"',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.purple,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          _buildDicionarioItem(
+                            'Bateu',
+                            'Quando o hormônio ou pré-treino atinge o pico no sangue e os efeitos começam a ser sentidos de forma clara.',
+                          ),
+                          _buildDicionarioItem(
+                            'Inflamou / Empedrou',
+                            'Quando o óleo da injeção não é absorvido rapidamente, criando um nódulo rígido e dolorido sob a pele.',
+                          ),
+                          _buildDicionarioItem(
+                            'Blast',
+                            'Fase de ataque. Período a usar doses altas e combinadas de esteroides para ganho máximo ou perda extrema num curto espaço de tempo.',
+                          ),
+                          _buildDicionarioItem(
+                            'Cruise',
+                            'Fase de cruzeiro (manutenção). Uso de doses baixas para manter os ganhos e deixar os exames de saúde normalizarem.',
+                          ),
+                          _buildDicionarioItem(
+                            'Empilhar (Stack)',
+                            'Misturar dois ou mais compostos diferentes na mesma fase (ex: Testosterona + Masteron).',
+                          ),
+                          _buildDicionarioItem(
+                            'Suco / Danone',
+                            'Gírias gerais e camufladas para esteroides anabolizantes.',
+                          ),
+                          _buildDicionarioItem(
+                            'Trembo',
+                            'Trembolona, um dos anabolizantes mais fortes, perigosos e com severos efeitos psicológicos.',
+                          ),
+                          _buildDicionarioItem(
+                            'Fake Natty',
+                            'O "falso natural", aquele que usa hormônios mas afirma na internet que conquistou o corpo só com dieta e treino.',
+                          ),
+                          _buildDicionarioItem(
+                            'Bolar / Bolado',
+                            'O ato de usar anabolizantes, ou a pessoa que está fisicamente sob o efeito evidente deles.',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ], // <-- FIM DA LISTVIEW
                 ),
               ),
 
