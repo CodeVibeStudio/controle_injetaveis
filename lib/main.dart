@@ -60,6 +60,67 @@ Future<void> agendarNotificacao(
   );
 }
 
+// ==========================================================
+// MOTOR DE SINCRONIZAÇÃO DE ALARMES (ANTI-FANTASMAS)
+// ==========================================================
+Future<void> atualizarAlarmesNativos() async {
+  try {
+    // 1. Limpa TODOS os alarmes do telemóvel (Mata os fantasmas)
+    await flutterLocalNotificationsPlugin.cancelAll();
+
+    // 2. Busca o ID do utilizador ativo
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    // 3. Puxa APENAS as doses pendentes no futuro
+    final pendentes = await Supabase.instance.client
+        .from('cronograma')
+        .select(
+          'id, data_aplicacao, local_aplicacao, medicamentos(nome, hora_aplicacao)',
+        )
+        .eq('user_id', userId)
+        .eq('status_aplicado', false);
+
+    // 4. Recria os alarmes corretos
+    for (var dose in pendentes) {
+      DateTime dataBase = DateTime.parse(dose['data_aplicacao'].toString());
+
+      // Lê a hora do medicamento ou usa 08:00 como segurança
+      String horaStr = '08:00';
+      if (dose['medicamentos'] != null &&
+          dose['medicamentos']['hora_aplicacao'] != null) {
+        horaStr = dose['medicamentos']['hora_aplicacao'].toString();
+      }
+      int h = int.parse(horaStr.split(':')[0]);
+      int m = int.parse(horaStr.split(':')[1]);
+
+      DateTime dataHoraExata = DateTime(
+        dataBase.year,
+        dataBase.month,
+        dataBase.day,
+        h,
+        m,
+      );
+
+      // Só agenda se a hora da aplicação ainda não tiver passado
+      if (dataHoraExata.isAfter(DateTime.now())) {
+        // Usa o código único da dose para que o Android não sobreponha alarmes
+        int idNotificacao = dose['id'].hashCode;
+        String nomeMed = dose['medicamentos']?['nome'] ?? 'Medicamento';
+
+        await agendarNotificacao(
+          idNotificacao,
+          'Dia de Injeção! 💉',
+          'Hoje é dia de aplicar $nomeMed (${dose['local_aplicacao']}).',
+          dataHoraExata,
+        );
+      }
+    }
+  } catch (e) {
+    debugPrint('Erro ao sincronizar alarmes nativos: $e');
+  }
+}
+
 void main() async {
   // Garante que a ligação com o motor nativo está pronta
   WidgetsFlutterBinding.ensureInitialized();
@@ -593,9 +654,10 @@ class _DashboardEcraState extends State<DashboardEcra> {
     _carregarResumo();
     _calcularExames();
 
-    // Chama a nossa nova verificação em cadeia
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _verificarPendencias();
+      // 👇 NOVA LINHA: GARANTE QUE OS ALARMES ESTÃO ATUALIZADOS SEMPRE QUE ABRE A APP 👇
+      atualizarAlarmesNativos();
     });
   }
 
@@ -1416,6 +1478,9 @@ class _SetupEcraState extends State<SetupEcra> {
 
       // 2. Apaga o medicamento
       await supabase.from('medicamentos').delete().eq('id', id);
+
+      // 👇 NOVA LINHA: CHAMA O LIMPADOR DE FANTASMAS 👇
+      await atualizarAlarmesNativos();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3650,6 +3715,10 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
           .from('cronograma')
           .delete()
           .eq('medicamento_id', widget.medicamento['id']);
+
+      // 👇 NOSSA NOVA LINHA ANTI-FANTASMAS 👇
+      await atualizarAlarmesNativos();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
