@@ -1,3 +1,8 @@
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+
 import 'dart:async';
 
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -22,9 +27,7 @@ Future<void> agendarNotificacao(
   String corpo,
   DateTime dataAgendada,
 ) async {
-  // Agora extrai o momento exato (Data + Hora) do objeto dataAgendada
   tz.TZDateTime dataHoraDisparo = tz.TZDateTime.from(dataAgendada, tz.local);
-
   final agora = tz.TZDateTime.now(tz.local);
 
   if (dataHoraDisparo.isBefore(agora)) {
@@ -33,7 +36,6 @@ Future<void> agendarNotificacao(
         dataAgendada.day == agora.day) {
       dataHoraDisparo = agora.add(const Duration(minutes: 1));
     } else {
-      // Se for de dias anteriores (passado), ignora o alarme
       return;
     }
   }
@@ -44,7 +46,7 @@ Future<void> agendarNotificacao(
     channelDescription: 'Canal para avisar sobre os dias de aplicação.',
     importance: Importance.max,
     priority: Priority.high,
-    icon: '@mipmap/launcher_icon', // ÍCONE CORRIGIDO
+    icon: '@mipmap/launcher_icon',
   );
   const NotificationDetails platformDetails = NotificationDetails(
     android: androidDetails,
@@ -65,14 +67,11 @@ Future<void> agendarNotificacao(
 // ==========================================================
 Future<void> atualizarAlarmesNativos() async {
   try {
-    // 1. Limpa TODOS os alarmes do telemóvel (Mata os fantasmas)
     await flutterLocalNotificationsPlugin.cancelAll();
 
-    // 2. Busca o ID do utilizador ativo
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
 
-    // 3. Puxa APENAS as doses pendentes no futuro
     final pendentes = await Supabase.instance.client
         .from('cronograma')
         .select(
@@ -81,11 +80,9 @@ Future<void> atualizarAlarmesNativos() async {
         .eq('user_id', userId)
         .eq('status_aplicado', false);
 
-    // 4. Recria os alarmes corretos
     for (var dose in pendentes) {
       DateTime dataBase = DateTime.parse(dose['data_aplicacao'].toString());
 
-      // Lê a hora do medicamento ou usa 08:00 como segurança
       String horaStr = '08:00';
       if (dose['medicamentos'] != null &&
           dose['medicamentos']['hora_aplicacao'] != null) {
@@ -102,9 +99,7 @@ Future<void> atualizarAlarmesNativos() async {
         m,
       );
 
-      // Só agenda se a hora da aplicação ainda não tiver passado
       if (dataHoraExata.isAfter(DateTime.now())) {
-        // Usa o código único da dose para que o Android não sobreponha alarmes
         int idNotificacao = dose['id'].hashCode;
         String nomeMed = dose['medicamentos']?['nome'] ?? 'Medicamento';
 
@@ -122,13 +117,11 @@ Future<void> atualizarAlarmesNativos() async {
 }
 
 void main() async {
-  // Garante que a ligação com o motor nativo está pronta
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     tz.initializeTimeZones();
 
-    // Bypass dinâmico do Fuso Horário
     final dynamic tzResult = await FlutterTimezone.getLocalTimezone();
     String timeZoneName = 'America/Sao_Paulo';
 
@@ -159,18 +152,15 @@ void main() async {
 
     await flutterLocalNotificationsPlugin.initialize(settings: initSettings);
 
-    // Inicializa o Supabase (Se falhar aqui por falta de internet, o catch apanha!)
     await Supabase.initialize(
       url: 'https://fdwrcrkjudadnwcqheoq.supabase.co',
       anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkd3JjcmtqdWRhZG53Y3FoZW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2OTUyODUsImV4cCI6MjEwNjI3MTI4NX0.0nzSgxmFp3Tc7PGcMKyBP3cTUrzXlR9mlj3NcVkQFUE',
     );
 
-    // Se tudo correr bem, arranca a aplicação normal
     runApp(const InjetaveisApp());
   } catch (e, stackTrace) {
     debugPrint('Erro fatal na inicialização: $e\n$stackTrace');
 
-    // Impede a tela branca desenhando uma tela de erro de emergência
     runApp(
       MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -248,10 +238,7 @@ class AuthGate extends StatelessWidget {
 }
 
 // ==========================================================
-// ECRÃ DE LOGIN (COM BRANDING CODEVIBE STUDIO NO RODAPÉ)
-// ==========================================================
-// ==========================================================
-// ECRÃ DE LOGIN (COM LINKS CODEVIBE ATIVOS)
+// ECRÃ DE LOGIN
 // ==========================================================
 class LoginEcra extends StatefulWidget {
   const LoginEcra({super.key});
@@ -265,7 +252,6 @@ class _LoginEcraState extends State<LoginEcra> {
   final passwordController = TextEditingController();
   bool carregando = false;
 
-  // NOVA FUNÇÃO: Traduz os erros técnicos do Supabase para português amigável
   String _traduzirErro(Object erro) {
     final String msg = erro.toString();
     if (msg.contains('Invalid login credentials')) {
@@ -284,7 +270,6 @@ class _LoginEcraState extends State<LoginEcra> {
     return 'Ocorreu um erro. Verifique os dados e tente novamente.';
   }
 
-  // NOVA FUNÇÃO: Cria um alerta visual moderno e amigável
   void _mostrarAviso(String mensagem, Color cor) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -352,7 +337,6 @@ class _LoginEcraState extends State<LoginEcra> {
     setState(() => carregando = false);
   }
 
-  // MOTOR DE REDIRECIONAMENTO DE LINKS
   Future<void> _abrirUrl(String urlApp) async {
     final Uri url = Uri.parse(urlApp);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
@@ -478,7 +462,6 @@ class _LoginEcraState extends State<LoginEcra> {
               const Divider(color: Colors.white24),
               const SizedBox(height: 16),
 
-              // LINKS CLICÁVEIS (Envolvidos em InkWell)
               InkWell(
                 onTap: () => _abrirUrl('mailto:codevibe.br@gmail.com'),
                 child: Padding(
@@ -511,7 +494,7 @@ class _LoginEcraState extends State<LoginEcra> {
                         size: 20,
                       ),
                       SizedBox(width: 8),
-                      Text(
+                      const Text(
                         '@codevibestudio',
                         style: TextStyle(color: Colors.white),
                       ),
@@ -585,15 +568,11 @@ class _DashboardEcraState extends State<DashboardEcra> {
   List<dynamic> proximasDoses = [];
   List<dynamic> ultimasDoses = [];
 
-  // ==========================================
-  // VARIÁVEIS DO CÉREBRO DE EXAMES
-  // ==========================================
   DateTime? proximaDataExame;
   List<String> listaExamesSugeridos = [];
   int diasParaExame = 999;
   bool exigeExames = false;
 
-  // FUNÇÃO PARA DESTACAR 'UI' E 'NOME DO MEDICAMENTO'
   Widget _formatarTextoDose(String textoOriginal) {
     final spans = <TextSpan>[];
     final regex = RegExp(r'([\d,.]+\s*UI)|(\([^)]+\))');
@@ -624,7 +603,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
           TextSpan(
             text: matchString,
             style: TextStyle(
-              // <-- 'const' removido
               fontWeight: FontWeight.bold,
               fontSize: 15,
               color: Colors.teal[800],
@@ -651,32 +629,138 @@ class _DashboardEcraState extends State<DashboardEcra> {
   void initState() {
     super.initState();
     _pedirPermissaoNotificacoes();
-    _carregarResumo();
-    _calcularExames();
 
+    // Arranque centralizado para evitar bloqueios
+    _arranqueSeguro();
+  }
+
+  Future<void> _arranqueSeguro() async {
+    await _carregarResumo();
+
+    // Só lança as verificações secundárias depois de o Dashboard estar desenhado e livre
+    _calcularExames();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _verificarPendencias();
-      // 👇 NOVA LINHA: GARANTE QUE OS ALARMES ESTÃO ATUALIZADOS SEMPRE QUE ABRE A APP 👇
       atualizarAlarmesNativos();
     });
   }
 
-  // ==========================================
-  // FUNIL DE ONBOARDING OBRIGATÓRIO
-  // ==========================================
+  // Função auxiliar para injetar os dados guardados
+  void _carregarDoCache(SharedPreferences prefs) {
+    final cacheProximas = prefs.getString('cache_proximas_doses');
+    final cacheUltimas = prefs.getString('cache_ultimas_doses');
+
+    if (mounted) {
+      setState(() {
+        proximasDoses = cacheProximas != null ? jsonDecode(cacheProximas) : [];
+        ultimasDoses = cacheUltimas != null ? jsonDecode(cacheUltimas) : [];
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Modo Offline: A mostrar dados guardados no aparelho.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  Future<void> _carregarResumo() async {
+    setState(() => carregando = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final conectividade = await Connectivity().checkConnectivity();
+
+      bool semInternet = false;
+      if (conectividade is List) {
+        semInternet = (conectividade as List).contains(ConnectivityResult.none);
+      } else {
+        semInternet = conectividade == ConnectivityResult.none;
+      }
+
+      if (semInternet) {
+        _carregarDoCache(prefs);
+        if (mounted) setState(() => carregando = false);
+        return;
+      }
+
+      // TIMEOUT DE 5 SEGUNDOS: Se o Wi-Fi estiver ligado mas sem net, ele desiste e abre o cache!
+      final respProxima = await supabase
+          .from('cronograma')
+          .select('*, medicamentos(nome)')
+          .eq('status_aplicado', false)
+          .order('data_aplicacao', ascending: true)
+          .timeout(const Duration(seconds: 5));
+
+      final respUltima = await supabase
+          .from('cronograma')
+          .select('*, medicamentos(nome)')
+          .eq('status_aplicado', true)
+          .order('data_aplicacao', ascending: false)
+          .timeout(const Duration(seconds: 5));
+
+      List<dynamic> proximasFiltradas = [];
+      Set<String> medicamentosProximosVistos = {};
+      for (var dose in respProxima) {
+        String idMed = dose['medicamento_id'].toString();
+        if (!medicamentosProximosVistos.contains(idMed)) {
+          proximasFiltradas.add(dose);
+          medicamentosProximosVistos.add(idMed);
+        }
+      }
+
+      List<dynamic> ultimasFiltradas = [];
+      Set<String> medicamentosUltimosVistos = {};
+      for (var dose in respUltima) {
+        String idMed = dose['medicamento_id'].toString();
+        if (!medicamentosUltimosVistos.contains(idMed)) {
+          ultimasFiltradas.add(dose);
+          medicamentosUltimosVistos.add(idMed);
+        }
+      }
+
+      // CACHE INVISÍVEL: Salva os dados na memória do telemóvel
+      await prefs.setString(
+        'cache_proximas_doses',
+        jsonEncode(proximasFiltradas),
+      );
+      await prefs.setString(
+        'cache_ultimas_doses',
+        jsonEncode(ultimasFiltradas),
+      );
+
+      if (mounted) {
+        setState(() {
+          proximasDoses = proximasFiltradas;
+          ultimasDoses = ultimasFiltradas;
+        });
+      }
+    } catch (e) {
+      debugPrint('Falha na rede ou limite de tempo atingido: $e');
+      // Plano B: A nuvem falhou, recruta o cache instantaneamente
+      final prefs = await SharedPreferences.getInstance();
+      _carregarDoCache(prefs);
+    }
+
+    // GARANTIA ABSOLUTA DE QUE A TELA PÁRA DE CARREGAR
+    if (mounted) {
+      setState(() => carregando = false);
+    }
+  }
+
   Future<void> _verificarPendencias() async {
     final usuarioId = supabase.auth.currentUser?.id;
     if (usuarioId == null) return;
 
     try {
-      // 1. Verifica se já aceitou os Termos
       final respostaTermos = await supabase
           .from('aceites_termos')
           .select()
           .eq('user_id', usuarioId);
       if (respostaTermos.isEmpty) {
         if (mounted) {
-          // Bloqueia no ecrã de termos
           await Navigator.push(
             context,
             MaterialPageRoute(
@@ -686,7 +770,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
         }
       }
 
-      // 2. Verifica se o Perfil Biológico está preenchido (Logo após os termos)
       if (!mounted) return;
       final perfil = await supabase
           .from('perfis')
@@ -694,7 +777,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
           .eq('id', usuarioId)
           .maybeSingle();
 
-      // Se não existir perfil, ou faltar dados vitais, força o ecrã de perfil!
       if (perfil == null ||
           perfil['genero'] == null ||
           perfil['data_nascimento'] == null) {
@@ -705,7 +787,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
               builder: (context) => const PerfilEcra(obrigatorio: true),
             ),
           );
-          _calcularExames(); // Recalcula a IA de exames assim que ele preencher o perfil
+          _calcularExames();
         }
       }
     } catch (e) {
@@ -724,15 +806,11 @@ class _DashboardEcraState extends State<DashboardEcra> {
     }
   }
 
-  // ==========================================
-  // O CÉREBRO ANALÍTICO (MOTOR CLÍNICO)
-  // ==========================================
   Future<void> _calcularExames() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return;
 
     try {
-      // 1. Busca os dados demográficos (Idade e Sexo)
       final perfil = await supabase
           .from('perfis')
           .select()
@@ -741,13 +819,12 @@ class _DashboardEcraState extends State<DashboardEcra> {
       String genero = perfil != null && perfil['genero'] != null
           ? perfil['genero']
           : 'Masculino';
-      int idade = 30; // Idade padrão segura
+      int idade = 30;
       if (perfil != null && perfil['data_nascimento'] != null) {
         DateTime nascimento = DateTime.parse(perfil['data_nascimento']);
         idade = DateTime.now().year - nascimento.year;
       }
 
-      // 2. Busca os tratamentos ativos
       final tratamentos = await supabase
           .from('medicamentos')
           .select('categoria_clinica, data_inicio')
@@ -768,7 +845,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
         String cat = med['categoria_clinica'].toString();
         DateTime dt = DateTime.parse(med['data_inicio'].toString());
 
-        // Pega a data do medicamento que começou MAIS TARDE (para o período de adaptação bater certo)
         if (dt.isAfter(inicioMaisRecente)) inicioMaisRecente = dt;
 
         if (cat.contains('Testosterona') ||
@@ -782,13 +858,10 @@ class _DashboardEcraState extends State<DashboardEcra> {
       }
 
       if (!isHormonal && !isMetabolico) {
-        setState(
-          () => exigeExames = false,
-        ); // Peptídeos leves e vitaminas não ativam este alerta agressivo
+        setState(() => exigeExames = false);
         return;
       }
 
-      // 3. Monta o Painel de Sangue Dinâmico
       Set<String> exames = {
         'Hemograma Completo',
         'Perfil Lipídico Completo (HDL, LDL, Triglicerídeos)',
@@ -810,7 +883,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
         ]);
       }
 
-      // 4. Calcula o "Meio Termo" das datas
       final historico = await supabase
           .from('historico_exames')
           .select()
@@ -820,17 +892,14 @@ class _DashboardEcraState extends State<DashboardEcra> {
 
       DateTime dataAlvo;
       if (historico.isEmpty) {
-        // Exame de Calibração (Pico de Empilhamento): 45 dias após começar o tratamento mais novo
         dataAlvo = inicioMaisRecente.add(const Duration(days: 45));
       } else {
-        // Exame de Manutenção: 120 dias após o último exame
         DateTime ultimo = DateTime.parse(
           historico.first['data_exame'].toString(),
         );
         dataAlvo = ultimo.add(const Duration(days: 120));
       }
 
-      // Corrige para não pedir exames no passado caso tenha ignorado
       if (dataAlvo.isBefore(DateTime.now())) {
         dataAlvo = DateTime.now();
       }
@@ -840,7 +909,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
         proximaDataExame = dataAlvo;
         listaExamesSugeridos = exames.toList();
 
-        // Zera as horas para cálculo puro de dias
         DateTime hoje = DateTime(
           DateTime.now().year,
           DateTime.now().month,
@@ -863,8 +931,8 @@ class _DashboardEcraState extends State<DashboardEcra> {
         'categoria_alvo': 'Painel Automático',
       });
 
-      Navigator.pop(context); // Fecha o painel
-      _calcularExames(); // Recalcula a nova data (+120 dias)
+      Navigator.pop(context);
+      _calcularExames();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -889,7 +957,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        // 👇 ADICIONE A LINHA DO SAFEAREA AQUI 👇
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
@@ -968,55 +1035,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
     );
   }
 
-  Future<void> _carregarResumo() async {
-    setState(() => carregando = true);
-    try {
-      final respProxima = await supabase
-          .from('cronograma')
-          .select('*, medicamentos(nome)')
-          .eq('status_aplicado', false)
-          .order('data_aplicacao', ascending: true);
-      final respUltima = await supabase
-          .from('cronograma')
-          .select('*, medicamentos(nome)')
-          .eq('status_aplicado', true)
-          .order('data_aplicacao', ascending: false);
-
-      List<dynamic> proximasFiltradas = [];
-      Set<String> medicamentosProximosVistos = {};
-      for (var dose in respProxima) {
-        String idMed = dose['medicamento_id'].toString();
-        if (!medicamentosProximosVistos.contains(idMed)) {
-          proximasFiltradas.add(dose);
-          medicamentosProximosVistos.add(idMed);
-        }
-      }
-
-      List<dynamic> ultimasFiltradas = [];
-      Set<String> medicamentosUltimosVistos = {};
-      for (var dose in respUltima) {
-        String idMed = dose['medicamento_id'].toString();
-        if (!medicamentosUltimosVistos.contains(idMed)) {
-          ultimasFiltradas.add(dose);
-          medicamentosUltimosVistos.add(idMed);
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          proximasDoses = proximasFiltradas;
-          ultimasDoses = ultimasFiltradas;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erro: $e')));
-      }
-    }
-    setState(() => carregando = false);
-  }
-
   String _formatarData(String dataIso) {
     final partes = dataIso.split('-');
     return '${partes[2]}/${partes[1]}/${partes[0]}';
@@ -1079,9 +1097,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // ==========================================================
-                            // O NOVO CARD INTELIGENTE DE EXAMES
-                            // ==========================================================
                             if (exigeExames && proximaDataExame != null)
                               Card(
                                 color: diasParaExame <= 0
@@ -1121,7 +1136,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
-                                              // 👇 ALTERADO PARA "Check-up de Biomarcadores" 👇
                                               diasParaExame <= 0
                                                   ? 'Exames Atrasados'
                                                   : (diasParaExame <= 15
@@ -1142,7 +1156,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        // 👇 ALTERADO "controlo" para "controle" e "recolha" para "coleta" 👇
                                         diasParaExame <= 0
                                             ? 'A sua janela ideal de exames de controle já começou! Veja o que solicitar ao seu médico.'
                                             : 'Próxima coleta sugerida em $diasParaExame dias (${proximaDataExame!.day.toString().padLeft(2, '0')}/${proximaDataExame!.month.toString().padLeft(2, '0')}).',
@@ -1180,7 +1193,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                 ),
                               ),
                             if (exigeExames) const SizedBox(height: 16),
-                            // ==========================================================
 
                             Card(
                               color: Colors.blue[50],
@@ -1341,7 +1353,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
                           ),
                         ).then((_) {
                           _carregarResumo();
-                          _calcularExames(); // Atualiza os exames se ele adicionar/remover um medicamento
+                          _calcularExames();
                         });
                       },
                       icon: const Icon(Icons.settings, color: Colors.white),
@@ -1380,7 +1392,6 @@ class SetupEcra extends StatefulWidget {
 class _SetupEcraState extends State<SetupEcra> {
   final supabase = Supabase.instance.client;
 
-  // 👇 COLE ESTA FUNÇÃO AQUI 👇
   Widget _formatarTextoDose(String textoOriginal) {
     final spans = <TextSpan>[];
     final regex = RegExp(r'([\d,.]+\s*UI)|(\([^)]+\))');
@@ -1411,7 +1422,6 @@ class _SetupEcraState extends State<SetupEcra> {
           TextSpan(
             text: matchString,
             style: TextStyle(
-              // <-- 'const' removido
               fontWeight: FontWeight.bold,
               fontSize: 15,
               color: Colors.teal[800],
@@ -1439,7 +1449,6 @@ class _SetupEcraState extends State<SetupEcra> {
         .from('medicamentos')
         .select()
         .order('criado_em');
-    // Filtra a lista para esconder os medicamentos que fazem parte de um Mix
     return res
         .where((m) => !m['nome'].toString().startsWith('[Oculto]'))
         .toList();
@@ -1473,13 +1482,8 @@ class _SetupEcraState extends State<SetupEcra> {
     if (confirmar != true) return;
 
     try {
-      // 1. Apaga primeiro as aplicações agendadas para evitar erros de chave estrangeira
       await supabase.from('cronograma').delete().eq('medicamento_id', id);
-
-      // 2. Apaga o medicamento
       await supabase.from('medicamentos').delete().eq('id', id);
-
-      // 👇 NOVA LINHA: CHAMA O LIMPADOR DE FANTASMAS 👇
       await atualizarAlarmesNativos();
 
       if (mounted) {
@@ -1489,7 +1493,7 @@ class _SetupEcraState extends State<SetupEcra> {
             backgroundColor: Colors.green,
           ),
         );
-        setState(() {}); // Recarrega a lista na tela
+        setState(() {});
       }
     } catch (e) {
       if (mounted) {
@@ -1614,7 +1618,7 @@ class _SetupEcraState extends State<SetupEcra> {
                               ],
                             ),
                           ],
-                        ), // <- Este fecho estava em falta
+                        ),
                         const Divider(),
                         if (med['detalhes_dose'] != null &&
                             med['detalhes_dose'].toString().isNotEmpty) ...[
@@ -1622,7 +1626,6 @@ class _SetupEcraState extends State<SetupEcra> {
                           const SizedBox(height: 4),
                         ] else if (med['dose_semanal'] != null &&
                             med['dose_semanal'] > 0) ...[
-                          // Plano B: Se os detalhes_dose não existirem, mostra a dose semanal base!
                           Text(
                             'Dose Semanal: ${med['dose_semanal']} ${med['unidade_dose'] ?? 'mg'}',
                             style: const TextStyle(
@@ -1684,16 +1687,14 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   final doseCtrl = TextEditingController();
   final intervaloCtrl = TextEditingController();
 
-  String? categoriaSelecionada; // NOVA VARIÁVEL PARA A CATEGORIA
+  String? categoriaSelecionada;
   String? unidadeSelecionada;
   int? seringaSelecionada;
   String? regiaoSelecionada;
   DateTime dataInicio = DateTime.now();
-  TimeOfDay horaInicio = const TimeOfDay(hour: 8, minute: 0); // NOVO ESTADO
+  TimeOfDay horaInicio = const TimeOfDay(hour: 8, minute: 0);
 
   String textoDetalhesDose = '';
-
-  // Váriavel de cálculo real para o Gatilho Preditivo
   double calcVolumeMl = 0.0;
 
   @override
@@ -1721,7 +1722,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           DateTime.tryParse(widget.medicamentoEditado!['data_inicio']) ??
           DateTime.now();
 
-      // NOVA RECUPERAÇÃO DA HORA
       if (widget.medicamentoEditado!['hora_aplicacao'] != null) {
         final partesHora = widget.medicamentoEditado!['hora_aplicacao']
             .toString()
@@ -1745,11 +1745,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     concentracaoCtrl.addListener(_recalcularEquivalencia);
     intervaloCtrl.addListener(_recalcularEquivalencia);
 
-    // ==========================================================
-    // NOVO: FORÇA O RECÁLCULO IMEDIATO
-    // Se estiver a editar um medicamento normal (não-Mix), faz
-    // o cálculo automático assim que a tela abre.
-    // ==========================================================
     if (modoEdicao && !_isMix) {
       _recalcularEquivalencia();
     }
@@ -1766,23 +1761,18 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   Future<void> _carregarCatalogo() async {
     try {
       final resposta = await supabase.rpc('obter_nomes_unicos');
-
       List<Map<String, dynamic>> listaProcessada = [];
 
       for (var item in resposta) {
         String nomeReal = item['nome'].toString();
 
-        // Ignora os Mixes, pois não faz sentido puxar um Mix para dentro do Catálogo
         if (nomeReal.startsWith('Mix')) continue;
 
-        // Se o medicamento estiver oculto, removemos a tag apenas visualmente para o Catálogo
         if (nomeReal.startsWith('[Oculto] ')) {
           nomeReal = nomeReal.replaceFirst('[Oculto] ', '');
           item['nome'] = nomeReal;
         }
 
-        // Adiciona à lista final apenas se esse nome ainda não existir lá
-        // (evita duplicatas caso você tenha o mesmo medicamento ativo e oculto)
         if (!listaProcessada.any(
           (e) => e['nome'].toString().toLowerCase() == nomeReal.toLowerCase(),
         )) {
@@ -1827,7 +1817,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   }
 
   Future<void> _abrirSeletorDeMix() async {
-    // 1. Busca os medicamentos reais configurados no banco do utilizador
     setState(() => carregando = true);
     List<dynamic> meusMedicamentos = [];
     try {
@@ -1840,7 +1829,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     }
     setState(() => carregando = false);
 
-    // 2. Filtra a lista para não permitir misturar um Mix já existente
     List<Map<String, dynamic>> listaMisturavel =
         List<Map<String, dynamic>>.from(meusMedicamentos)
             .where((m) => !m['nome'].toString().startsWith('Mix'))
@@ -1877,7 +1865,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                   itemCount: listaMisturavel.length,
                   itemBuilder: (context, index) {
                     final med = listaMisturavel[index];
-                    // Como os medicamentos do banco têm IDs únicos verdadeiros, a seleção individual funcionará agora!
                     final isSelected = selecionados.any(
                       (m) => m['id'] == med['id'],
                     );
@@ -2002,7 +1989,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     );
     if (med.isEmpty) return;
 
-    // Só preenche se o dado existir. Caso contrário, deixa em branco ('')
     volumeCtrl.text = med['volume_frasco_ml'] != null
         ? med['volume_frasco_ml'].toString()
         : '';
@@ -2019,7 +2005,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         ? med['qtd_ampolas'].toString()
         : '';
 
-    // Atualiza os dropdowns se a informação vier do Supabase
     if (med['unidade'] != null) {
       setState(() => unidadeSelecionada = med['unidade'].toString());
     }
@@ -2053,12 +2038,10 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           double conc = (b['concentracao_mg_ml'] as num).toDouble();
           String unid = b['unidade_dose']?.toString() ?? 'mg';
 
-          // 1. REPLICAÇÃO EXATA DO EXCEL: SE(G2=3;E2/2;(E2/7)*G2)
           double fator = (intervalo == 3)
               ? (dSemanal / 2)
               : ((dSemanal / 7) * intervalo);
 
-          // 2. REPLICAÇÃO EXATA DO EXCEL: Conversão se a unidade for "mL"
           double doseMg = (unid == 'mL') ? (fator * conc) : fator;
 
           double vol = doseMg / conc;
@@ -2076,8 +2059,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         }
         setState(() {
           textoDetalhesDose = partes.join(' + ');
-          calcVolumeMl =
-              totalMl; // Guarda o volume total para o Alerta Preditivo
+          calcVolumeMl = totalMl;
         });
       } catch (e) {}
     } else {
@@ -2100,19 +2082,15 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
 
         if (concentracao > 0) {
           setState(() {
-            // 1. REPLICAÇÃO EXATA DO EXCEL: SE(G2=3;E2/2;(E2/7)*G2)
             double fator = (intervalo == 3)
                 ? (doseSemanal / 2)
                 : ((doseSemanal / 7) * intervalo);
 
-            // 2. REPLICAÇÃO EXATA DO EXCEL: Conversão se a unidade for "mL"
             double doseMg = (unidadeSelecionada == 'mL')
                 ? (fator * concentracao)
                 : fator;
 
-            calcVolumeMl =
-                doseMg /
-                concentracao; // Guarda o volume para o Alerta Preditivo
+            calcVolumeMl = doseMg / concentracao;
             double doseUi = calcVolumeMl * 100;
             textoDetalhesDose =
                 '${doseMg.toStringAsFixed(2).replaceAll('.', ',')} mg / ${doseUi.toStringAsFixed(2).replaceAll('.', ',')} UI';
@@ -2299,13 +2277,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     }
   }
 
-  // ==========================================================
-  // MOTOR DE AUTO-CLASSIFICAÇÃO CLÍNICA
-  // ==========================================================
   String _identificarCategoriaClinica(String nomeMedicamento) {
     final nome = nomeMedicamento.toLowerCase();
 
-    // 1. Emagrecimento / Síndrome Metabólica
     if (nome.contains('tirzepatida') ||
         nome.contains('semaglutida') ||
         nome.contains('ozempic') ||
@@ -2313,31 +2287,23 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         nome.contains('saxenda') ||
         nome.contains('liraglutida')) {
       return 'GLP-1';
-    }
-    // 2. Testosterona Base
-    else if (nome.contains('testosterona') ||
+    } else if (nome.contains('testosterona') ||
         nome.contains('durateston') ||
         nome.contains('enantato') ||
         nome.contains('cipionato') ||
         nome.contains('sustanon')) {
       return 'Testosterona Base';
-    }
-    // 3. Derivados de DHT (Forte impacto lipídico e de próstata)
-    else if (nome.contains('masteron') ||
+    } else if (nome.contains('masteron') ||
         nome.contains('drostanolona') ||
         nome.contains('primobolan') ||
         nome.contains('oxandrolona') ||
         nome.contains('stanozolol')) {
       return 'Derivado DHT';
-    }
-    // 4. Derivados 19-Nor (Impacto em Prolactina)
-    else if (nome.contains('nandrolona') ||
+    } else if (nome.contains('nandrolona') ||
         nome.contains('deca') ||
         nome.contains('trembolona')) {
       return 'Derivado 19-Nor';
-    }
-    // 5. Peptídeos de Recuperação/GH
-    else if (nome.contains('ghk') ||
+    } else if (nome.contains('ghk') ||
         nome.contains('bpc') ||
         nome.contains('tb-500') ||
         nome.contains('tb500') ||
@@ -2346,16 +2312,12 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       return 'Peptídeos';
     }
 
-    // Se a aplicação não reconhecer, classifica como genérico
     return 'Outros';
   }
 
   Future<void> _guardarMedicamento() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // ==========================================================
-    // ALERTA DE RISCO DE LESÃO - GATILHO PREDITIVO
-    // ==========================================================
     if (calcVolumeMl >= 1.0 &&
         (regiaoSelecionada == 'Barriga' || regiaoSelecionada == 'Flanco')) {
       showDialog(
@@ -2430,7 +2392,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           ],
         ),
       );
-      return; // Interrompe o salvamento para obrigar o utilizador a alterar a Região
+      return;
     }
 
     setState(() => carregando = true);
@@ -2441,9 +2403,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           : nomeSelecionado;
       final intervaloFinal = int.parse(intervaloCtrl.text.replaceAll(',', '.'));
 
-      // ==========================================================
-      // APLICAÇÃO DA INTELIGÊNCIA AQUI
-      // ==========================================================
       final categoriaAutomatica = _isMix
           ? 'Mix Esteroides'
           : _identificarCategoriaClinica(nomeFinal!);
@@ -2465,7 +2424,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           'seringa_ui': seringaSelecionada,
           'regiao_rodizio': regiaoSelecionada,
           'detalhes_dose': textoDetalhesDose,
-          'categoria_clinica': categoriaAutomatica, // CAMPO INJETADO AQUI
+          'categoria_clinica': categoriaAutomatica,
         };
       } else {
         dados = {
@@ -2487,7 +2446,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           'seringa_ui': seringaSelecionada,
           'regiao_rodizio': regiaoSelecionada,
           'detalhes_dose': textoDetalhesDose,
-          'categoria_clinica': categoriaAutomatica, // CAMPO INJETADO AQUI
+          'categoria_clinica': categoriaAutomatica,
         };
       }
 
@@ -2505,7 +2464,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           );
         }
       } else {
-        // --- INÍCIO DO FILTRO DE QUALIDADE ---
         String nomeDigitado = dados['nome'].toString().trim();
 
         if (nomeDigitado.length < 3) {
@@ -2553,26 +2511,18 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         nomeDigitado =
             nomeDigitado[0].toUpperCase() + nomeDigitado.substring(1);
         dados['nome'] = nomeDigitado;
-        // --- FIM DO FILTRO DE QUALIDADE ---
 
-        // 1. Capturar o ID do utilizador
         final usuarioId = supabase.auth.currentUser!.id;
-
-        // 2. Injetar o ID nos dados que já estavam prontos
         dados['user_id'] = usuarioId;
 
-        // 3. Fazer o insert normal do novo Mix
         await supabase.from('medicamentos').insert(dados);
 
-        // --- NOVA LÓGICA DE LIMPEZA ---
-        // Se acabámos de criar um Mix novo, OCULTAMOS os medicamentos base do Banco
         if (_isMix && !modoEdicao) {
           for (var baseMed in medicamentosBaseMix) {
             await supabase
                 .from('cronograma')
                 .delete()
                 .eq('medicamento_id', baseMed['id']);
-            // Oculta o medicamento colocando [Oculto] na frente do nome
             await supabase
                 .from('medicamentos')
                 .update({'nome': '[Oculto] ${baseMed['nome']}'})
@@ -2606,13 +2556,11 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     try {
       final mixNome = widget.medicamentoEditado!['nome'].toString();
 
-      // 1. Puxar os medicamentos ocultados
       final ocultos = await supabase
           .from('medicamentos')
           .select()
           .like('nome', '[Oculto]%');
 
-      // 2. Retirar a máscara apenas dos medicamentos que fazem parte deste Mix
       for (var o in ocultos) {
         String nomeReal = o['nome'].toString().replaceFirst('[Oculto] ', '');
         if (mixNome.contains(nomeReal)) {
@@ -2623,7 +2571,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         }
       }
 
-      // 3. Destruir o Mix e o seu cronograma
       await supabase
           .from('cronograma')
           .delete()
@@ -2640,7 +2587,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context); // Volta para a tela inicial
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -2694,7 +2641,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                       : null,
                                 )
                               : Autocomplete<String>(
-                                  // ... (código do autocomplete que já existe no seu app)
                                   initialValue: TextEditingValue(
                                     text: nomeSelecionado ?? '',
                                   ),
@@ -2796,7 +2742,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                           ),
                           onPressed: _limparSelecao,
                         ),
-                      // ... (resto dos botões de catálogo e mix)
                       if (modoNovoMedicamento && listaCatalogo.isNotEmpty)
                         OutlinedButton.icon(
                           icon: const Icon(Icons.list, color: Colors.blue),
@@ -2836,7 +2781,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
-                    // Removido o 'const' daqui
                     children: [
                       const Icon(Icons.science, color: Colors.orange, size: 32),
                       const SizedBox(height: 8),
@@ -2848,7 +2792,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                         ),
                       ),
                       Text(
-                        // Adicionado o texto dinâmico aqui
                         modoEdicao
                             ? 'Para alterar as doses originais, clique em DESMEMBRAR MIX no final da página. Isso devolverá os medicamentos ao Banco.'
                             : 'O Intervalo, Seringa e Região foram importados automaticamente dos medicamentos originais para garantir a segurança.',
@@ -2911,9 +2854,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        // --- NOVO GATILHO AUTOMÁTICO AQUI ---
                         onTap: () {
-                          // Abre a calculadora automaticamente se for a primeira vez que toca (campo vazio)
                           if (concentracaoCtrl.text.isEmpty) {
                             _abrirCalculadoraSegura();
                           }
@@ -2921,8 +2862,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                         decoration: InputDecoration(
                           labelText: 'Concentração (mg/mL)',
                           border: const OutlineInputBorder(),
-                          // Mantemos o ícone clicável caso ele queira forçar a
-                          // abertura da calculadora depois de já ter preenchido algo
                           suffixIcon: IconButton(
                             icon: const Icon(
                               Icons.calculate,
@@ -3108,7 +3047,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16), // Espaço entre os botões
+                  const SizedBox(width: 16),
                   Expanded(
                     child: InkWell(
                       onTap: () => _escolherHora(context),
@@ -3190,7 +3129,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
 }
 
 // ==========================================================
-// ECRÃ DO CRONOGRAMA (COM ALERTA DE FIM DE ESTOQUE)
+// ECRÃ DO CRONOGRAMA
 // ==========================================================
 class CronogramaEcra extends StatefulWidget {
   final Map<String, dynamic> medicamento;
@@ -3233,7 +3172,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
           TextSpan(
             text: matchString,
             style: TextStyle(
-              // <-- 'const' removido
               fontWeight: FontWeight.bold,
               fontSize: 15,
               color: Colors.teal[800],
@@ -3270,47 +3208,37 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
 
   @override
   void dispose() {
-    // Segurança de bateria ao sair da tela
     _timerTelaLigada?.cancel();
     WakelockPlus.disable();
     super.dispose();
   }
 
   Future<List<dynamic>> obterCronograma() async {
-    // 1. Busca os dados brutos no Supabase (sem a ordenação antiga do banco)
     final resposta = await supabase
         .from('cronograma')
         .select()
         .eq('medicamento_id', widget.medicamento['id']);
 
-    // 2. Transforma a resposta numa lista que podemos modificar
     List<dynamic> doses = List.from(resposta);
 
-    // 3. Aplica a inteligência de UX (Ordenação em 2 níveis)
     doses.sort((a, b) {
-      // Verifica o status (Atenção: na sua base de dados a coluna chama-se 'status_aplicado')
       bool aplicadoA = a['status_aplicado'] == true;
       bool aplicadoB = b['status_aplicado'] == true;
 
-      // Nível 1: Separa PENDENTES (sobe) de REALIZADAS (desce)
       if (aplicadoA != aplicadoB) {
         return aplicadoA ? 1 : -1;
       }
 
-      // Nível 2: Desempata pelas Datas
       DateTime dataA = DateTime.parse(a['data_aplicacao'].toString());
       DateTime dataB = DateTime.parse(b['data_aplicacao'].toString());
 
       if (!aplicadoA) {
-        // PARA AS PENDENTES: Crescente (a mais próxima primeiro)
         return dataA.compareTo(dataB);
       } else {
-        // PARA AS REALIZADAS: Decrescente (a última que aplicou fica no topo)
         return dataB.compareTo(dataA);
       }
     });
 
-    // 4. Devolve a lista já organizada para a tela desenhar
     return doses;
   }
 
@@ -3357,10 +3285,9 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
   }
 
   Future<void> _abrirDialogoGeracao() async {
-    int opcaoSelecionada = 0; // 0=Tudo, 1=Semanas, 2=Meses, 3=Injeções
+    int opcaoSelecionada = 0;
     final TextEditingController customCtrl = TextEditingController();
 
-    // Captura o intervalo de dias do medicamento atual
     final int intervaloDias =
         int.tryParse(widget.medicamento['intervalo_dias'].toString()) ?? 7;
 
@@ -3467,27 +3394,23 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                     if (opcaoSelecionada != 0) {
                       int valor = int.tryParse(customCtrl.text) ?? 0;
                       if (valor <= 0) {
-                        return; // Bloqueia se estiver vazio ou zero
+                        return;
                       }
 
                       if (opcaoSelecionada == 1) {
-                        // Semanas -> converte para dias e divide pelo intervalo
                         int totalDias = valor * 7;
                         limiteDeInjecoes = (totalDias / intervaloDias).floor();
                       } else if (opcaoSelecionada == 2) {
-                        // Meses -> converte para dias (aproximado 30) e divide
                         int totalDias = valor * 30;
                         limiteDeInjecoes = (totalDias / intervaloDias).floor();
                       } else if (opcaoSelecionada == 3) {
-                        // Injeções exatas
                         limiteDeInjecoes = valor;
                       }
 
-                      // Garante que gera pelo menos 1 injeção se a matemática der zero
                       if (limiteDeInjecoes == 0) limiteDeInjecoes = 1;
                     }
 
-                    Navigator.pop(ctx); // Fecha o pop-up
+                    Navigator.pop(ctx);
                     gerarDoses(limite: limiteDeInjecoes);
                   },
                   child: const Text(
@@ -3535,30 +3458,24 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       List<String> locaisRodizio = _obterListaRodizio(regiaoBase);
       List<Map<String, dynamic>> loteAplicacoes = [];
 
-      // ==========================================================
-      // NOVO MOTOR: RASTREAMENTO GLOBAL E ANTI-COLISÃO DIÁRIO
-      // ==========================================================
       int indiceInicial = 0;
       Set<String> locaisOcupadosGlobais = {};
 
       try {
         final usuarioId = supabase.auth.currentUser!.id;
 
-        // 1. Carrega todos os agendamentos futuros e passados do utilizador
         final historico = await supabase
             .from('cronograma')
             .select('data_aplicacao, local_aplicacao')
             .eq('user_id', usuarioId)
             .order('data_aplicacao', ascending: false);
 
-        // 2. Regista todas as datas e locais já ocupados num "Calendário Virtual"
         for (var item in historico) {
           String data = item['data_aplicacao'].toString();
           String local = item['local_aplicacao'].toString();
           locaisOcupadosGlobais.add('$data|$local');
         }
 
-        // 3. Encontra o último ponto usado nesta região para não começar do zero
         for (var item in historico) {
           String localSalvo = item['local_aplicacao'].toString();
           int indexEncontrado = locaisRodizio.indexOf(localSalvo);
@@ -3570,19 +3487,16 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       } catch (e) {
         debugPrint('Erro ao buscar histórico de colisões: $e');
       }
-      // ==========================================================
 
       DateTime dataBase = DateTime.parse(
         widget.medicamento['data_inicio'].toString(),
       );
 
-      // LER HORA CONFIGURADA (com fallback para 08:00 por segurança)
       String horaStr = widget.medicamento['hora_aplicacao'] ?? '08:00';
       int horaDisp = int.parse(horaStr.split(':')[0]);
       int minDisp = int.parse(horaStr.split(':')[1]);
 
       for (int i = 0; i < totalDoses; i++) {
-        // TRAVA DE LIMITE
         if (limite != null && i >= limite) {
           break;
         }
@@ -3591,25 +3505,17 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
         String localAtual =
             locaisRodizio[(indiceInicial + i) % locaisRodizio.length];
 
-        // ==========================================================
-        // DESVIO INTELIGENTE DE COLISÃO
-        // ==========================================================
         int tentativas = 0;
-        // Enquanto o local atual já estiver agendado para aquele exato dia...
         while (locaisOcupadosGlobais.contains('$dataIso|$localAtual') &&
             tentativas < locaisRodizio.length) {
-          // ... avança o rodízio forçadamente para o próximo ponto livre daquela região
           indiceInicial++;
           localAtual =
               locaisRodizio[(indiceInicial + i) % locaisRodizio.length];
           tentativas++;
         }
 
-        // Bloqueia este ponto recém-descoberto para ele não ser usado por outra dose
         locaisOcupadosGlobais.add('$dataIso|$localAtual');
-        // ==========================================================
 
-        // FUNDIR DATA E HORA AQUI
         DateTime dataHoraExata = DateTime(
           dataBase.year,
           dataBase.month,
@@ -3637,15 +3543,12 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
         dataBase = dataBase.add(Duration(days: intervalo));
       }
 
-      // 1. Capturar o ID do utilizador
       final usuarioId = supabase.auth.currentUser!.id;
 
-      // 2. Injetar o ID em TODAS as aplicações geradas no lote
       for (var aplicacao in loteAplicacoes) {
         aplicacao['user_id'] = usuarioId;
       }
 
-      // 3. Fazer o insert do lote inteiro
       await supabase.from('cronograma').insert(loteAplicacoes);
 
       if (mounted) {
@@ -3716,7 +3619,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
           .delete()
           .eq('medicamento_id', widget.medicamento['id']);
 
-      // 👇 NOSSA NOVA LINHA ANTI-FANTASMAS 👇
       await atualizarAlarmesNativos();
 
       if (mounted) {
@@ -3923,8 +3825,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
 // ==========================================================
 // ECRÃ DE GUIA, FAQ E TERMOS DE RESPONSABILIDADE
 // ==========================================================
-
-// TELA PARA VISUALIZAR AS IMAGENS COM ZOOM (PINÇA)
 class VisualizadorImagemEcra extends StatelessWidget {
   final String caminhoImagem;
   final String titulo;
@@ -3946,10 +3846,10 @@ class VisualizadorImagemEcra extends StatelessWidget {
       ),
       body: Center(
         child: InteractiveViewer(
-          panEnabled: true, // Permite mover a imagem
+          panEnabled: true,
           boundaryMargin: const EdgeInsets.all(20),
           minScale: 0.5,
-          maxScale: 4.0, // Zoom de até 4x
+          maxScale: 4.0,
           child: Image.asset(
             caminhoImagem,
             fit: BoxFit.contain,
@@ -3990,7 +3890,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
     super.initState();
     _scrollController.addListener(_verificarScroll);
 
-    // Libera automaticamente caso a tela do usuário seja tão grande que não precise rolar
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients &&
           _scrollController.position.maxScrollExtent <= 0) {
@@ -4000,7 +3899,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
   }
 
   void _verificarScroll() {
-    // Usamos uma margem de 50 pixels antes do fim absoluto para garantir que dispare
     if (_scrollController.hasClients &&
         _scrollController.offset >=
             _scrollController.position.maxScrollExtent - 50 &&
@@ -4024,7 +3922,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
     required Widget conteudo,
     Color? corFundo,
   }) {
-    // 1. MODO PRIMEIRO ACESSO (Tudo aberto, sem opção de fechar para forçar a leitura)
     if (widget.obrigatorio) {
       return Card(
         color: corFundo ?? Colors.white,
@@ -4063,7 +3960,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
       );
     }
 
-    // 2. MODO ACESSO NORMAL (Cartões recolhidos e expansíveis para um visual limpo)
     return Card(
       color: corFundo ?? Colors.white,
       elevation: 2,
@@ -4071,12 +3967,9 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: cor.withValues(alpha: 0.3)),
       ),
-      clipBehavior: Clip
-          .antiAlias, // Garante que a animação não sai das bordas arredondadas
+      clipBehavior: Clip.antiAlias,
       child: Theme(
-        data: Theme.of(context).copyWith(
-          dividerColor: Colors.transparent,
-        ), // Esconde a linha do ExpansionTile
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           iconColor: cor,
           collapsedIconColor: cor,
@@ -4191,7 +4084,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
                   children: [
-                    // 1. TERMOS DE RESPONSABILIDADE
                     _buildExpandableCard(
                       titulo: '⚖️ TERMOS DE RESPONSABILIDADE',
                       cor: Colors.orange[900]!,
@@ -4207,7 +4099,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 2. AVISO MÉDICO IMPORTANTE
                     _buildExpandableCard(
                       titulo: '🚨 AVISO MÉDICO IMPORTANTE',
                       cor: Colors.red[900]!,
@@ -4223,7 +4114,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 3. HIGIENE E ASSEPSIA
                     _buildExpandableCard(
                       titulo: '🧼 HIGIENE E ASSEPSIA',
                       cor: Colors.blueGrey[700]!,
@@ -4239,7 +4129,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 4. COMO USAR O APLICATIVO
                     _buildExpandableCard(
                       titulo: '📱 COMO USAR O APLICATIVO',
                       cor: const Color(0xFF1E3A8A),
@@ -4255,13 +4144,12 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 5. INTELIGÊNCIA CLÍNICA E EXAMES
                     _buildExpandableCard(
                       titulo: '🧬 INTELIGÊNCIA CLÍNICA E EXAMES',
                       cor: Colors.teal[800]!,
                       icone: Icons.biotech,
                       conteudo: const Text(
-                        'O aplicativo possui um Motor Analítico Preditivo de segurança:\n\n• Meu Perfil (Ícone Superior): Preencha o seu sexo biológico e data de nascimento. Estes dados cruzam com os seus tratamentos para gerar painéis de exames precisos.\n\n• Auto-Classificação: Ao registrar um medicamento, o motor identifica a família clínica e prepara o protocolo de risco e controle laboratorial.\n\n• Check-up de Biomarcadores: O algoritmo calcula a janela de "steady state" (estabilidade sanguínea). O alerta de primeira coleta surge 45 dias após o início de um novo tratamento. Após registrar essa coleta, os exames de manutenção passarão a ser solicitados a cada 120 dias.',
+                        'O aplicativo possui um Motor Analítico Preditivo de segurança:\n\n• Meu Perfil (Ícone Superior): Preencha o seu sexo biológico e data de nascimento. Estes dados cruzam com os seus tratamentos para gerar painéis de exames clínicos precisos.\n\n• Auto-Classificação: Ao registrar um medicamento, o motor identifica a família clínica e prepara o protocolo de risco e controle laboratorial.\n\n• Check-up de Biomarcadores: O algoritmo calcula a janela de "steady state" (estabilidade sanguínea). O alerta de primeira coleta surge 45 dias após o início de um novo tratamento. Após registrar essa coleta, os exames de manutenção passarão a ser solicitados a cada 120 dias.',
                         style: TextStyle(
                           fontSize: 14,
                           height: 1.5,
@@ -4271,7 +4159,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 6. GUIA DE SERINGAS E AGULHAS
                     _buildExpandableCard(
                       titulo: 'GUIA DE SERINGAS E AGULHAS',
                       cor: Colors.orange,
@@ -4317,7 +4204,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 7. MAPA DE PONTOS DE APLICAÇÃO
                     _buildExpandableCard(
                       titulo: 'MAPA DE PONTOS DE APLICAÇÃO',
                       cor: const Color(0xFF1E3A8A),
@@ -4370,7 +4256,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 8. DICIONÁRIO MAROMBA E CLÍNICO
                     _buildExpandableCard(
                       titulo: 'DICIONÁRIO MAROMBA E CLÍNICO',
                       cor: Colors.purple,
@@ -4529,7 +4414,7 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                         ],
                       ),
                     ),
-                  ], // <-- FIM DA LISTVIEW
+                  ],
                 ),
               ),
 
@@ -4576,7 +4461,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                               child: Checkbox(
                                 value: _aceitouTermos,
                                 activeColor: Colors.green[700],
-                                // Se não chegou ao fim, a checkbox fica desabilitada (retorna null)
                                 onChanged: _chegouAoFim
                                     ? (val) {
                                         setState(
@@ -4677,31 +4561,26 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
 // ==========================================================
 // FORMATADOR AUTOMÁTICO DE DATA (MÁSCARA DD/MM/AAAA)
 // ==========================================================
-
 class DataInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    // Permite que o utilizador apague livremente (BackSpace)
     if (oldValue.text.length > newValue.text.length) {
       return newValue;
     }
 
-    // Remove tudo o que não for número
     final textoLimpo = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
     String novoTexto = '';
 
     for (int i = 0; i < textoLimpo.length; i++) {
-      // Adiciona a barra (/) automaticamente após o dia e o mês
       if (i == 2 || i == 4) {
         novoTexto += '/';
       }
       novoTexto += textoLimpo[i];
     }
 
-    // Limita rigidamente a 10 caracteres para não ultrapassar DD/MM/AAAA
     if (novoTexto.length > 10) novoTexto = novoTexto.substring(0, 10);
 
     return TextEditingValue(
@@ -4712,7 +4591,7 @@ class DataInputFormatter extends TextInputFormatter {
 }
 
 // ==========================================================
-// ECRÃ DE PERFIL DO UTILIZADOR (INTELIGÊNCIA DEMOGRÁFICA)
+// ECRÃ DE PERFIL DO UTILIZADOR
 // ==========================================================
 class PerfilEcra extends StatefulWidget {
   final bool obrigatorio;
