@@ -541,7 +541,7 @@ class _LoginEcraState extends State<LoginEcra> {
               const SizedBox(height: 16),
 
               const Text(
-                '© 2025 CodeVibe Studio. Todos os direitos reservados.',
+                '© 2026 CodeVibe Studio. Todos os direitos reservados.',
                 style: TextStyle(color: Colors.white54, fontSize: 12),
                 textAlign: TextAlign.center,
               ),
@@ -629,15 +629,12 @@ class _DashboardEcraState extends State<DashboardEcra> {
   void initState() {
     super.initState();
     _pedirPermissaoNotificacoes();
-
-    // Arranque centralizado para evitar bloqueios
     _arranqueSeguro();
   }
 
   Future<void> _arranqueSeguro() async {
     await _carregarResumo();
 
-    // Só lança as verificações secundárias depois de o Dashboard estar desenhado e livre
     _calcularExames();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _verificarPendencias();
@@ -645,7 +642,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
     });
   }
 
-  // Função auxiliar para injetar os dados guardados
   void _carregarDoCache(SharedPreferences prefs) {
     final cacheProximas = prefs.getString('cache_proximas_doses');
     final cacheUltimas = prefs.getString('cache_ultimas_doses');
@@ -674,11 +670,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
       final conectividade = await Connectivity().checkConnectivity();
 
       bool semInternet = false;
-      if (conectividade is List) {
-        semInternet = (conectividade as List).contains(ConnectivityResult.none);
-      } else {
-        semInternet = conectividade == ConnectivityResult.none;
-      }
+      semInternet = (conectividade as List).contains(ConnectivityResult.none);
 
       if (semInternet) {
         _carregarDoCache(prefs);
@@ -686,7 +678,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
         return;
       }
 
-      // TIMEOUT DE 5 SEGUNDOS: Se o Wi-Fi estiver ligado mas sem net, ele desiste e abre o cache!
       final respProxima = await supabase
           .from('cronograma')
           .select('*, medicamentos(nome)')
@@ -721,7 +712,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
         }
       }
 
-      // CACHE INVISÍVEL: Salva os dados na memória do telemóvel
       await prefs.setString(
         'cache_proximas_doses',
         jsonEncode(proximasFiltradas),
@@ -739,12 +729,10 @@ class _DashboardEcraState extends State<DashboardEcra> {
       }
     } catch (e) {
       debugPrint('Falha na rede ou limite de tempo atingido: $e');
-      // Plano B: A nuvem falhou, recruta o cache instantaneamente
       final prefs = await SharedPreferences.getInstance();
       _carregarDoCache(prefs);
     }
 
-    // GARANTIA ABSOLUTA DE QUE A TELA PÁRA DE CARREGAR
     if (mounted) {
       setState(() => carregando = false);
     }
@@ -1445,13 +1433,37 @@ class _SetupEcraState extends State<SetupEcra> {
   }
 
   Future<List<dynamic>> obterMedicamentos() async {
-    final List<dynamic> res = await supabase
-        .from('medicamentos')
-        .select()
-        .order('criado_em');
-    return res
-        .where((m) => !m['nome'].toString().startsWith('[Oculto]'))
-        .toList();
+    final prefs = await SharedPreferences.getInstance();
+
+    try {
+      final conectividade = await Connectivity().checkConnectivity();
+      bool semInternet = false;
+      semInternet = (conectividade as List).contains(ConnectivityResult.none);
+
+      if (semInternet) {
+        final cache = prefs.getString('cache_medicamentos');
+        if (cache != null) return jsonDecode(cache);
+        return [];
+      }
+
+      final List<dynamic> res = await supabase
+          .from('medicamentos')
+          .select()
+          .order('criado_em')
+          .timeout(const Duration(seconds: 5));
+
+      final listaFiltrada = res
+          .where((m) => !m['nome'].toString().startsWith('[Oculto]'))
+          .toList();
+
+      await prefs.setString('cache_medicamentos', jsonEncode(listaFiltrada));
+
+      return listaFiltrada;
+    } catch (e) {
+      final cache = prefs.getString('cache_medicamentos');
+      if (cache != null) return jsonDecode(cache);
+      return [];
+    }
   }
 
   Future<void> _deletarMedicamento(dynamic id) async {
@@ -1690,7 +1702,11 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   String? categoriaSelecionada;
   String? unidadeSelecionada;
   int? seringaSelecionada;
+
+  // 👇 NOVAS VARIÁVEIS AQUI
   String? regiaoSelecionada;
+  List<String> regioesSelecionadasList = [];
+
   DateTime dataInicio = DateTime.now();
   TimeOfDay horaInicio = const TimeOfDay(hour: 8, minute: 0);
 
@@ -1717,7 +1733,13 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           .toString();
       unidadeSelecionada = widget.medicamentoEditado!['unidade_dose'];
       seringaSelecionada = widget.medicamentoEditado!['seringa_ui'];
-      regiaoSelecionada = widget.medicamentoEditado!['regiao_rodizio'];
+
+      // 👇 BLOCO SUBSTITUÍDO: Lida com a lista desmembrada do banco
+      if (widget.medicamentoEditado!['regiao_rodizio'] != null) {
+        regiaoSelecionada = widget.medicamentoEditado!['regiao_rodizio'];
+        regioesSelecionadasList = regiaoSelecionada!.split(', ');
+      }
+
       dataInicio =
           DateTime.tryParse(widget.medicamentoEditado!['data_inicio']) ??
           DateTime.now();
@@ -1809,11 +1831,87 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       intervaloCtrl.clear();
       unidadeSelecionada = null;
       seringaSelecionada = null;
+
+      // 👇 TRAVA DE SEGURANÇA: Limpa também os arrays de Região
       regiaoSelecionada = null;
+      regioesSelecionadasList = [];
+
       _isMix = false;
       textoDetalhesDose = '';
       calcVolumeMl = 0.0;
     });
+  }
+
+  // 👇 NOVA FUNÇÃO: Motor Multi-Select
+  Future<void> _abrirSeletorLocais() async {
+    final locaisDisponiveis = [
+      'Ventro Glúteo (IM)',
+      'Vasto Lateral (IM)',
+      'Deltoide (IM)',
+      'Glúteo Superior (IM)',
+      'Barriga (SC)',
+      'Flanco (SC)',
+      'Perna Anterior (SC)',
+      'Braço Tríceps (SC)',
+    ];
+    List<String> tempSelecionados = List.from(regioesSelecionadasList);
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: const Text(
+            'Selecione os Locais',
+            style: TextStyle(color: Color(0xFF1E3A8A)),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              children: locaisDisponiveis
+                  .map(
+                    (local) => CheckboxListTile(
+                      title: Text(
+                        local,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      value: tempSelecionados.contains(local),
+                      activeColor: Colors.orange,
+                      onChanged: (val) {
+                        setStateDialog(() {
+                          if (val == true) {
+                            tempSelecionados.add(local);
+                          } else {
+                            tempSelecionados.remove(local);
+                          }
+                        });
+                      },
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              onPressed: () {
+                setState(() {
+                  regioesSelecionadasList = tempSelecionados;
+                  regiaoSelecionada = regioesSelecionadasList.join(', ');
+                });
+                Navigator.pop(ctx);
+              },
+              child: const Text(
+                'CONFIRMAR',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _abrirSeletorDeMix() async {
@@ -1964,7 +2062,13 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           nomeCtrl.text = 'Mix: $nomes';
           intervaloCtrl.text = intRef.toString();
           seringaSelecionada = serRef;
+
+          // 👇 TRAVA DE SEGURANÇA: Mantém o Array e a String alinhados ao Herdar
           regiaoSelecionada = regRef;
+          if (regRef != null) {
+            regioesSelecionadasList = regRef.split(', ');
+          }
+
           _recalcularEquivalencia();
         });
       } else {
@@ -2008,9 +2112,15 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     if (med['unidade'] != null) {
       setState(() => unidadeSelecionada = med['unidade'].toString());
     }
+
+    // 👇 TRAVA DE SEGURANÇA NO PREENCHIMENTO AUTOMÁTICO
     if (med['regiao_base'] != null) {
-      setState(() => regiaoSelecionada = med['regiao_base'].toString());
+      setState(() {
+        regiaoSelecionada = med['regiao_base'].toString();
+        regioesSelecionadasList = regiaoSelecionada!.split(', ');
+      });
     }
+
     if (med['seringa_ui'] != null) {
       setState(
         () => seringaSelecionada =
@@ -2041,7 +2151,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           double fator = (intervalo == 3)
               ? (dSemanal / 2)
               : ((dSemanal / 7) * intervalo);
-
           double doseMg = (unid == 'mL') ? (fator * conc) : fator;
 
           double vol = doseMg / conc;
@@ -2085,7 +2194,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
             double fator = (intervalo == 3)
                 ? (doseSemanal / 2)
                 : ((doseSemanal / 7) * intervalo);
-
             double doseMg = (unidadeSelecionada == 'mL')
                 ? (fator * concentracao)
                 : fator;
@@ -2318,8 +2426,21 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   Future<void> _guardarMedicamento() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // 👇 TRAVA DE SEGURANÇA: Garante que escolheu pelo menos 1 local!
+    if (regioesSelecionadasList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, selecione pelo menos um Local de Rodízio.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // 👇 TRAVA BLINDADA: Alterado para .contains para funcionar com o multi-select
     if (calcVolumeMl >= 1.0 &&
-        (regiaoSelecionada == 'Barriga' || regiaoSelecionada == 'Flanco')) {
+        (regiaoSelecionada?.contains('Barriga') == true ||
+            regiaoSelecionada?.contains('Flanco') == true)) {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -2467,7 +2588,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         String nomeDigitado = dados['nome'].toString().trim();
 
         if (nomeDigitado.length < 3) {
-          if (mounted) {
+          if (mounted)
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
@@ -2476,7 +2597,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                 backgroundColor: Colors.red,
               ),
             );
-          }
           return;
         }
 
@@ -2494,7 +2614,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         final nomeMinusculo = nomeDigitado.toLowerCase();
         for (var palavra in palavrasProibidas) {
           if (nomeMinusculo.contains(palavra)) {
-            if (mounted) {
+            if (mounted)
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
@@ -2503,7 +2623,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                   backgroundColor: Colors.red,
                 ),
               );
-            }
             return;
           }
         }
@@ -2542,11 +2661,10 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
 
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
         );
-      }
     }
     setState(() => carregando = false);
   }
@@ -2590,11 +2708,10 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
         );
-      }
     }
     setState(() => carregando = false);
   }
@@ -2645,11 +2762,10 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                     text: nomeSelecionado ?? '',
                                   ),
                                   optionsBuilder: (TextEditingValue texto) {
-                                    if (texto.text.isEmpty) {
+                                    if (texto.text.isEmpty)
                                       return listaCatalogo.map(
                                         (e) => e['nome'].toString(),
                                       );
-                                    }
                                     return listaCatalogo
                                         .map((e) => e['nome'].toString())
                                         .where(
@@ -2683,16 +2799,14 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                             ),
                                           ),
                                           validator: (val) {
-                                            if (val == null || val.isEmpty) {
+                                            if (val == null || val.isEmpty)
                                               return 'Obrigatório';
-                                            }
                                             final existe = listaCatalogo.any(
                                               (e) =>
                                                   e['nome'].toString() == val,
                                             );
-                                            if (!existe) {
+                                            if (!existe)
                                               return 'Selecione um item da lista';
-                                            }
                                             return null;
                                           },
                                           onChanged: (val) => setState(
@@ -2855,9 +2969,8 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                           decimal: true,
                         ),
                         onTap: () {
-                          if (concentracaoCtrl.text.isEmpty) {
+                          if (concentracaoCtrl.text.isEmpty)
                             _abrirCalculadoraSegura();
-                          }
                         },
                         decoration: InputDecoration(
                           labelText: 'Concentração (mg/mL)',
@@ -2997,25 +3110,40 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                       validator: (val) => val == null ? 'Erro' : null,
                     ),
                   ),
+
+                  // 👇 BOTÃO INTELIGENTE DE SELEÇÃO MULTIPLA
                   const SizedBox(width: 16),
                   Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: regiaoSelecionada,
-                      decoration: const InputDecoration(
-                        labelText: 'Região Base',
-                        border: OutlineInputBorder(),
+                    child: InkWell(
+                      onTap: _isMix ? null : _abrirSeletorLocais,
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Locais do Rodízio',
+                          border: const OutlineInputBorder(),
+                          errorText: regioesSelecionadasList.isEmpty
+                              ? 'Selecione'
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              regioesSelecionadasList.isEmpty
+                                  ? 'Nenhum'
+                                  : '${regioesSelecionadasList.length} selecionado(s)',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: _isMix ? Colors.grey : Colors.black,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Icon(
+                              Icons.checklist,
+                              color: _isMix ? Colors.grey : Colors.orange,
+                            ),
+                          ],
+                        ),
                       ),
-                      items:
-                          ['Barriga', 'Flanco', 'Glúteo', 'Vasto', 'Deltoide']
-                              .map(
-                                (e) =>
-                                    DropdownMenuItem(value: e, child: Text(e)),
-                              )
-                              .toList(),
-                      onChanged: _isMix
-                          ? null
-                          : (val) => setState(() => regiaoSelecionada = val!),
-                      validator: (val) => val == null ? 'Erro' : null,
                     ),
                   ),
                 ],
@@ -3149,13 +3277,11 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
 
     for (final match in regex.allMatches(textoOriginal)) {
       final matchString = match.group(0)!;
-
       if (match.start > lastMatchEnd) {
         spans.add(
           TextSpan(text: textoOriginal.substring(lastMatchEnd, match.start)),
         );
       }
-
       if (matchString.contains('UI')) {
         spans.add(
           TextSpan(
@@ -3181,11 +3307,8 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       }
       lastMatchEnd = match.end;
     }
-
-    if (lastMatchEnd < textoOriginal.length) {
+    if (lastMatchEnd < textoOriginal.length)
       spans.add(TextSpan(text: textoOriginal.substring(lastMatchEnd)));
-    }
-
     return RichText(
       text: TextSpan(
         style: const TextStyle(fontSize: 14, color: Colors.black87),
@@ -3200,7 +3323,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
   void initState() {
     super.initState();
     WakelockPlus.enable();
-
     _timerTelaLigada = Timer(const Duration(minutes: 5), () {
       WakelockPlus.disable();
     });
@@ -3214,80 +3336,104 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
   }
 
   Future<List<dynamic>> obterCronograma() async {
-    final resposta = await supabase
-        .from('cronograma')
-        .select()
-        .eq('medicamento_id', widget.medicamento['id']);
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = 'cache_cronograma_${widget.medicamento['id']}';
 
-    List<dynamic> doses = List.from(resposta);
+    try {
+      final conectividade = await Connectivity().checkConnectivity();
+      bool semInternet = false;
+      semInternet = (conectividade as List).contains(ConnectivityResult.none);
 
-    doses.sort((a, b) {
-      bool aplicadoA = a['status_aplicado'] == true;
-      bool aplicadoB = b['status_aplicado'] == true;
-
-      if (aplicadoA != aplicadoB) {
-        return aplicadoA ? 1 : -1;
+      if (semInternet) {
+        final cache = prefs.getString(cacheKey);
+        if (cache != null) return jsonDecode(cache);
+        return [];
       }
 
-      DateTime dataA = DateTime.parse(a['data_aplicacao'].toString());
-      DateTime dataB = DateTime.parse(b['data_aplicacao'].toString());
+      final resposta = await supabase
+          .from('cronograma')
+          .select()
+          .eq('medicamento_id', widget.medicamento['id'])
+          .timeout(const Duration(seconds: 5));
+      List<dynamic> doses = List.from(resposta);
 
-      if (!aplicadoA) {
-        return dataA.compareTo(dataB);
-      } else {
-        return dataB.compareTo(dataA);
-      }
-    });
+      doses.sort((a, b) {
+        bool aplicadoA = a['status_aplicado'] == true;
+        bool aplicadoB = b['status_aplicado'] == true;
 
-    return doses;
+        if (aplicadoA != aplicadoB) return aplicadoA ? 1 : -1;
+        DateTime dataA = DateTime.parse(a['data_aplicacao'].toString());
+        DateTime dataB = DateTime.parse(b['data_aplicacao'].toString());
+
+        if (!aplicadoA)
+          return dataA.compareTo(dataB);
+        else
+          return dataB.compareTo(dataA);
+      });
+
+      await prefs.setString(cacheKey, jsonEncode(doses));
+      return doses;
+    } catch (e) {
+      final cache = prefs.getString(cacheKey);
+      if (cache != null) return jsonDecode(cache);
+      return [];
+    }
   }
 
+  // 👇 NOVA FUNÇÃO: Junta todas as múltiplas escolhas de forma inteligente
   List<String> _obterListaRodizio(String regiaoBase) {
-    if (regiaoBase == 'Barriga') {
-      return [
-        'Barriga Direito - Meio',
-        'Barriga Esquerdo - Meio',
-        'Barriga Direito - Cima',
-        'Barriga Esquerdo - Cima',
-        'Barriga - Cima',
-        'Barriga - Baixo',
-      ];
-    } else if (regiaoBase == 'Flanco') {
-      return [
-        'Flanco Dir. Alto A',
-        'Flanco Esq. Alto A',
-        'Flanco Dir. Alto B',
-        'Flanco Esq. Alto B',
-        'Flanco Dir. Alto C',
-        'Flanco Esq. Alto C',
-        'Flanco Dir. Baixo A',
-        'Flanco Esq. Baixo A',
-        'Flanco Dir. Baixo B',
-        'Flanco Esq. Baixo B',
-        'Flanco Dir. Baixo C',
-        'Flanco Esq. Baixo C',
-        'Flanco Dir. Médio A',
-        'Flanco Esq. Médio A',
-        'Flanco Dir. Médio B',
-        'Flanco Esq. Médio B',
-      ];
-    } else if (regiaoBase == 'Glúteo') {
-      return [
-        'Glúteo Direito - Superior Externo',
-        'Glúteo Esquerdo - Superior Externo',
-      ];
-    } else if (regiaoBase == 'Vasto') {
-      return ['Vasto Lateral Direito', 'Vasto Lateral Esquerdo'];
-    } else if (regiaoBase == 'Deltoide') {
-      return ['Deltoide Direito', 'Deltoide Esquerdo'];
+    List<String> pontosFinais = [];
+    final regioes = regiaoBase.split(', ');
+
+    for (var r in regioes) {
+      if (r.contains('Ventro Glúteo')) {
+        pontosFinais.addAll([
+          'Ventro Glúteo Direito',
+          'Ventro Glúteo Esquerdo',
+        ]);
+      } else if (r.contains('Vasto')) {
+        pontosFinais.addAll([
+          'Vasto Lateral Direito',
+          'Vasto Lateral Esquerdo',
+        ]);
+      } else if (r.contains('Deltoide')) {
+        pontosFinais.addAll(['Deltoide Direito', 'Deltoide Esquerdo']);
+      } else if (r.contains('Glúteo Superior')) {
+        pontosFinais.addAll([
+          'Glúteo Direito (Sup. Ext.)',
+          'Glúteo Esquerdo (Sup. Ext.)',
+        ]);
+      } else if (r.contains('Barriga')) {
+        pontosFinais.addAll([
+          'Barriga Direita Alta',
+          'Barriga Esquerda Alta',
+          'Barriga Direita Baixa',
+          'Barriga Esquerda Baixa',
+        ]);
+      } else if (r.contains('Flanco')) {
+        pontosFinais.addAll([
+          'Flanco Direito Alto',
+          'Flanco Esquerdo Alto',
+          'Flanco Direito Baixo',
+          'Flanco Esquerdo Baixo',
+        ]);
+      } else if (r.contains('Perna Anterior')) {
+        pontosFinais.addAll([
+          'Coxa Anterior Direita (SC)',
+          'Coxa Anterior Esquerda (SC)',
+        ]);
+      } else if (r.contains('Braço Tríceps')) {
+        pontosFinais.addAll(['Tríceps Direito (SC)', 'Tríceps Esquerdo (SC)']);
+      }
     }
-    return [regiaoBase];
+
+    if (pontosFinais.isEmpty) return [regiaoBase];
+    return pontosFinais;
   }
 
   Future<void> _abrirDialogoGeracao() async {
     int opcaoSelecionada = 0;
     final TextEditingController customCtrl = TextEditingController();
-
     final int intervaloDias =
         int.tryParse(widget.medicamento['intervalo_dias'].toString()) ?? 7;
 
@@ -3390,13 +3536,9 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                   ),
                   onPressed: () {
                     int? limiteDeInjecoes;
-
                     if (opcaoSelecionada != 0) {
                       int valor = int.tryParse(customCtrl.text) ?? 0;
-                      if (valor <= 0) {
-                        return;
-                      }
-
+                      if (valor <= 0) return;
                       if (opcaoSelecionada == 1) {
                         int totalDias = valor * 7;
                         limiteDeInjecoes = (totalDias / intervaloDias).floor();
@@ -3406,10 +3548,8 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                       } else if (opcaoSelecionada == 3) {
                         limiteDeInjecoes = valor;
                       }
-
                       if (limiteDeInjecoes == 0) limiteDeInjecoes = 1;
                     }
-
                     Navigator.pop(ctx);
                     gerarDoses(limite: limiteDeInjecoes);
                   },
@@ -3430,7 +3570,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
     setState(() => carregando = true);
     try {
       String textoDoseAjustada = widget.medicamento['detalhes_dose'] ?? '';
-
       double doseSemanal = (widget.medicamento['dose_semanal'] as num)
           .toDouble();
       double concentracao = (widget.medicamento['concentracao_mg_ml'] as num)
@@ -3463,7 +3602,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
 
       try {
         final usuarioId = supabase.auth.currentUser!.id;
-
         final historico = await supabase
             .from('cronograma')
             .select('data_aplicacao, local_aplicacao')
@@ -3491,15 +3629,12 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       DateTime dataBase = DateTime.parse(
         widget.medicamento['data_inicio'].toString(),
       );
-
       String horaStr = widget.medicamento['hora_aplicacao'] ?? '08:00';
       int horaDisp = int.parse(horaStr.split(':')[0]);
       int minDisp = int.parse(horaStr.split(':')[1]);
 
       for (int i = 0; i < totalDoses; i++) {
-        if (limite != null && i >= limite) {
-          break;
-        }
+        if (limite != null && i >= limite) break;
 
         String dataIso = dataBase.toIso8601String().split('T')[0];
         String localAtual =
@@ -3544,27 +3679,24 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       }
 
       final usuarioId = supabase.auth.currentUser!.id;
-
       for (var aplicacao in loteAplicacoes) {
         aplicacao['user_id'] = usuarioId;
       }
 
       await supabase.from('cronograma').insert(loteAplicacoes);
 
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Cronograma gerado com sucesso!'),
             backgroundColor: Colors.green,
           ),
         );
-      }
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
         );
-      }
     }
     setState(() => carregando = false);
   }
@@ -3577,11 +3709,10 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
           .eq('id', idDose);
       setState(() {});
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
         );
-      }
     }
   }
 
@@ -3614,27 +3745,25 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
     setState(() => carregando = true);
 
     try {
-      await supabase
-          .from('cronograma')
-          .delete()
-          .eq('medicamento_id', widget.medicamento['id']);
-
+      await supabase.from('cronograma').delete().match({
+        'medicamento_id': widget.medicamento['id'],
+        'status_aplicado': false,
+      });
       await atualizarAlarmesNativos();
-
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Cronograma apagado!'),
+            content: Text(
+              'Doses futuras apagadas! O histórico foi preservado.',
+            ),
             backgroundColor: Colors.green,
           ),
         );
-      }
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
         );
-      }
     }
     setState(() => carregando = false);
   }
@@ -3675,9 +3804,8 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                 future: obterCronograma(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting ||
-                      carregando) {
+                      carregando)
                     return const Center(child: CircularProgressIndicator());
-                  }
                   final doses = snapshot.data ?? [];
                   if (doses.isEmpty) {
                     return Center(
@@ -3732,11 +3860,9 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                           .split('-');
                       final dataFormatada =
                           '${partesData[2]}/${partesData[1]}/${partesData[0]}';
-
                       final bool isUltimasDuas = index >= doses.length - 2;
                       final bool isPendenteEFinal =
                           isUltimasDuas && !dose['status_aplicado'];
-
                       Color? corFundo = dose['status_aplicado']
                           ? Colors.green[50]
                           : (isPendenteEFinal ? Colors.red[100] : Colors.white);
@@ -3828,7 +3954,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
 class VisualizadorImagemEcra extends StatelessWidget {
   final String caminhoImagem;
   final String titulo;
-
   const VisualizadorImagemEcra({
     super.key,
     required this.caminhoImagem,
@@ -3859,7 +3984,7 @@ class VisualizadorImagemEcra extends StatelessWidget {
                 Icon(Icons.broken_image, size: 64, color: Colors.grey),
                 SizedBox(height: 12),
                 Text(
-                  'Imagem não encontrada.\nCertifique-se de adicioná-la no pubspec.yaml',
+                  'Imagem não encontrada.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white70),
                 ),
@@ -3875,7 +4000,6 @@ class VisualizadorImagemEcra extends StatelessWidget {
 class GuiaFaqEcra extends StatefulWidget {
   final bool obrigatorio;
   const GuiaFaqEcra({super.key, this.obrigatorio = false});
-
   @override
   State<GuiaFaqEcra> createState() => _GuiaFaqEcraState();
 }
@@ -3889,12 +4013,10 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
   void initState() {
     super.initState();
     _scrollController.addListener(_verificarScroll);
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients &&
-          _scrollController.position.maxScrollExtent <= 0) {
+          _scrollController.position.maxScrollExtent <= 0)
         setState(() => _chegouAoFim = true);
-      }
     });
   }
 
@@ -3902,11 +4024,8 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
     if (_scrollController.hasClients &&
         _scrollController.offset >=
             _scrollController.position.maxScrollExtent - 50 &&
-        !_chegouAoFim) {
-      setState(() {
-        _chegouAoFim = true;
-      });
-    }
+        !_chegouAoFim)
+      setState(() => _chegouAoFim = true);
   }
 
   @override
@@ -3959,7 +4078,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
         ),
       );
     }
-
     return Card(
       color: corFundo ?? Colors.white,
       elevation: 2,
@@ -4014,17 +4132,15 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         trailing: const Icon(Icons.zoom_in, color: Colors.orange),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => VisualizadorImagemEcra(
-                caminhoImagem: caminhoImagem,
-                titulo: titulo,
-              ),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VisualizadorImagemEcra(
+              caminhoImagem: caminhoImagem,
+              titulo: titulo,
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
@@ -4098,7 +4214,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     _buildExpandableCard(
                       titulo: '🚨 AVISO MÉDICO IMPORTANTE',
                       cor: Colors.red[900]!,
@@ -4113,7 +4228,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     _buildExpandableCard(
                       titulo: '🧼 HIGIENE E ASSEPSIA',
                       cor: Colors.blueGrey[700]!,
@@ -4128,7 +4242,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     _buildExpandableCard(
                       titulo: '📱 COMO USAR O APLICATIVO',
                       cor: const Color(0xFF1E3A8A),
@@ -4143,7 +4256,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     _buildExpandableCard(
                       titulo: '🧬 INTELIGÊNCIA CLÍNICA E EXAMES',
                       cor: Colors.teal[800]!,
@@ -4158,7 +4270,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     _buildExpandableCard(
                       titulo: 'GUIA DE SERINGAS E AGULHAS',
                       cor: Colors.orange,
@@ -4203,7 +4314,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     _buildExpandableCard(
                       titulo: 'MAPA DE PONTOS DE APLICAÇÃO',
                       cor: const Color(0xFF1E3A8A),
@@ -4255,7 +4365,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     _buildExpandableCard(
                       titulo: 'DICIONÁRIO MAROMBA E CLÍNICO',
                       cor: Colors.purple,
@@ -4417,7 +4526,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                   ],
                 ),
               ),
-
               if (widget.obrigatorio)
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -4567,22 +4675,14 @@ class DataInputFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    if (oldValue.text.length > newValue.text.length) {
-      return newValue;
-    }
-
+    if (oldValue.text.length > newValue.text.length) return newValue;
     final textoLimpo = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
     String novoTexto = '';
-
     for (int i = 0; i < textoLimpo.length; i++) {
-      if (i == 2 || i == 4) {
-        novoTexto += '/';
-      }
+      if (i == 2 || i == 4) novoTexto += '/';
       novoTexto += textoLimpo[i];
     }
-
     if (novoTexto.length > 10) novoTexto = novoTexto.substring(0, 10);
-
     return TextEditingValue(
       text: novoTexto,
       selection: TextSelection.collapsed(offset: novoTexto.length),
@@ -4596,7 +4696,6 @@ class DataInputFormatter extends TextInputFormatter {
 class PerfilEcra extends StatefulWidget {
   final bool obrigatorio;
   const PerfilEcra({super.key, this.obrigatorio = false});
-
   @override
   State<PerfilEcra> createState() => _PerfilEcraState();
 }
@@ -4619,7 +4718,6 @@ class _PerfilEcraState extends State<PerfilEcra> {
   Future<void> _carregarPerfil() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return;
-
     try {
       final res = await supabase
           .from('perfis')
@@ -4632,9 +4730,8 @@ class _PerfilEcraState extends State<PerfilEcra> {
           generoSelecionado = res['genero'];
           if (res['data_nascimento'] != null) {
             final partes = res['data_nascimento'].toString().split('-');
-            if (partes.length == 3) {
+            if (partes.length == 3)
               dataCtrl.text = '${partes[2]}/${partes[1]}/${partes[0]}';
-            }
           }
         });
       }
@@ -4689,14 +4786,13 @@ class _PerfilEcraState extends State<PerfilEcra> {
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao salvar: $e'),
             backgroundColor: Colors.red,
           ),
         );
-      }
     }
     setState(() => carregando = false);
   }
@@ -4837,9 +4933,8 @@ class _PerfilEcraState extends State<PerfilEcra> {
                             ),
                           ),
                           validator: (val) {
-                            if (val == null || val.isEmpty) {
+                            if (val == null || val.isEmpty)
                               return 'Obrigatório';
-                            }
                             if (val.length != 10) return 'Data incompleta';
                             return null;
                           },
