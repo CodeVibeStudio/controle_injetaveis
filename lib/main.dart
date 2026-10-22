@@ -494,7 +494,7 @@ class _LoginEcraState extends State<LoginEcra> {
                         size: 20,
                       ),
                       SizedBox(width: 8),
-                      const Text(
+                      Text(
                         '@codevibestudio',
                         style: TextStyle(color: Colors.white),
                       ),
@@ -2588,7 +2588,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         String nomeDigitado = dados['nome'].toString().trim();
 
         if (nomeDigitado.length < 3) {
-          if (mounted)
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
@@ -2597,6 +2597,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                 backgroundColor: Colors.red,
               ),
             );
+          }
           return;
         }
 
@@ -2614,7 +2615,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         final nomeMinusculo = nomeDigitado.toLowerCase();
         for (var palavra in palavrasProibidas) {
           if (nomeMinusculo.contains(palavra)) {
-            if (mounted)
+            if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
@@ -2623,6 +2624,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                   backgroundColor: Colors.red,
                 ),
               );
+            }
             return;
           }
         }
@@ -2661,10 +2663,11 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
 
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
         );
+      }
     }
     setState(() => carregando = false);
   }
@@ -2708,10 +2711,11 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
         );
+      }
     }
     setState(() => carregando = false);
   }
@@ -2762,10 +2766,11 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                     text: nomeSelecionado ?? '',
                                   ),
                                   optionsBuilder: (TextEditingValue texto) {
-                                    if (texto.text.isEmpty)
+                                    if (texto.text.isEmpty) {
                                       return listaCatalogo.map(
                                         (e) => e['nome'].toString(),
                                       );
+                                    }
                                     return listaCatalogo
                                         .map((e) => e['nome'].toString())
                                         .where(
@@ -2799,14 +2804,16 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                             ),
                                           ),
                                           validator: (val) {
-                                            if (val == null || val.isEmpty)
+                                            if (val == null || val.isEmpty) {
                                               return 'Obrigatório';
+                                            }
                                             final existe = listaCatalogo.any(
                                               (e) =>
                                                   e['nome'].toString() == val,
                                             );
-                                            if (!existe)
+                                            if (!existe) {
                                               return 'Selecione um item da lista';
+                                            }
                                             return null;
                                           },
                                           onChanged: (val) => setState(
@@ -2969,8 +2976,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                           decimal: true,
                         ),
                         onTap: () {
-                          if (concentracaoCtrl.text.isEmpty)
+                          if (concentracaoCtrl.text.isEmpty) {
                             _abrirCalculadoraSegura();
+                          }
                         },
                         decoration: InputDecoration(
                           labelText: 'Concentração (mg/mL)',
@@ -3307,8 +3315,9 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       }
       lastMatchEnd = match.end;
     }
-    if (lastMatchEnd < textoOriginal.length)
+    if (lastMatchEnd < textoOriginal.length) {
       spans.add(TextSpan(text: textoOriginal.substring(lastMatchEnd)));
+    }
     return RichText(
       text: TextSpan(
         style: const TextStyle(fontSize: 14, color: Colors.black87),
@@ -3365,10 +3374,11 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
         DateTime dataA = DateTime.parse(a['data_aplicacao'].toString());
         DateTime dataB = DateTime.parse(b['data_aplicacao'].toString());
 
-        if (!aplicadoA)
+        if (!aplicadoA) {
           return dataA.compareTo(dataB);
-        else
+        } else {
           return dataB.compareTo(dataA);
+        }
       });
 
       await prefs.setString(cacheKey, jsonEncode(doses));
@@ -3629,6 +3639,28 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       DateTime dataBase = DateTime.parse(
         widget.medicamento['data_inicio'].toString(),
       );
+
+      // 👇 MOTOR DE CONTINUIDADE DE TRATAMENTO 👇
+      try {
+        // Busca a última dose registada deste medicamento no histórico
+        final ultimoDesteMed = await supabase
+            .from('cronograma')
+            .select('data_aplicacao')
+            .eq('medicamento_id', widget.medicamento['id'])
+            .order('data_aplicacao', ascending: false)
+            .limit(1);
+
+        if (ultimoDesteMed.isNotEmpty) {
+          DateTime ultimaData = DateTime.parse(
+            ultimoDesteMed.first['data_aplicacao'].toString(),
+          );
+          // O novo ciclo começa a partir da última aplicação + o intervalo de descanso
+          dataBase = ultimaData.add(Duration(days: intervalo));
+        }
+      } catch (e) {
+        debugPrint('Erro ao buscar continuidade: $e');
+      }
+      // 👆 FIM DO MOTOR DE CONTINUIDADE 👆
       String horaStr = widget.medicamento['hora_aplicacao'] ?? '08:00';
       int horaDisp = int.parse(horaStr.split(':')[0]);
       int minDisp = int.parse(horaStr.split(':')[1]);
@@ -3685,18 +3717,20 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
 
       await supabase.from('cronograma').insert(loteAplicacoes);
 
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Cronograma gerado com sucesso!'),
             backgroundColor: Colors.green,
           ),
         );
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
         );
+      }
     }
     setState(() => carregando = false);
   }
@@ -3709,10 +3743,11 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
           .eq('id', idDose);
       setState(() {});
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
         );
+      }
     }
   }
 
@@ -3750,7 +3785,7 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
         'status_aplicado': false,
       });
       await atualizarAlarmesNativos();
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -3759,11 +3794,13 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
             backgroundColor: Colors.green,
           ),
         );
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
         );
+      }
     }
     setState(() => carregando = false);
   }
@@ -3804,8 +3841,9 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                 future: obterCronograma(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting ||
-                      carregando)
+                      carregando) {
                     return const Center(child: CircularProgressIndicator());
+                  }
                   final doses = snapshot.data ?? [];
                   if (doses.isEmpty) {
                     return Center(
@@ -4015,8 +4053,9 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
     _scrollController.addListener(_verificarScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients &&
-          _scrollController.position.maxScrollExtent <= 0)
+          _scrollController.position.maxScrollExtent <= 0) {
         setState(() => _chegouAoFim = true);
+      }
     });
   }
 
@@ -4024,8 +4063,9 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
     if (_scrollController.hasClients &&
         _scrollController.offset >=
             _scrollController.position.maxScrollExtent - 50 &&
-        !_chegouAoFim)
+        !_chegouAoFim) {
       setState(() => _chegouAoFim = true);
+    }
   }
 
   @override
@@ -4730,8 +4770,9 @@ class _PerfilEcraState extends State<PerfilEcra> {
           generoSelecionado = res['genero'];
           if (res['data_nascimento'] != null) {
             final partes = res['data_nascimento'].toString().split('-');
-            if (partes.length == 3)
+            if (partes.length == 3) {
               dataCtrl.text = '${partes[2]}/${partes[1]}/${partes[0]}';
+            }
           }
         });
       }
@@ -4786,13 +4827,14 @@ class _PerfilEcraState extends State<PerfilEcra> {
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao salvar: $e'),
             backgroundColor: Colors.red,
           ),
         );
+      }
     }
     setState(() => carregando = false);
   }
@@ -4933,8 +4975,9 @@ class _PerfilEcraState extends State<PerfilEcra> {
                             ),
                           ),
                           validator: (val) {
-                            if (val == null || val.isEmpty)
+                            if (val == null || val.isEmpty) {
                               return 'Obrigatório';
+                            }
                             if (val.length != 10) return 'Data incompleta';
                             return null;
                           },
