@@ -1226,6 +1226,14 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                                 dose['medicamentos'] != null
                                                     ? dose['medicamentos']['nome']
                                                           .toString()
+                                                          .replaceAll(
+                                                            '[Arquivado] ',
+                                                            '',
+                                                          )
+                                                          .replaceAll(
+                                                            '[Oculto] ',
+                                                            '',
+                                                          )
                                                     : 'Medicamento indisponível',
                                                 style: const TextStyle(
                                                   fontSize: 16,
@@ -1788,7 +1796,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       for (var item in resposta) {
         String nomeReal = item['nome'].toString();
 
-        if (nomeReal.startsWith('Mix')) continue;
+        if (nomeReal.startsWith('Mix') || nomeReal.startsWith('[Arquivado]')) {
+          continue;
+        }
 
         if (nomeReal.startsWith('[Oculto] ')) {
           nomeReal = nomeReal.replaceFirst('[Oculto] ', '');
@@ -1928,9 +1938,12 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     setState(() => carregando = false);
 
     List<Map<String, dynamic>> listaMisturavel =
-        List<Map<String, dynamic>>.from(meusMedicamentos)
-            .where((m) => !m['nome'].toString().startsWith('Mix'))
-            .toList();
+        List<Map<String, dynamic>>.from(meusMedicamentos).where((m) {
+          final n = m['nome'].toString();
+          return !n.startsWith('Mix') &&
+              !n.startsWith('[Oculto]') &&
+              !n.startsWith('[Arquivado]');
+        }).toList();
 
     if (listaMisturavel.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2576,11 +2589,22 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
             .from('medicamentos')
             .update(dados)
             .eq('id', widget.medicamentoEditado!['id']);
+
+        // AUTO-LIMPEZA DAS DOSES FUTURAS AO MUDAR O LOCAL
+        await supabase.from('cronograma').delete().match({
+          'medicamento_id': widget.medicamentoEditado!['id'],
+          'status_aplicado': false,
+        });
+        await atualizarAlarmesNativos();
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Medicamento atualizado!'),
+              content: Text(
+                'Atualizado! As datas futuras foram limpas. GERE O NOVO CICLO no Cronograma.',
+              ),
               backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
             ),
           );
         }
@@ -2672,39 +2696,31 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     setState(() => carregando = false);
   }
 
-  Future<void> _desmembrarMix() async {
+  Future<void> _arquivarTratamento() async {
     setState(() => carregando = true);
     try {
       final mixNome = widget.medicamentoEditado!['nome'].toString();
 
-      final ocultos = await supabase
-          .from('medicamentos')
-          .select()
-          .like('nome', '[Oculto]%');
+      // APAGA APENAS AS DOSES FUTURAS
+      await supabase.from('cronograma').delete().match({
+        'medicamento_id': widget.medicamentoEditado!['id'],
+        'status_aplicado': false,
+      });
 
-      for (var o in ocultos) {
-        String nomeReal = o['nome'].toString().replaceFirst('[Oculto] ', '');
-        if (mixNome.contains(nomeReal)) {
-          await supabase
-              .from('medicamentos')
-              .update({'nome': nomeReal})
-              .eq('id', o['id']);
-        }
-      }
-
-      await supabase
-          .from('cronograma')
-          .delete()
-          .eq('medicamento_id', widget.medicamentoEditado!['id']);
+      // ARQUIVA O TRATAMENTO
       await supabase
           .from('medicamentos')
-          .delete()
+          .update({'nome': '[Arquivado] $mixNome'})
           .eq('id', widget.medicamentoEditado!['id']);
+
+      await atualizarAlarmesNativos();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Mix desmembrado! Ajuste as doses e crie novamente.'),
+            content: Text(
+              'Tratamento Encerrado. O histórico foi guardado com sucesso!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -3213,15 +3229,39 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (_isMix && modoEdicao)
+                        // 1. O BOTÃO DE ATUALIZAR/GUARDAR APARECE SEMPRE
+                        ElevatedButton.icon(
+                          onPressed: _guardarMedicamento,
+                          icon: const Icon(Icons.save, color: Colors.white),
+                          label: Text(
+                            modoEdicao
+                                ? 'ATUALIZAR MEDICAMENTO'
+                                : 'GUARDAR MEDICAMENTO',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: modoEdicao
+                                ? Colors.orange[800]
+                                : Colors.green[700],
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+
+                        // 2. O BOTÃO DE ARQUIVAR FICA ABAIXO SE ESTIVER A EDITAR
+                        if (modoEdicao) ...[
+                          const SizedBox(height: 12),
                           ElevatedButton.icon(
-                            onPressed: _desmembrarMix,
+                            onPressed: _arquivarTratamento,
                             icon: const Icon(
-                              Icons.call_split,
+                              Icons.archive,
                               color: Colors.white,
                             ),
                             label: const Text(
-                              'DESMEMBRAR MIX',
+                              'ENCERRAR TRATAMENTO (ARQUIVAR)',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -3232,28 +3272,8 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                               backgroundColor: Colors.red[700],
                               padding: const EdgeInsets.symmetric(vertical: 16),
                             ),
-                          )
-                        else
-                          ElevatedButton.icon(
-                            onPressed: _guardarMedicamento,
-                            icon: const Icon(Icons.save, color: Colors.white),
-                            label: Text(
-                              modoEdicao
-                                  ? 'ATUALIZAR MEDICAMENTO'
-                                  : 'GUARDAR MEDICAMENTO',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: modoEdicao
-                                  ? Colors.orange[800]
-                                  : Colors.green[700],
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
                           ),
+                        ],
                       ],
                     ),
             ],
@@ -3415,17 +3435,18 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
         ]);
       } else if (r.contains('Barriga')) {
         pontosFinais.addAll([
-          'Barriga Direita Alta',
-          'Barriga Esquerda Alta',
-          'Barriga Direita Baixa',
-          'Barriga Esquerda Baixa',
+          'Barriga Dir. Alto',
+          'Barriga Esq. Alto',
+          'Barriga Dir. Baixo',
+          'Barriga Esq. Baixo',
+          'Barriga Meio',
         ]);
       } else if (r.contains('Flanco')) {
         pontosFinais.addAll([
-          'Flanco Direito Alto',
-          'Flanco Esquerdo Alto',
-          'Flanco Direito Baixo',
-          'Flanco Esquerdo Baixo',
+          'Flanco Dir. Alto',
+          'Flanco Esq. Alto',
+          'Flanco Dir. Baixo',
+          'Flanco Esq. Baixo',
         ]);
       } else if (r.contains('Perna Anterior')) {
         pontosFinais.addAll([
@@ -3639,28 +3660,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       DateTime dataBase = DateTime.parse(
         widget.medicamento['data_inicio'].toString(),
       );
-
-      // 👇 MOTOR DE CONTINUIDADE DE TRATAMENTO 👇
-      try {
-        // Busca a última dose registada deste medicamento no histórico
-        final ultimoDesteMed = await supabase
-            .from('cronograma')
-            .select('data_aplicacao')
-            .eq('medicamento_id', widget.medicamento['id'])
-            .order('data_aplicacao', ascending: false)
-            .limit(1);
-
-        if (ultimoDesteMed.isNotEmpty) {
-          DateTime ultimaData = DateTime.parse(
-            ultimoDesteMed.first['data_aplicacao'].toString(),
-          );
-          // O novo ciclo começa a partir da última aplicação + o intervalo de descanso
-          dataBase = ultimaData.add(Duration(days: intervalo));
-        }
-      } catch (e) {
-        debugPrint('Erro ao buscar continuidade: $e');
-      }
-      // 👆 FIM DO MOTOR DE CONTINUIDADE 👆
       String horaStr = widget.medicamento['hora_aplicacao'] ?? '08:00';
       int horaDisp = int.parse(horaStr.split(':')[0]);
       int minDisp = int.parse(horaStr.split(':')[1]);
@@ -4362,6 +4361,47 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                       conteudo: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red[50],
+                              border: Border.all(color: Colors.red.shade200),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: Colors.red,
+                                      size: 20,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'ATUALIZAÇÃO CLÍNICA (IM)',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.red,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  '✅ O Ventro Glúteo é hoje considerado o padrão-ouro e o local mais seguro para injeções intramusculares, por estar totalmente livre de grandes vasos e nervos.\n\n❌ O antigo "Dorso Glúteo" (quadrante superior externo) está a ser abandonado na prática clínica atual. Ele oferece alto risco de lesão do nervo ciático e apresenta mais riscos do que benefícios.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
                           const Text(
                             'Clique na região para visualizar os locais exatos e fazer o rodízio correto:',
                             style: TextStyle(
@@ -4384,7 +4424,8 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                           ),
                           _buildImageButton(
                             context: context,
-                            titulo: 'Pontos dos Glúteos ( IM - Quadrante )',
+                            titulo:
+                                'Pontos dos Glúteos (Ventro Glúteo / Dorso)',
                             icone: Icons.directions_run,
                             caminhoImagem: 'assets/regiao/gluteos.png',
                           ),
