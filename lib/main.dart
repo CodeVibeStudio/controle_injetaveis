@@ -2922,7 +2922,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                       const Icon(Icons.science, color: Colors.orange, size: 32),
                       const SizedBox(height: 8),
                       const Text(
-                        'MODO MIX ATIVADO E TRANCADO',
+                        'MODO MIX ATIVADO', // 👇 Destrancado
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.orange,
@@ -2930,8 +2930,8 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                       ),
                       Text(
                         modoEdicao
-                            ? 'Para alterar as doses originais, clique em DESMEMBRAR MIX no final da página. Isso devolverá os medicamentos ao Banco.'
-                            : 'O Intervalo, Seringa e Região foram importados automaticamente dos medicamentos originais para garantir a segurança.',
+                            ? 'Pode alterar o Intervalo, Seringa e Locais livremente. Para alterar as DOSES base, clique em DESMEMBRAR MIX.'
+                            : 'O Intervalo, Seringa e Região foram importados automaticamente.',
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 13),
                       ),
@@ -2946,7 +2946,8 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                     labelText: 'Intervalo (dias)',
                     border: OutlineInputBorder(),
                   ),
-                  readOnly: true,
+                  readOnly: false, // 👇 DESBLOQUEADO
+                  onChanged: (val) => _recalcularEquivalencia(),
                   validator: (val) =>
                       val == null || val.isEmpty ? 'Obrigatório' : null,
                 ),
@@ -3125,21 +3126,21 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                             ),
                           )
                           .toList(),
-                      onChanged: _isMix
-                          ? null
-                          : (val) {
-                              setState(() => seringaSelecionada = val!);
-                              _recalcularEquivalencia();
-                            },
+                      // Seringa:
+                      onChanged: (val) {
+                        // 👇 DESBLOQUEADO
+                        setState(() => seringaSelecionada = val!);
+                        _recalcularEquivalencia();
+                      },
                       validator: (val) => val == null ? 'Erro' : null,
                     ),
                   ),
 
-                  // 👇 BOTÃO INTELIGENTE DE SELEÇÃO MULTIPLA
+                  // Locais:
                   const SizedBox(width: 16),
                   Expanded(
                     child: InkWell(
-                      onTap: _isMix ? null : _abrirSeletorLocais,
+                      onTap: _abrirSeletorLocais, // 👇 DESBLOQUEADO
                       child: InputDecorator(
                         decoration: InputDecoration(
                           labelText: 'Locais do Rodízio',
@@ -3416,44 +3417,66 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
     final regioes = regiaoBase.split(', ');
 
     for (var r in regioes) {
-      if (r.contains('Ventro Glúteo')) {
+      if (r.contains('Ventro Glúteo (IM)')) {
         pontosFinais.addAll([
-          'Ventro Glúteo Direito',
-          'Ventro Glúteo Esquerdo',
+          'Ventro Glúteo Direito (IM)',
+          'Ventro Glúteo Esquerdo (IM)',
         ]);
       } else if (r.contains('Vasto')) {
+        // 👇 Corrigido para apanhar "Vasto Lateral"
         pontosFinais.addAll([
-          'Vasto Lateral Direito',
-          'Vasto Lateral Esquerdo',
+          'Vasto Lateral Direito (IM)',
+          'Vasto Lateral Esquerdo (IM)',
         ]);
-      } else if (r.contains('Deltoide')) {
-        pontosFinais.addAll(['Deltoide Direito', 'Deltoide Esquerdo']);
-      } else if (r.contains('Glúteo Superior')) {
+      } else if (r.contains('Deltoide (IM)')) {
         pontosFinais.addAll([
-          'Glúteo Direito (Sup. Ext.)',
-          'Glúteo Esquerdo (Sup. Ext.)',
+          'Deltoide Direito (IM)',
+          'Deltoide Esquerdo (IM)',
+        ]);
+      } else if (r.contains('Glúteo Superior (IM)')) {
+        pontosFinais.addAll([
+          'Dorso Glúteo Direito (Sup. Ext.IM)',
+          'Dorso Glúteo Esquerdo (Sup. Ext.IM)',
         ]);
       } else if (r.contains('Barriga')) {
+        // 👇 A REGRA ORIGINAL DOS 8 PONTOS EXATOS
         pontosFinais.addAll([
-          'Barriga Dir. Alto',
-          'Barriga Esq. Alto',
-          'Barriga Dir. Baixo',
-          'Barriga Esq. Baixo',
-          'Barriga Meio',
+          'Barriga Lateral Direita (SC)',
+          'Barriga Lateral Esquerda (SC)',
+          'Barriga Centro-Superior (SC)',
+          'Barriga Centro-Inferior (SC)',
+          'Barriga Superior Direita (SC)',
+          'Barriga Superior Esquerda (SC)',
+          'Barriga Inferior Direita (SC)',
+          'Barriga Inferior Esquerda (SC)',
         ]);
-      } else if (r.contains('Flanco')) {
+      } else if (r.contains('Flanco (SC)')) {
         pontosFinais.addAll([
-          'Flanco Dir. Alto',
-          'Flanco Esq. Alto',
-          'Flanco Dir. Baixo',
-          'Flanco Esq. Baixo',
+          'Flanco Dir. Alto A (SC)',
+          'Flanco Esq. Alto A (SC)',
+          'Flanco Dir. Alto B (SC)',
+          'Flanco Esq. Alto B (SC)',
+          'Flanco Dir. Alto C (SC)',
+          'Flanco Esq. Alto C (SC)',
+          'Flanco Dir. Baixo A (SC)',
+          'Flanco Esq. Baixo A (SC)',
+          'Flanco Dir. Baixo B (SC)',
+          'Flanco Esq. Baixo B (SC)',
+          'Flanco Dir. Baixo C (SC)',
+          'Flanco Esq. Baixo C (SC)',
+          'Flanco Dir. Médio A (SC)',
+          'Flanco Esq. Médio A (SC)',
+          'Flanco Dir. Médio B (SC)',
+          'Flanco Esq. Médio B (SC)',
+          'Flanco Esq. Médio C (SC)',
+          'Flanco Esq. Médio C (SC)',
         ]);
-      } else if (r.contains('Perna Anterior')) {
+      } else if (r.contains('Perna Anterior (SC)')) {
         pontosFinais.addAll([
           'Coxa Anterior Direita (SC)',
           'Coxa Anterior Esquerda (SC)',
         ]);
-      } else if (r.contains('Braço Tríceps')) {
+      } else if (r.contains('Braço Tríceps (SC)')) {
         pontosFinais.addAll(['Tríceps Direito (SC)', 'Tríceps Esquerdo (SC)']);
       }
     }
@@ -3660,6 +3683,33 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       DateTime dataBase = DateTime.parse(
         widget.medicamento['data_inicio'].toString(),
       );
+
+      // 👇 O MOTOR DE CONTINUIDADE QUE ESTAVA EM FALTA 👇
+      try {
+        final ultimoDesteMed = await supabase
+            .from('cronograma')
+            .select('data_aplicacao')
+            .eq('medicamento_id', widget.medicamento['id'])
+            .eq(
+              'status_aplicado',
+              true,
+            ) // Procura a última dose tomada com sucesso
+            .order('data_aplicacao', ascending: false)
+            .limit(1);
+
+        if (ultimoDesteMed.isNotEmpty) {
+          DateTime ultimaData = DateTime.parse(
+            ultimoDesteMed.first['data_aplicacao'].toString(),
+          );
+          dataBase = ultimaData.add(
+            Duration(days: intervalo),
+          ); // O ciclo segue no futuro!
+        }
+      } catch (e) {
+        debugPrint('Erro ao buscar continuidade: $e');
+      }
+      // 👆 FIM DO MOTOR DE CONTINUIDADE 👆
+
       String horaStr = widget.medicamento['hora_aplicacao'] ?? '08:00';
       int horaDisp = int.parse(horaStr.split(':')[0]);
       int minDisp = int.parse(horaStr.split(':')[1]);
@@ -3806,181 +3856,208 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Cronograma: ${widget.medicamento['nome']}'),
-        backgroundColor: const Color(0xFF1E3A8A),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_sweep),
-            tooltip: 'Limpar Cronograma',
-            onPressed: _limparCronograma,
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              color: Colors.blue[100],
-              child: Text(
-                'Seringa: ${widget.medicamento['seringa_ui']} UI | Intervalo: ${widget.medicamento['intervalo_dias']} dias',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E3A8A),
-                ),
-              ),
-            ),
-            Expanded(
-              child: FutureBuilder<List<dynamic>>(
-                future: obterCronograma(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting ||
-                      carregando) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final doses = snapshot.data ?? [];
-                  if (doses.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'Nenhum cronograma gerado ainda.',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 50,
-                              child: ElevatedButton.icon(
-                                onPressed: _abrirDialogoGeracao,
-                                icon: const Icon(
-                                  Icons.calendar_month,
-                                  color: Colors.white,
-                                ),
-                                label: const Text(
-                                  'GERAR CRONOGRAMA',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green[700],
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-                  return ListView.builder(
-                    itemCount: doses.length,
-                    itemBuilder: (context, index) {
-                      final dose = doses[index];
-                      final partesData = dose['data_aplicacao']
-                          .toString()
-                          .split('-');
-                      final dataFormatada =
-                          '${partesData[2]}/${partesData[1]}/${partesData[0]}';
-                      final bool isUltimasDuas = index >= doses.length - 2;
-                      final bool isPendenteEFinal =
-                          isUltimasDuas && !dose['status_aplicado'];
-                      Color? corFundo = dose['status_aplicado']
-                          ? Colors.green[50]
-                          : (isPendenteEFinal ? Colors.red[100] : Colors.white);
-                      Color corTexto = isPendenteEFinal
-                          ? Colors.red[900]!
-                          : Colors.black;
+    return FutureBuilder<List<dynamic>>(
+      future: obterCronograma(),
+      builder: (context, snapshot) {
+        final doses = snapshot.data ?? [];
+        final temPendentes = doses.any((d) => d['status_aplicado'] == false);
+        final estaCarregando =
+            snapshot.connectionState == ConnectionState.waiting || carregando;
 
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 6,
-                        ),
-                        color: corFundo,
-                        shape: isPendenteEFinal
-                            ? RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: const BorderSide(
-                                  color: Colors.red,
-                                  width: 2,
+        return Scaffold(
+          appBar: AppBar(
+            title: Text('Cronograma: ${widget.medicamento['nome']}'),
+            backgroundColor: const Color(0xFF1E3A8A),
+            foregroundColor: Colors.white,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.delete_sweep),
+                tooltip: 'Limpar Cronograma',
+                onPressed: _limparCronograma,
+              ),
+            ],
+          ),
+
+          // 👇 A MÁGICA: O botão só aparece se não houver pendências
+          floatingActionButton: (estaCarregando || temPendentes)
+              ? null
+              : FloatingActionButton.extended(
+                  backgroundColor: Colors.green[700],
+                  icon: const Icon(Icons.add_alarm, color: Colors.white),
+                  label: const Text(
+                    'GERAR NOVO CICLO',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onPressed: _abrirDialogoGeracao,
+                ),
+
+          body: SafeArea(
+            child: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  color: Colors.blue[100],
+                  child: Text(
+                    'Seringa: ${widget.medicamento['seringa_ui']} UI | Intervalo: ${widget.medicamento['intervalo_dias']} dias',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E3A8A),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: estaCarregando
+                      ? const Center(child: CircularProgressIndicator())
+                      : doses.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  'Nenhum cronograma gerado ainda.',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 16,
+                                  ),
                                 ),
-                              )
-                            : RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                        child: ListTile(
-                          onTap: () => alternarStatusDose(
-                            dose['id'],
-                            dose['status_aplicado'],
-                          ),
-                          leading: Icon(
-                            dose['status_aplicado']
-                                ? Icons.check_circle
-                                : (isPendenteEFinal
-                                      ? Icons.warning_amber_rounded
-                                      : Icons.circle_outlined),
-                            color: dose['status_aplicado']
-                                ? Colors.green
-                                : (isPendenteEFinal ? Colors.red : Colors.grey),
-                            size: 32,
-                          ),
-                          title: Text(
-                            dataFormatada,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              decoration: dose['status_aplicado']
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                              color: dose['status_aplicado']
-                                  ? Colors.grey
-                                  : corTexto,
+                                const SizedBox(height: 20),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 50,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _abrirDialogoGeracao,
+                                    icon: const Icon(
+                                      Icons.calendar_month,
+                                      color: Colors.white,
+                                    ),
+                                    label: const Text(
+                                      'GERAR CRONOGRAMA',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green[700],
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          subtitle: dose['status_aplicado']
-                              ? Text(
-                                  '${dose['dose_ajustada']}\nLocal: ${dose['local_aplicacao']}',
-                                  style: const TextStyle(color: Colors.grey),
-                                )
-                              : Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _formatarTextoDose(
-                                      '${dose['dose_ajustada']}',
+                        )
+                      : ListView.builder(
+                          itemCount: doses.length,
+                          itemBuilder: (context, index) {
+                            final dose = doses[index];
+                            final partesData = dose['data_aplicacao']
+                                .toString()
+                                .split('-');
+                            final dataFormatada =
+                                '${partesData[2]}/${partesData[1]}/${partesData[0]}';
+                            final bool isUltimasDuas =
+                                index >= doses.length - 2;
+                            final bool isPendenteEFinal =
+                                isUltimasDuas && !dose['status_aplicado'];
+
+                            Color? corFundo = dose['status_aplicado']
+                                ? Colors.green[50]
+                                : (isPendenteEFinal
+                                      ? Colors.red[100]
+                                      : Colors.white);
+                            Color corTexto = isPendenteEFinal
+                                ? Colors.red[900]!
+                                : Colors.black;
+
+                            return Card(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 6,
+                              ),
+                              color: corFundo,
+                              shape: isPendenteEFinal
+                                  ? RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      side: const BorderSide(
+                                        color: Colors.red,
+                                        width: 2,
+                                      ),
+                                    )
+                                  : RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                    Text(
-                                      'Local: ${dose['local_aplicacao']}',
-                                      style: TextStyle(color: corTexto),
-                                    ),
-                                  ],
+                              child: ListTile(
+                                onTap: () => alternarStatusDose(
+                                  dose['id'],
+                                  dose['status_aplicado'],
                                 ),
-                          isThreeLine: true,
+                                leading: Icon(
+                                  dose['status_aplicado']
+                                      ? Icons.check_circle
+                                      : (isPendenteEFinal
+                                            ? Icons.warning_amber_rounded
+                                            : Icons.circle_outlined),
+                                  color: dose['status_aplicado']
+                                      ? Colors.green
+                                      : (isPendenteEFinal
+                                            ? Colors.red
+                                            : Colors.grey),
+                                  size: 32,
+                                ),
+                                title: Text(
+                                  dataFormatada,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    decoration: dose['status_aplicado']
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                    color: dose['status_aplicado']
+                                        ? Colors.grey
+                                        : corTexto,
+                                  ),
+                                ),
+                                subtitle: dose['status_aplicado']
+                                    ? Text(
+                                        '${dose['dose_ajustada']}\nLocal: ${dose['local_aplicacao']}',
+                                        style: const TextStyle(
+                                          color: Colors.grey,
+                                        ),
+                                      )
+                                    : Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          _formatarTextoDose(
+                                            '${dose['dose_ajustada']}',
+                                          ),
+                                          Text(
+                                            'Local: ${dose['local_aplicacao']}',
+                                            style: TextStyle(color: corTexto),
+                                          ),
+                                        ],
+                                      ),
+                                isThreeLine: true,
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  );
-                },
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
