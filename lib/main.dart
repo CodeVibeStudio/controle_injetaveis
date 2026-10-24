@@ -3784,12 +3784,129 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
     setState(() => carregando = false);
   }
 
-  Future<void> alternarStatusDose(String idDose, bool statusAtual) async {
+  Future<void> alternarStatusDose(
+    Map<String, dynamic> doseClicada,
+    List<dynamic> todasDoses,
+  ) async {
+    bool statusAtual = doseClicada['status_aplicado'] == true;
+
+    if (!statusAtual) {
+      // 1. Validação de Ordem Cronológica
+      // Encontra a primeira dose que ainda não foi tomada (a mais antiga no topo)
+      final primeiraPendente = todasDoses.firstWhere(
+        (d) => d['status_aplicado'] == false,
+        orElse: () => null,
+      );
+
+      // Se a dose clicada não for a primeira pendente da fila, bloqueia!
+      if (primeiraPendente != null &&
+          primeiraPendente['id'] != doseClicada['id']) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.orange,
+                    size: 28,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Ação Bloqueada',
+                    style: TextStyle(color: Colors.orange),
+                  ),
+                ],
+              ),
+              content: const Text(
+                'Não é possível pular injeções.\n\nPor favor, conclua a próxima dose pendente (a mais antiga no topo da lista) antes de avançar para datas futuras.',
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Entendido'),
+                ),
+              ],
+            ),
+          );
+        }
+        return; // Interrompe a execução
+      }
+
+      // 2. Confirmação de Aplicação
+      bool? confirmar = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text(
+            'Confirmar Aplicação',
+            style: TextStyle(color: Colors.green),
+          ),
+          content: Text(
+            'Confirma que aplicou a dose de hoje neste exato local?\n\n📍 ${doseClicada['local_aplicacao']}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text(
+                'Confirmar',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmar != true) return;
+    } else {
+      // 3. Confirmação para Desfazer (Se clicou sem querer numa já tomada)
+      bool? desfazer = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text(
+            'Desfazer Aplicação',
+            style: TextStyle(color: Colors.red),
+          ),
+          content: const Text(
+            'Deseja desmarcar esta aplicação e devolvê-la para a lista de pendentes?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text(
+                'Desfazer',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (desfazer != true) return;
+    }
+
+    // Executa a alteração na base de dados
     try {
       await supabase
           .from('cronograma')
           .update({'status_aplicado': !statusAtual})
-          .eq('id', idDose);
+          .eq('id', doseClicada['id']);
       setState(() {});
     } catch (e) {
       if (mounted) {
@@ -3998,9 +4115,9 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                                     ),
                               child: ListTile(
                                 onTap: () => alternarStatusDose(
-                                  dose['id'],
-                                  dose['status_aplicado'],
-                                ),
+                                  dose,
+                                  doses,
+                                ), // 👇 Envia o objeto e a lista completa
                                 leading: Icon(
                                   dose['status_aplicado']
                                       ? Icons.check_circle
