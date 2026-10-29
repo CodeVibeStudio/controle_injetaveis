@@ -573,6 +573,9 @@ class _DashboardEcraState extends State<DashboardEcra> {
   int diasParaExame = 999;
   bool exigeExames = false;
 
+  // 👇 NOVA VARIÁVEL DO CHECKLIST
+  Map<String, dynamic>? agendamentoAtivo;
+
   Widget _formatarTextoDose(String textoOriginal) {
     final spans = <TextSpan>[];
     final regex = RegExp(r'([\d,.]+\s*UI)|(\([^)]+\))');
@@ -634,12 +637,283 @@ class _DashboardEcraState extends State<DashboardEcra> {
 
   Future<void> _arranqueSeguro() async {
     await _carregarResumo();
+    await _verificarAgendamentoAtivo(); // 👇 NOVA FUNÇÃO ADICIONADA AQUI
 
     _calcularExames();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _verificarPendencias();
       atualizarAlarmesNativos();
     });
+  }
+
+  // ==========================================================
+  // INTELIGÊNCIA DO CHECKLIST PRÉ-EXAME
+  // ==========================================================
+  Future<void> _verificarAgendamentoAtivo() async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+    try {
+      final res = await supabase
+          .from('agendamento_exames')
+          .select()
+          .eq('user_id', userId)
+          // 👇 CORREÇÃO: Agora busca a última ação que o usuário fez, e não a data mais distante!
+          .order('criado_em', ascending: false)
+          .limit(1);
+
+      if (res.isNotEmpty) {
+        final agendamento = Map<String, dynamic>.from(res.first);
+        DateTime dataAgendada = DateTime.parse(
+          agendamento['data_agendada'].toString(),
+        );
+        DateTime hoje = DateTime(
+          DateTime.now().year,
+          DateTime.now().month,
+          DateTime.now().day,
+        );
+        DateTime alvo = DateTime(
+          dataAgendada.year,
+          dataAgendada.month,
+          dataAgendada.day,
+        );
+        int diferenca = alvo.difference(hoje).inDays;
+
+        if (diferenca >= 0) {
+          setState(() {
+            agendamento['dias_restantes'] = diferenca;
+            agendamento['data_obj'] = alvo;
+            agendamentoAtivo = agendamento;
+          });
+        } else {
+          setState(() => agendamentoAtivo = null);
+        }
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar agendamento: $e');
+    }
+  }
+
+  void _abrirChecklistExames() {
+    if (agendamentoAtivo == null) return;
+
+    // Puxa o estado atual do banco para preencher as Checkboxes
+    bool cienteJejum = agendamentoAtivo!['ciente_jejum'] ?? false;
+    bool cienteTreino = agendamentoAtivo!['ciente_treino'] ?? false;
+    bool cienteProstata = agendamentoAtivo!['ciente_prostata'] ?? false;
+    bool cienteFigado = agendamentoAtivo!['ciente_figado'] ?? false;
+    bool cienteHorario = agendamentoAtivo!['ciente_horario'] ?? false;
+    bool cienteFidelidade = agendamentoAtivo!['ciente_fidelidade'] ?? false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateSheet) {
+            return SafeArea(
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.88,
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.rule_folder,
+                          color: Colors.orange[800],
+                          size: 32,
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Protocolo Pré-Exame',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Confirme as regras abaixo para evitar falsos positivos nos seus resultados hormonais.',
+                      style: TextStyle(color: Colors.black54, fontSize: 14),
+                    ),
+                    const Divider(height: 24),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          CheckboxListTile(
+                            activeColor: Colors.green,
+                            title: const Text(
+                              '1. Jejum (8 a 12h)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Máximo 14h para evitar falso catabolismo. Água está liberada e é obrigatória!',
+                            ),
+                            value: cienteJejum,
+                            onChanged: (val) =>
+                                setStateSheet(() => cienteJejum = val!),
+                          ),
+                          CheckboxListTile(
+                            activeColor: Colors.green,
+                            title: const Text(
+                              '2. Pausa nos Treinos (48h)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Suspenda musculação. Microlesões elevam falsamente a enzima hepática TGO (AST).',
+                            ),
+                            value: cienteTreino,
+                            onChanged: (val) =>
+                                setStateSheet(() => cienteTreino = val!),
+                          ),
+                          CheckboxListTile(
+                            activeColor: Colors.green,
+                            title: const Text(
+                              '3. Protocolo de Próstata',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Sem relação sexual por 72h. Não ande de moto, bicicleta ou a cavalo (inflama e altera o PSA).',
+                            ),
+                            value: cienteProstata,
+                            onChanged: (val) =>
+                                setStateSheet(() => cienteProstata = val!),
+                          ),
+                          CheckboxListTile(
+                            activeColor: Colors.green,
+                            title: const Text(
+                              '4. Proteção Hepática (72h)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Zero álcool para não gerar picos agudos de Gama-GT e Triglicerídeos.',
+                            ),
+                            value: cienteFigado,
+                            onChanged: (val) =>
+                                setStateSheet(() => cienteFigado = val!),
+                          ),
+                          CheckboxListTile(
+                            activeColor: Colors.green,
+                            title: const Text(
+                              '5. Horário da Coleta',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Coleta estrita entre 07h e 09h da manhã para pegar a Testosterona e SHBG no pico basal.',
+                            ),
+                            value: cienteHorario,
+                            onChanged: (val) =>
+                                setStateSheet(() => cienteHorario = val!),
+                          ),
+                          CheckboxListTile(
+                            activeColor: Colors.green,
+                            title: const Text(
+                              '6. Fidelidade ao Ciclo',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Não pause ou atrase as injeções no app. O exame deve refletir a cinética real.',
+                            ),
+                            value: cienteFidelidade,
+                            onChanged: (val) =>
+                                setStateSheet(() => cienteFidelidade = val!),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          try {
+                            await supabase
+                                .from('agendamento_exames')
+                                .update({
+                                  'ciente_jejum': cienteJejum,
+                                  'ciente_treino': cienteTreino,
+                                  'ciente_prostata': cienteProstata,
+                                  'ciente_figado': cienteFigado,
+                                  'ciente_horario': cienteHorario,
+                                  'ciente_fidelidade': cienteFidelidade,
+                                })
+                                .eq('id', agendamentoAtivo!['id']);
+
+                            if (mounted) {
+                              Navigator.pop(context);
+                              _verificarAgendamentoAtivo();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Protocolo guardado com sucesso!',
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(SnackBar(content: Text('Erro: $e')));
+                          }
+                        },
+                        icon: const Icon(Icons.verified, color: Colors.white),
+                        label: const Text(
+                          'CONFIRMAR CHECKLIST',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[700],
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _carregarDoCache(SharedPreferences prefs) {
@@ -937,6 +1211,61 @@ class _DashboardEcraState extends State<DashboardEcra> {
     }
   }
 
+  // ==========================================================
+  // NOVO MOTOR DE AGENDAMENTO DE EXAMES
+  // ==========================================================
+  Future<void> _agendarExameFuturo() async {
+    final dataEscolhida = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 3)),
+      firstDate: DateTime.now(),
+      // 👇 CORREÇÃO: Limite expandido para 150 dias (5 meses) para cobrir o ciclo de 120 dias
+      lastDate: DateTime.now().add(const Duration(days: 150)),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(primary: Color(0xFF1E3A8A)),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (dataEscolhida == null) return;
+
+    setState(() => carregando = true);
+    try {
+      final userId = supabase.auth.currentUser!.id;
+
+      await supabase.from('agendamento_exames').insert({
+        'user_id': userId,
+        'data_agendada': dataEscolhida.toIso8601String().split('T')[0],
+      });
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Coleta agendada! O seu protocolo de preparação foi ativado.',
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        _arranqueSeguro();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao agendar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+    if (mounted) setState(() => carregando = false);
+  }
+
   void _abrirPainelExames() {
     showModalBottomSheet(
       context: context,
@@ -968,7 +1297,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Abaixo está a lista gerada de forma personalizada pelo algoritmo, baseada na sua idade, sexo e tratamentos ativos. Leve-a ao seu médico.',
+                  'Abaixo está a lista gerada de forma personalizada pelo algoritmo. Agende a data da sua coleta para iniciar o protocolo de preparação.',
                   style: TextStyle(color: Colors.black87),
                 ),
                 const SizedBox(height: 16),
@@ -994,21 +1323,50 @@ class _DashboardEcraState extends State<DashboardEcra> {
                   ),
                 ),
                 const SizedBox(height: 24),
+
+                // NOVO BOTÃO DE AGENDAMENTO
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton.icon(
-                    onPressed: _registarExameFeito,
-                    icon: const Icon(Icons.vaccines, color: Colors.white),
+                    onPressed: _agendarExameFuturo,
+                    icon: const Icon(Icons.edit_calendar, color: Colors.white),
                     label: const Text(
-                      'JÁ COLETEI O SANGUE (REGISTRAR)',
+                      'AGENDAR DATA DA COLETA',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[700],
+                      backgroundColor: const Color(0xFF1E3A8A),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // 👇 Botão atualizado com a cor primária
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    onPressed: _registarExameFeito,
+                    icon: const Icon(Icons.history, color: Color(0xFF1E3A8A)),
+                    label: const Text(
+                      'JÁ FIZ A COLETA NO LABORATÓRIO',
+                      style: TextStyle(
+                        color: Color(0xFF1E3A8A),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(
+                        color: Color(0xFF1E3A8A),
+                        width: 1.5,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -1085,22 +1443,105 @@ class _DashboardEcraState extends State<DashboardEcra> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            if (exigeExames && proximaDataExame != null)
+                            // 👇 1. CARD LARANJA (SÓ APARECE FALTANDO 3 DIAS OU MENOS)
+                            if (agendamentoAtivo != null &&
+                                agendamentoAtivo!['dias_restantes'] <= 3)
                               Card(
-                                color: diasParaExame <= 0
-                                    ? Colors.red[50]
-                                    : (diasParaExame <= 15
-                                          ? Colors.orange[50]
-                                          : Colors.teal[50]),
+                                color: Colors.orange[50],
                                 elevation: 4,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   side: BorderSide(
-                                    color: diasParaExame <= 0
-                                        ? Colors.red
-                                        : (diasParaExame <= 15
-                                              ? Colors.orange
-                                              : Colors.teal),
+                                    color: Colors.orange[800]!,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                margin: const EdgeInsets.only(bottom: 16),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.assignment_late,
+                                            color: Colors.orange[800],
+                                            size: 28,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              agendamentoAtivo!['dias_restantes'] ==
+                                                      0
+                                                  ? 'A coleta de sangue é HOJE!'
+                                                  : 'Atenção! Coleta em ${agendamentoAtivo!['dias_restantes']} dia(s)',
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.orange[800],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'O seu período de proteção laboratorial começou. Abra o checklist clínico para não invalidar os resultados.',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton.icon(
+                                          onPressed: _abrirChecklistExames,
+                                          icon: const Icon(
+                                            Icons.checklist,
+                                            color: Colors.white,
+                                          ),
+                                          label: const Text(
+                                            'ABRIR CHECKLIST CLÍNICO',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.orange[800],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                            // 👇 2. CARD PRINCIPAL DE EXAMES (AGORA DINÂMICO E INTELIGENTE)
+                            if (exigeExames && proximaDataExame != null)
+                              Card(
+                                // Se estiver agendado fica Indigo/Azul. Se não, usa as cores antigas do algoritmo
+                                color: agendamentoAtivo != null
+                                    ? Colors.indigo[50]
+                                    : (diasParaExame <= 0
+                                          ? Colors.red[50]
+                                          : (diasParaExame <= 15
+                                                ? Colors.orange[50]
+                                                : Colors.teal[50])),
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                    color: agendamentoAtivo != null
+                                        ? Colors.indigo
+                                        : (diasParaExame <= 0
+                                              ? Colors.red
+                                              : (diasParaExame <= 15
+                                                    ? Colors.orange
+                                                    : Colors.teal)),
                                     width: 1.5,
                                   ),
                                 ),
@@ -1113,30 +1554,41 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                       Row(
                                         children: [
                                           Icon(
-                                            Icons.biotech,
-                                            color: diasParaExame <= 0
-                                                ? Colors.red[800]
-                                                : (diasParaExame <= 15
-                                                      ? Colors.orange[800]
-                                                      : Colors.teal[800]),
+                                            agendamentoAtivo != null
+                                                ? Icons.event_available
+                                                : Icons.biotech,
+                                            color: agendamentoAtivo != null
+                                                ? Colors.indigo[800]
+                                                : (diasParaExame <= 0
+                                                      ? Colors.red[800]
+                                                      : (diasParaExame <= 15
+                                                            ? Colors.orange[800]
+                                                            : Colors
+                                                                  .teal[800])),
                                             size: 28,
                                           ),
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
-                                              diasParaExame <= 0
-                                                  ? 'Exames Atrasados'
-                                                  : (diasParaExame <= 15
-                                                        ? 'Exames Próximos'
-                                                        : 'Check-up de Biomarcadores'),
+                                              agendamentoAtivo != null
+                                                  ? 'Coleta Agendada'
+                                                  : (diasParaExame <= 0
+                                                        ? 'Exames Atrasados'
+                                                        : (diasParaExame <= 15
+                                                              ? 'Exames Próximos'
+                                                              : 'Check-up de Biomarcadores')),
                                               style: TextStyle(
                                                 fontSize: 18,
                                                 fontWeight: FontWeight.bold,
-                                                color: diasParaExame <= 0
-                                                    ? Colors.red[800]
-                                                    : (diasParaExame <= 15
-                                                          ? Colors.orange[800]
-                                                          : Colors.teal[800]),
+                                                color: agendamentoAtivo != null
+                                                    ? Colors.indigo[800]
+                                                    : (diasParaExame <= 0
+                                                          ? Colors.red[800]
+                                                          : (diasParaExame <= 15
+                                                                ? Colors
+                                                                      .orange[800]
+                                                                : Colors
+                                                                      .teal[800])),
                                               ),
                                             ),
                                           ),
@@ -1144,33 +1596,36 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        diasParaExame <= 0
-                                            ? 'A sua janela ideal de exames de controle já começou! Veja o que solicitar ao seu médico.'
-                                            : 'Próxima coleta sugerida em $diasParaExame dias (${proximaDataExame!.day.toString().padLeft(2, '0')}/${proximaDataExame!.month.toString().padLeft(2, '0')}).',
+                                        agendamentoAtivo != null
+                                            ? 'Você possui exames agendados para daqui a ${agendamentoAtivo!['dias_restantes']} dias (${(agendamentoAtivo!['data_obj'] as DateTime).day.toString().padLeft(2, '0')}/${(agendamentoAtivo!['data_obj'] as DateTime).month.toString().padLeft(2, '0')}).'
+                                            : (diasParaExame <= 0
+                                                  ? 'A sua janela ideal de exames de controle já começou! Veja o que solicitar ao seu médico.'
+                                                  : 'Próxima coleta sugerida em $diasParaExame dias (${proximaDataExame!.day.toString().padLeft(2, '0')}/${proximaDataExame!.month.toString().padLeft(2, '0')}).'),
                                         style: const TextStyle(
                                           fontSize: 14,
                                           color: Colors.black87,
                                         ),
                                       ),
-
                                       const SizedBox(height: 12),
                                       SizedBox(
                                         width: double.infinity,
                                         child: OutlinedButton(
                                           onPressed: _abrirPainelExames,
                                           style: OutlinedButton.styleFrom(
-                                            foregroundColor: diasParaExame <= 0
-                                                ? Colors.red[800]
-                                                : Colors.teal[800],
-                                            side: BorderSide(
-                                              color: diasParaExame <= 0
-                                                  ? Colors.red[800]!
-                                                  : Colors.teal[800]!,
+                                            // 👇 Usando a cor primária para texto e borda
+                                            foregroundColor: const Color(
+                                              0xFF1E3A8A,
+                                            ),
+                                            side: const BorderSide(
+                                              color: Color(0xFF1E3A8A),
+                                              width: 1.5, // 👇 Borda um pouco mais espessa para destaque
                                             ),
                                           ),
-                                          child: const Text(
-                                            'VER PAINEL SUGERIDO',
-                                            style: TextStyle(
+                                          child: Text(
+                                            agendamentoAtivo != null
+                                                ? 'VER PAINEL E REAGENDAR'
+                                                : 'VER PAINEL SUGERIDO',
+                                            style: const TextStyle(
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
