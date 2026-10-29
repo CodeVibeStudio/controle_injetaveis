@@ -15,6 +15,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'utils/calculadora_reconstituicao_ecra.dart';
+
 // ==========================================================
 // MOTOR DE NOTIFICAÇÕES CORRIGIDO
 // ==========================================================
@@ -1397,6 +1399,19 @@ class _DashboardEcraState extends State<DashboardEcra> {
         backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
         actions: [
+          // 👇 INÍCIO DO NOVO BOTÃO DA CALCULADORA
+          IconButton(
+            icon: const Icon(Icons.calculate),
+            tooltip: 'Calculadora de Reconstituição',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CalculadoraReconstituicaoEcra(),
+              ),
+            ),
+          ),
+          // 👆 FIM DO NOVO BOTÃO
+
           IconButton(
             icon: const Icon(Icons.help_outline),
             tooltip: 'Guia e Termos',
@@ -2637,6 +2652,21 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         setState(() {
           textoDetalhesDose = partes.join(' + ');
           calcVolumeMl = totalMl;
+
+          // 👇 INTELIGÊNCIA DA SERINGA
+          if (seringaSelecionada == null ||
+              calcVolumeMl > seringaSelecionada! / 100.0) {
+            if (calcVolumeMl <= 0.3)
+              seringaSelecionada = 30;
+            else if (calcVolumeMl <= 0.5)
+              seringaSelecionada = 50;
+            else if (calcVolumeMl <= 1.0)
+              seringaSelecionada = 100;
+            else if (calcVolumeMl <= 3.0)
+              seringaSelecionada = 300;
+            else
+              seringaSelecionada = 500;
+          }
         });
       } catch (e) {}
     } else {
@@ -2670,6 +2700,21 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
             double doseUi = calcVolumeMl * 100;
             textoDetalhesDose =
                 '${doseMg.toStringAsFixed(2).replaceAll('.', ',')} mg / ${doseUi.toStringAsFixed(2).replaceAll('.', ',')} UI';
+
+            // 👇 INTELIGÊNCIA DA SERINGA
+            if (seringaSelecionada == null ||
+                calcVolumeMl > seringaSelecionada! / 100.0) {
+              if (calcVolumeMl <= 0.3)
+                seringaSelecionada = 30;
+              else if (calcVolumeMl <= 0.5)
+                seringaSelecionada = 50;
+              else if (calcVolumeMl <= 1.0)
+                seringaSelecionada = 100;
+              else if (calcVolumeMl <= 3.0)
+                seringaSelecionada = 300;
+              else
+                seringaSelecionada = 500;
+            }
           });
         }
       } catch (e) {}
@@ -3568,24 +3613,70 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<int>(
-                      initialValue: seringaSelecionada,
+                      // 👇 Trocado 'initialValue' por 'value' para reatividade instantânea
+                      value: seringaSelecionada,
                       decoration: const InputDecoration(
                         labelText: 'Seringa (UI)',
                         border: OutlineInputBorder(),
                       ),
-                      items: [30, 50, 100]
-                          .map(
-                            (e) => DropdownMenuItem(
-                              value: e,
-                              child: Text('$e UI'),
-                            ),
-                          )
-                          .toList(),
-                      // Seringa:
+                      items: const [
+                        DropdownMenuItem(
+                          value: 30,
+                          child: Text('30 UI (0.3 mL)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 50,
+                          child: Text('50 UI (0.5 mL)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 100,
+                          child: Text('100 UI (1 mL)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 300,
+                          child: Text('Seringa 3 mL'),
+                        ),
+                        DropdownMenuItem(
+                          value: 500,
+                          child: Text('Seringa 5 mL'),
+                        ),
+                      ],
                       onChanged: (val) {
-                        // 👇 DESBLOQUEADO
-                        setState(() => seringaSelecionada = val!);
-                        _recalcularEquivalencia();
+                        if (val != null) {
+                          // 👇 TRAVA MÉDICA: Impede que o utilizador escolha uma seringa menor que o volume calculado
+                          double maxMl = val / 100.0;
+                          if (calcVolumeMl > maxMl) {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Row(
+                                  children: [
+                                    Icon(Icons.cancel, color: Colors.red),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Seringa Incompatível',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ],
+                                ),
+                                content: Text(
+                                  'O volume calculado é de ${calcVolumeMl.toStringAsFixed(2)} mL.\n\nNão é possível selecionar uma seringa de $maxMl mL, pois o líquido irá transbordar.',
+                                ),
+                                actions: [
+                                  ElevatedButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: const Text('Entendido'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            // Reverte a UI para a seringa segura sem quebrar a matemática
+                            setState(() {});
+                          } else {
+                            setState(() => seringaSelecionada = val);
+                            _recalcularEquivalencia();
+                          }
+                        }
                       },
                       validator: (val) => val == null ? 'Erro' : null,
                     ),
