@@ -1392,16 +1392,24 @@ class _DashboardEcraState extends State<DashboardEcra> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // 👇 Título encurtado para evitar o corte em ecrãs menores
         title: const Text(
-          'Meu Tratamento',
+          'Tratamento',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
         actions: [
-          // 👇 INÍCIO DO NOVO BOTÃO DA CALCULADORA
+          // 👇 Ícone atualizado para a imagem da seringa
           IconButton(
-            icon: const Icon(Icons.calculate),
+            icon: Image.asset(
+              'assets/seringa_icon.png',
+              width: 44,
+              height: 44,
+              // Caso a imagem falhe a carregar, mostra o ícone antigo como fallback
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.calculate),
+            ),
             tooltip: 'Calculadora de Reconstituição',
             onPressed: () => Navigator.push(
               context,
@@ -1410,7 +1418,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
               ),
             ),
           ),
-          // 👆 FIM DO NOVO BOTÃO
 
           IconButton(
             icon: const Icon(Icons.help_outline),
@@ -2656,9 +2663,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           // 👇 INTELIGÊNCIA DA SERINGA
           if (seringaSelecionada == null ||
               calcVolumeMl > seringaSelecionada! / 100.0) {
-            if (calcVolumeMl <= 0.3)
+            if (calcVolumeMl <= 0.3) {
               seringaSelecionada = 30;
-            else if (calcVolumeMl <= 0.5)
+            } else if (calcVolumeMl <= 0.5)
               seringaSelecionada = 50;
             else if (calcVolumeMl <= 1.0)
               seringaSelecionada = 100;
@@ -2704,9 +2711,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
             // 👇 INTELIGÊNCIA DA SERINGA
             if (seringaSelecionada == null ||
                 calcVolumeMl > seringaSelecionada! / 100.0) {
-              if (calcVolumeMl <= 0.3)
+              if (calcVolumeMl <= 0.3) {
                 seringaSelecionada = 30;
-              else if (calcVolumeMl <= 0.5)
+              } else if (calcVolumeMl <= 0.5)
                 seringaSelecionada = 50;
               else if (calcVolumeMl <= 1.0)
                 seringaSelecionada = 100;
@@ -3614,7 +3621,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                   Expanded(
                     child: DropdownButtonFormField<int>(
                       // 👇 Trocado 'initialValue' por 'value' para reatividade instantânea
-                      value: seringaSelecionada,
+                      initialValue: seringaSelecionada,
                       decoration: const InputDecoration(
                         labelText: 'Seringa (UI)',
                         border: OutlineInputBorder(),

@@ -5,7 +5,7 @@ import 'dose_calculator.dart';
 import 'syringe_widget.dart';
 
 class CalculadoraReconstituicaoEcra extends StatefulWidget {
-  const CalculadoraReconstituicaoEcra({super.key});
+  const CalculadoraReconstituicaoEcra({Key? key}) : super(key: key);
 
   @override
   State<CalculadoraReconstituicaoEcra> createState() =>
@@ -20,13 +20,13 @@ class _CalculadoraReconstituicaoEcraState
   final intervaloCtrl = TextEditingController();
 
   String unidadeSelecionada = 'mg';
-
-  // 👇 Seringa agora começa nula e só é preenchida por inteligência
   SyringeSize? seringaSelecionada;
 
   double calcVolumeMl = 0.0;
   double calcDoseUi = 0.0;
-  String textoDetalhesDose = '';
+  double doseMgFinal = 0.0;
+  int rendimentoDoses = 0;
+  bool hasError = false;
 
   @override
   void initState() {
@@ -53,21 +53,25 @@ class _CalculadoraReconstituicaoEcraState
     intervaloCtrl.clear();
     setState(() {
       unidadeSelecionada = 'mg';
-      seringaSelecionada = null; // 👇 Volta a ficar vazia
+      seringaSelecionada = null;
       calcVolumeMl = 0.0;
       calcDoseUi = 0.0;
-      textoDetalhesDose = '';
+      doseMgFinal = 0.0;
+      rendimentoDoses = 0;
+      hasError = false;
     });
   }
 
   void _recalcular() {
     if (doseSemanalCtrl.text.isEmpty ||
         concentracaoCtrl.text.isEmpty ||
-        intervaloCtrl.text.isEmpty) {
+        intervaloCtrl.text.isEmpty ||
+        volumeCtrl.text.isEmpty) {
+      // O volume total também é necessário para calcular as doses totais
       setState(() {
-        textoDetalhesDose = '';
         calcVolumeMl = 0.0;
         calcDoseUi = 0.0;
+        hasError = false;
       });
       return;
     }
@@ -79,6 +83,7 @@ class _CalculadoraReconstituicaoEcraState
       double concentracao = double.parse(
         concentracaoCtrl.text.replaceAll(',', '.'),
       );
+      double volFrasco = double.parse(volumeCtrl.text.replaceAll(',', '.'));
       int intervalo = int.parse(intervaloCtrl.text.replaceAll(',', '.'));
 
       if (concentracao > 0) {
@@ -86,34 +91,27 @@ class _CalculadoraReconstituicaoEcraState
             ? (doseSemanal / 2)
             : ((doseSemanal / 7) * intervalo);
 
-        double doseMg = fator;
+        double doseCalcMg = fator;
         if (unidadeSelecionada == 'mL') {
-          doseMg = fator * concentracao;
+          doseCalcMg = fator * concentracao;
         } else if (unidadeSelecionada == 'mcg') {
-          doseMg = fator / 1000;
+          doseCalcMg = fator / 1000;
         }
 
-        double volMl = doseMg / concentracao;
+        double volMl = doseCalcMg / concentracao;
         double doseUi = volMl * 100;
 
         setState(() {
           calcVolumeMl = (volMl * 1000).roundToDouble() / 1000;
           calcDoseUi = (doseUi * 100).roundToDouble() / 100;
+          doseMgFinal = doseCalcMg;
+          rendimentoDoses = ((volFrasco * concentracao) / doseCalcMg).floor();
 
-          if (unidadeSelecionada == 'mcg') {
-            textoDetalhesDose =
-                '${(doseMg * 1000).toStringAsFixed(1).replaceAll('.', ',')} mcg / ${calcDoseUi.toStringAsFixed(2).replaceAll('.', ',')} UI';
-          } else {
-            textoDetalhesDose =
-                '${doseMg.toStringAsFixed(2).replaceAll('.', ',')} $unidadeSelecionada / ${calcDoseUi.toStringAsFixed(2).replaceAll('.', ',')} UI';
-          }
-
-          // 👇 INTELIGÊNCIA: Se não há seringa escolhida, ou se o volume subitamente ultrapassar a seringa atual
           if (seringaSelecionada == null ||
               calcVolumeMl > seringaSelecionada!.maxMl) {
-            if (calcVolumeMl <= 0.3) {
+            if (calcVolumeMl <= 0.3)
               seringaSelecionada = SyringeSize.u30;
-            } else if (calcVolumeMl <= 0.5)
+            else if (calcVolumeMl <= 0.5)
               seringaSelecionada = SyringeSize.u50;
             else if (calcVolumeMl <= 1.0)
               seringaSelecionada = SyringeSize.u100;
@@ -129,6 +127,7 @@ class _CalculadoraReconstituicaoEcraState
     }
   }
 
+  // (Mantenha a função _abrirCalculadoraDiluicao exatamente igual à versão anterior aqui)
   Future<void> _abrirCalculadoraDiluicao() async {
     final querUsar = await showDialog<bool>(
       context: context,
@@ -143,7 +142,6 @@ class _CalculadoraReconstituicaoEcraState
             ),
           ],
         ),
-        // 👇 Textos melhorados explicando claramente o uso de Água Bacteriostática
         content: const Text(
           'Deseja calcular a reconstituição de um Pó Liofilizado (ex: Peptídeos, GH ou hCG)?\n\nIsto calculará automaticamente a Concentração cruzando a Massa Total do frasco com a quantidade de Água Bacteriostática inserida.',
         ),
@@ -250,14 +248,13 @@ class _CalculadoraReconstituicaoEcraState
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Valores inválidos.'),
             backgroundColor: Colors.red,
           ),
         );
-      }
     }
   }
 
@@ -285,6 +282,10 @@ class _CalculadoraReconstituicaoEcraState
         child: Text('Seringa 5 mL'),
       ),
     ];
+
+    String strDoseFinal = unidadeSelecionada == 'mcg'
+        ? '${(doseMgFinal * 1000).toStringAsFixed(1).replaceAll('.0', '')} mcg'
+        : '${doseMgFinal.toStringAsFixed(2).replaceAll('.00', '')} $unidadeSelecionada';
 
     return Scaffold(
       appBar: AppBar(
@@ -338,11 +339,9 @@ class _CalculadoraReconstituicaoEcraState
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    // 👇 Agora o toque no campo vazio ABRE o assistente
                     onTap: () {
-                      if (concentracaoCtrl.text.isEmpty) {
+                      if (concentracaoCtrl.text.isEmpty)
                         _abrirCalculadoraDiluicao();
-                      }
                     },
                     decoration: InputDecoration(
                       labelText: 'Concentração',
@@ -396,7 +395,7 @@ class _CalculadoraReconstituicaoEcraState
                 Expanded(
                   flex: 4,
                   child: DropdownButtonFormField<String>(
-                    initialValue: unidadeSelecionada,
+                    value: unidadeSelecionada,
                     decoration: const InputDecoration(
                       labelText: 'Unidade',
                       border: OutlineInputBorder(),
@@ -416,13 +415,12 @@ class _CalculadoraReconstituicaoEcraState
                 Expanded(
                   flex: 6,
                   child: DropdownButtonFormField<SyringeSize>(
-                    initialValue: seringaSelecionada,
+                    value: seringaSelecionada,
                     decoration: const InputDecoration(
                       labelText: 'Seringa (UI)',
                       border: OutlineInputBorder(),
                     ),
                     items: syringeOptions,
-                    // 👇 TRAVA MÉDICA: Bloqueia escolhas impossíveis pelo utilizador
                     onChanged: (val) {
                       if (val != null) {
                         if (calcVolumeMl > val.maxMl) {
@@ -440,7 +438,7 @@ class _CalculadoraReconstituicaoEcraState
                                 ],
                               ),
                               content: Text(
-                                'O volume clínico calculado é de $calcVolumeMl mL.\n\nNão é possível selecionar uma seringa de ${val.maxMl} mL, pois o líquido irá vazar/transbordar.',
+                                'O volume calculado é de $calcVolumeMl mL.\n\nNão é possível selecionar uma seringa de ${val.maxMl} mL.',
                               ),
                               actions: [
                                 ElevatedButton(
@@ -450,7 +448,6 @@ class _CalculadoraReconstituicaoEcraState
                               ],
                             ),
                           );
-                          // Reverte a UI para a seringa anterior para não quebrar a matemática
                           setState(() {});
                         } else {
                           setState(() => seringaSelecionada = val);
@@ -464,90 +461,146 @@ class _CalculadoraReconstituicaoEcraState
             ),
             const SizedBox(height: 24),
 
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
+            // 👇 CAIXA DE RESULTADOS UNIFICADA NO ESTILO DO SITE DE REFERÊNCIA
+            Card(
+              elevation: 4,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
+                side: const BorderSide(color: Color(0xFF1E3A8A), width: 1.5),
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Dose Calculada por Aplicação:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E3A8A),
+                  Container(
+                    color: const Color(0xFF1E3A8A),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: const Text(
+                      'Resultados',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    textoDetalhesDose.isEmpty
-                        ? 'Aguardando valores...'
-                        : textoDetalhesDose,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: textoDetalhesDose.isEmpty
-                          ? Colors.green.shade700
-                          : Colors.green,
-                    ),
-                    textAlign: TextAlign.center,
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(16),
+                    child: calcVolumeMl == 0 || seringaSelecionada == null
+                        ? Column(
+                            children: [
+                              const Text(
+                                'Faça as seleções acima para calcular a quantidade de fluido aspirado para a dose desejada.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Color(0xFF1E3A8A),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              SyringeVisualizer(
+                                syringeSize: SyringeSize.u100,
+                                filledUnits: 0,
+                              ),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              RichText(
+                                textAlign: TextAlign.center,
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Color(0xFF1E3A8A),
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.5,
+                                  ),
+                                  children: [
+                                    const TextSpan(text: 'Para a dose de '),
+                                    TextSpan(
+                                      text: strDoseFinal,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const TextSpan(
+                                      text: ', aspire o conteúdo da seringa até: ',
+                                    ),
+                                    TextSpan(
+                                      text:
+                                          '${calcVolumeMl.toStringAsFixed(2).replaceAll('.', ',')} mL ou ${calcDoseUi.toStringAsFixed(1).replaceAll('.0', '')} unidades.',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              SyringeVisualizer(
+                                syringeSize: seringaSelecionada!,
+                                filledUnits: calcDoseUi,
+                              ),
+
+                              const SizedBox(height: 16),
+                              RichText(
+                                textAlign: TextAlign.center,
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Color(0xFF1E3A8A),
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.5,
+                                  ),
+                                  children: [
+                                    const TextSpan(
+                                      text: 'Concentração do frasco reconstituído:\n',
+                                    ),
+                                    TextSpan(
+                                      text:
+                                          '${concentracaoCtrl.text.replaceAll('.', ',')} mg/mL.',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              RichText(
+                                textAlign: TextAlign.center,
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Color(0xFF1E3A8A),
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.5,
+                                  ),
+                                  children: [
+                                    const TextSpan(text: 'O frasco contém '),
+                                    TextSpan(
+                                      text: '$rendimentoDoses doses',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                    TextSpan(text: ' de $strDoseFinal cada.'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-
-            // RESULTADO VISUAL (Seringa) desenha-se apenas quando há dose calculada e uma seringa escolhida
-            if (calcVolumeMl > 0 && seringaSelecionada != null) ...[
-              Card(
-                color: Colors.green.shade50,
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: Colors.green, width: 2),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Text(
-                        'Puxe a Seringa até:',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.green),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '$calcDoseUi UI',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 42,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green.shade800,
-                        ),
-                      ),
-                      Text(
-                        '($calcVolumeMl mL)',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.green.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      SyringeVisualizer(
-                        syringeSize: seringaSelecionada!, // Garantia de que a seringa não é nula
-                        filledUnits: calcDoseUi,
-                        hasError: false, // Como bloqueámos os erros de transbordo, nunca exibirá erro vermelho na UI
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
             const SizedBox(height: 32),
           ],
         ),

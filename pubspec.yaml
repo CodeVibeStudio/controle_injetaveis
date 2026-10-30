@@ -1,7 +1,7 @@
 name: controle_injetaveis
 description: "A new Flutter project."
 publish_to: "none"
-version: 1.0.46+47
+version: 1.0.48+49
 
 environment:
   sdk: ^3.13.4
@@ -28,6 +28,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/seringa_icon.png
     - assets/logo.png
     - assets/regiao/
 

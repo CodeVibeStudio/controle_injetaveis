@@ -1,3 +1,4 @@
+// Ficheiro: utils/syringe_widget.dart
 import 'package:flutter/material.dart';
 
 import 'dose_calculator.dart';
@@ -5,31 +6,24 @@ import 'dose_calculator.dart';
 class SyringeVisualizer extends StatelessWidget {
   final SyringeSize syringeSize;
   final double filledUnits;
-  final bool hasError;
 
   const SyringeVisualizer({
-    super.key,
+    Key? key,
     required this.syringeSize,
     required this.filledUnits,
-    this.hasError = false,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: 120,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: hasError ? Colors.red : Colors.grey.shade300),
-      ),
+      height: 110,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      color: Colors.white,
       child: CustomPaint(
         painter: _SyringePainter(
           sizeConfig: syringeSize,
           filledUnits: filledUnits,
-          isOverfilled: hasError,
         ),
       ),
     );
@@ -39,95 +33,191 @@ class SyringeVisualizer extends StatelessWidget {
 class _SyringePainter extends CustomPainter {
   final SyringeSize sizeConfig;
   final double filledUnits;
-  final bool isOverfilled;
 
-  _SyringePainter({
-    required this.sizeConfig,
-    required this.filledUnits,
-    required this.isOverfilled,
-  });
+  _SyringePainter({required this.sizeConfig, required this.filledUnits});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double syringeHeight = 40.0;
+    final double syringeHeight = 45.0;
     final double startY = (size.height - syringeHeight) / 2;
 
-    final paintBody = Paint()
-      ..color = Colors.blueGrey.shade100
+    final double needleWidth = 20.0;
+    final double plungerWidth = 25.0;
+    final double barrelWidth = size.width - needleWidth - plungerWidth;
+    final double barrelStartX = needleWidth;
+
+    final paintOutline = Paint()
+      ..color = Colors.black
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
+      ..strokeWidth = 2.0;
 
     final paintLiquid = Paint()
-      ..color = isOverfilled
-          ? Colors.red.withValues(alpha: 0.7)
-          : Colors.amber.shade600.withValues(alpha: 0.85)
+      ..color = Colors.lightBlueAccent.shade100
       ..style = PaintingStyle.fill;
 
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
-    double fillPercentage = (filledUnits / sizeConfig.maxUnits);
-    if (fillPercentage > 1.0) fillPercentage = 1.0;
-    if (fillPercentage < 0.0) fillPercentage = 0.0;
+    double fillPercentage = (filledUnits / sizeConfig.maxUnits).clamp(0.0, 1.0);
 
-    final liquidRect = Rect.fromLTWH(
-      0,
+    final double liquidStartX = barrelStartX + 35.0;
+
+    // 👇 AJUSTE AQUI: Criada uma margem de segurança de 12 pixels na direita
+    // para que a régua termine antes da borda do barril e o último texto não seja cortado.
+    final double rightMargin = 12.0;
+    final double liquidDrawWidth = barrelWidth - 35.0 - rightMargin;
+
+    // 1. Desenhar Líquido
+    if (fillPercentage > 0) {
+      // O líquido preenche até o final matemático real
+      final liquidRect = Rect.fromLTWH(
+        liquidStartX,
+        startY,
+        liquidDrawWidth * fillPercentage,
+        syringeHeight,
+      );
+      canvas.drawRect(liquidRect, paintLiquid);
+    }
+
+    // 2. Desenhar Corpo da Seringa
+    final barrelRect = Rect.fromLTWH(
+      barrelStartX,
       startY,
-      size.width * fillPercentage,
+      barrelWidth,
       syringeHeight,
     );
-    canvas.drawRect(liquidRect, paintLiquid);
+    canvas.drawRect(barrelRect, paintOutline);
 
-    final bodyRect = Rect.fromLTWH(0, startY, size.width, syringeHeight);
-    canvas.drawRect(bodyRect, paintBody);
+    // 3. Desenhar Agulha
+    canvas.drawRect(
+      Rect.fromLTWH(barrelStartX - 8, startY + 12, 8, syringeHeight - 24),
+      paintOutline,
+    );
+    canvas.drawLine(
+      Offset(barrelStartX - 8, size.height / 2),
+      Offset(0, size.height / 2),
+      paintOutline..strokeWidth = 3.0,
+    );
 
-    // Adaptação da escala visual consoante o tamanho da seringa
-    int tickStep;
-    if (sizeConfig == SyringeSize.u300 || sizeConfig == SyringeSize.u500) {
-      tickStep = 50;
-    } else if (sizeConfig == SyringeSize.u100) {
-      tickStep = 10;
+    // 4. Desenhar Êmbolo
+    canvas.drawRect(
+      Rect.fromLTWH(
+        barrelStartX + barrelWidth,
+        startY + 5,
+        8,
+        syringeHeight - 10,
+      ),
+      paintOutline,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(
+        barrelStartX + barrelWidth + 8,
+        startY + 15,
+        plungerWidth - 12,
+        syringeHeight - 30,
+      ),
+      paintOutline,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(size.width - 6, startY - 2, 6, syringeHeight + 4),
+      paintOutline..style = PaintingStyle.fill,
+    );
+
+    // 5. Textos Fixos Iniciais
+    _drawText(canvas, textPainter, 'mL:', barrelStartX + 6, startY + 6, 9);
+    _drawText(canvas, textPainter, 'UI:', barrelStartX + 6, startY + 28, 9);
+
+    // 6. Desenhar Régua
+    int majorTickStep;
+    int minorTickStep;
+
+    if (sizeConfig == SyringeSize.u100) {
+      majorTickStep = 10;
+      minorTickStep = 2;
+    } else if (sizeConfig == SyringeSize.u50) {
+      majorTickStep = 5;
+      minorTickStep = 1;
+    } else if (sizeConfig == SyringeSize.u30) {
+      majorTickStep = 5;
+      minorTickStep = 1;
     } else {
-      tickStep = 5;
+      majorTickStep = 50;
+      minorTickStep = 10;
     }
 
     for (int i = 0; i <= sizeConfig.maxUnits; i++) {
-      double x = (i / sizeConfig.maxUnits) * size.width;
+      if (i % minorTickStep != 0 && i % majorTickStep != 0) continue;
 
-      bool isMajorTick = i % tickStep == 0;
-      bool isMediumTick = i % (tickStep / 2) == 0;
+      double x = liquidStartX + (i / sizeConfig.maxUnits) * liquidDrawWidth;
 
-      double tickLength = isMajorTick ? 15.0 : (isMediumTick ? 10.0 : 5.0);
+      bool isMajorTick = i % majorTickStep == 0;
 
+      // Traços Superiores
       canvas.drawLine(
         Offset(x, startY),
-        Offset(x, startY + tickLength),
-        Paint()
-          ..color = Colors.black87
-          ..strokeWidth = isMajorTick ? 1.5 : 1.0,
+        Offset(x, startY + (isMajorTick ? 8 : 4)),
+        paintOutline..strokeWidth = isMajorTick ? 1.5 : 1.0,
+      );
+
+      // Traços Inferiores
+      canvas.drawLine(
+        Offset(x, startY + syringeHeight),
+        Offset(x, startY + syringeHeight - (isMajorTick ? 8 : 4)),
+        paintOutline..strokeWidth = isMajorTick ? 1.5 : 1.0,
       );
 
       if (isMajorTick && i > 0) {
-        textPainter.text = TextSpan(
-          text: '$i',
-          style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        );
-        textPainter.layout();
-        textPainter.paint(
+        double mlVal = i / 100.0;
+        String mlText = mlVal.toStringAsFixed(2).replaceAll('0.', '.');
+        if (sizeConfig == SyringeSize.u100)
+          mlText = mlVal.toStringAsFixed(1).replaceAll('0.', '.');
+
+        // 👇 AJUSTE AQUI: O último texto (i == maxUnits) é puxado ligeiramente para a esquerda
+        // para garantir que não choca com o êmbolo.
+        double textOffsetAdjustment = (i == sizeConfig.maxUnits) ? 8.0 : 6.0;
+
+        _drawText(
           canvas,
-          Offset(x - (textPainter.width / 2), startY + 18),
+          textPainter,
+          mlText,
+          x - textOffsetAdjustment,
+          startY + 10,
+          8,
+        );
+        _drawText(
+          canvas,
+          textPainter,
+          '$i',
+          x - textOffsetAdjustment + 2,
+          startY + 24,
+          8,
         );
       }
     }
   }
 
+  void _drawText(
+    Canvas canvas,
+    TextPainter painter,
+    String text,
+    double x,
+    double y,
+    double fontSize,
+  ) {
+    painter.text = TextSpan(
+      text: text,
+      style: TextStyle(
+        color: Colors.black,
+        fontSize: fontSize,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+    painter.layout();
+    painter.paint(canvas, Offset(x, y));
+  }
+
   @override
   bool shouldRepaint(covariant _SyringePainter oldDelegate) {
     return oldDelegate.filledUnits != filledUnits ||
-        oldDelegate.sizeConfig != sizeConfig ||
-        oldDelegate.isOverfilled != isOverfilled;
+        oldDelegate.sizeConfig != sizeConfig;
   }
 }
