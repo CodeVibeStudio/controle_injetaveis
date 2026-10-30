@@ -8,10 +8,10 @@ class SyringeVisualizer extends StatelessWidget {
   final double filledUnits;
 
   const SyringeVisualizer({
-    Key? key,
+    super.key,
     required this.syringeSize,
     required this.filledUnits,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -59,16 +59,15 @@ class _SyringePainter extends CustomPainter {
 
     double fillPercentage = (filledUnits / sizeConfig.maxUnits).clamp(0.0, 1.0);
 
-    final double liquidStartX = barrelStartX + 35.0;
+    // 👇 AJUSTE AQUI: Recuo reduzido de 35.0 para 26.0 para aproximar a escala das letras
+    final double liquidStartX = barrelStartX + 26.0;
 
-    // 👇 AJUSTE AQUI: Criada uma margem de segurança de 12 pixels na direita
-    // para que a régua termine antes da borda do barril e o último texto não seja cortado.
     final double rightMargin = 12.0;
-    final double liquidDrawWidth = barrelWidth - 35.0 - rightMargin;
+    // A largura da régua agora acompanha o novo recuo de 26.0
+    final double liquidDrawWidth = barrelWidth - 26.0 - rightMargin;
 
     // 1. Desenhar Líquido
     if (fillPercentage > 0) {
-      // O líquido preenche até o final matemático real
       final liquidRect = Rect.fromLTWH(
         liquidStartX,
         startY,
@@ -122,7 +121,7 @@ class _SyringePainter extends CustomPainter {
       paintOutline..style = PaintingStyle.fill,
     );
 
-    // 5. Textos Fixos Iniciais
+    // 5. Textos Fixos Iniciais (Ajustados para mL e UI)
     _drawText(canvas, textPainter, 'mL:', barrelStartX + 6, startY + 6, 9);
     _drawText(canvas, textPainter, 'UI:', barrelStartX + 6, startY + 28, 9);
 
@@ -171,8 +170,6 @@ class _SyringePainter extends CustomPainter {
         if (sizeConfig == SyringeSize.u100)
           mlText = mlVal.toStringAsFixed(1).replaceAll('0.', '.');
 
-        // 👇 AJUSTE AQUI: O último texto (i == maxUnits) é puxado ligeiramente para a esquerda
-        // para garantir que não choca com o êmbolo.
         double textOffsetAdjustment = (i == sizeConfig.maxUnits) ? 8.0 : 6.0;
 
         _drawText(

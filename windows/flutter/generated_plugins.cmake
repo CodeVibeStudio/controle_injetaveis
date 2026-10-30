@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   connectivity_plus
   flutter_timezone
+  local_auth_windows
   url_launcher_windows
 )
 

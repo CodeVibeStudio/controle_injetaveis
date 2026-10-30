@@ -1,3 +1,5 @@
+import 'package:local_auth/local_auth.dart';
+
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -232,7 +234,8 @@ class AuthGate extends StatelessWidget {
           );
         }
         final session = snapshot.data?.session;
-        if (session != null) return const DashboardEcra();
+        // 👇 Se tiver sessão, vai para a biometria antes do Dashboard
+        if (session != null) return const BiometriaEcra();
         return const LoginEcra();
       },
     );
@@ -638,10 +641,16 @@ class _DashboardEcraState extends State<DashboardEcra> {
   }
 
   Future<void> _arranqueSeguro() async {
-    await _carregarResumo();
-    await _verificarAgendamentoAtivo(); // 👇 NOVA FUNÇÃO ADICIONADA AQUI
+    // 1. Liga o spinner de carregamento manualmente
+    setState(() => carregando = true);
 
-    _calcularExames();
+    // 2. Faz o download do Agendamento e dos Exames ao mesmo tempo (em paralelo)
+    await Future.wait([_verificarAgendamentoAtivo(), _calcularExames()]);
+
+    // 3. Por fim, carrega o Resumo. Como ele possui a instrução "carregando = false"
+    // no final do seu código, a tela só será exibida quando TUDO estiver 100% pronto.
+    await _carregarResumo();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _verificarPendencias();
       atualizarAlarmesNativos();
@@ -1825,8 +1834,8 @@ class _DashboardEcraState extends State<DashboardEcra> {
                             builder: (context) => const SetupEcra(),
                           ),
                         ).then((_) {
-                          _carregarResumo();
-                          _calcularExames();
+                          // 👇 Agora chama o arranque completo e perfeitamente sincronizado
+                          _arranqueSeguro();
                         });
                       },
                       icon: const Icon(Icons.settings, color: Colors.white),
@@ -5791,6 +5800,148 @@ class _PerfilEcraState extends State<PerfilEcra> {
                     ),
                   ),
                 ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================================
+// ECRÃ DE BLOQUEIO BIOMÉTRICO
+// ==========================================================
+class BiometriaEcra extends StatefulWidget {
+  const BiometriaEcra({super.key});
+
+  @override
+  State<BiometriaEcra> createState() => _BiometriaEcraState();
+}
+
+class _BiometriaEcraState extends State<BiometriaEcra> {
+  final LocalAuthentication auth = LocalAuthentication();
+  bool _autenticando = false;
+  String _mensagemErro = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _verificarEAutenticar();
+  }
+
+  Future<void> _verificarEAutenticar() async {
+    setState(() {
+      _autenticando = true;
+      _mensagemErro = '';
+    });
+
+    try {
+      final bool podeAutenticar =
+          await auth.canCheckBiometrics || await auth.isDeviceSupported();
+
+      if (!podeAutenticar) {
+        // Se o telemóvel não tem biometria ou não está configurada, avança direto
+        _irParaDashboard();
+        return;
+      }
+
+      // 👇 Formato minimalista, compatível com todas as versões do pacote 👇
+      final bool autenticado = await auth.authenticate(
+        localizedReason: 'Desbloqueie para aceder aos seus dados clínicos',
+      );
+
+      if (autenticado) {
+        _irParaDashboard();
+      } else {
+        setState(() {
+          _autenticando = false;
+          _mensagemErro = 'Autenticação cancelada ou falhada.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _autenticando = false;
+        _mensagemErro = 'Erro no sensor biométrico. Tente novamente.';
+      });
+    }
+  }
+
+  void _irParaDashboard() {
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const DashboardEcra()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1E3A8A),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.fingerprint, size: 100, color: Colors.white),
+              const SizedBox(height: 24),
+              const Text(
+                'Aplicativo Bloqueado',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Protegendo o seu histórico clínico...',
+                style: TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 32),
+              if (_autenticando)
+                const CircularProgressIndicator(color: Colors.white)
+              else ...[
+                if (_mensagemErro.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      _mensagemErro,
+                      style: const TextStyle(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ElevatedButton.icon(
+                  onPressed: _verificarEAutenticar,
+                  icon: const Icon(Icons.lock_open, color: Color(0xFF1E3A8A)),
+                  label: const Text(
+                    'TENTAR NOVAMENTE',
+                    style: TextStyle(
+                      color: Color(0xFF1E3A8A),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () async {
+                    await Supabase.instance.client.auth.signOut();
+                  },
+                  child: const Text(
+                    'Sair da conta',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

@@ -5,7 +5,7 @@ import 'dose_calculator.dart';
 import 'syringe_widget.dart';
 
 class CalculadoraReconstituicaoEcra extends StatefulWidget {
-  const CalculadoraReconstituicaoEcra({Key? key}) : super(key: key);
+  const CalculadoraReconstituicaoEcra({super.key});
 
   @override
   State<CalculadoraReconstituicaoEcra> createState() =>
@@ -109,9 +109,9 @@ class _CalculadoraReconstituicaoEcraState
 
           if (seringaSelecionada == null ||
               calcVolumeMl > seringaSelecionada!.maxMl) {
-            if (calcVolumeMl <= 0.3)
+            if (calcVolumeMl <= 0.3) {
               seringaSelecionada = SyringeSize.u30;
-            else if (calcVolumeMl <= 0.5)
+            } else if (calcVolumeMl <= 0.5)
               seringaSelecionada = SyringeSize.u50;
             else if (calcVolumeMl <= 1.0)
               seringaSelecionada = SyringeSize.u100;
@@ -248,13 +248,14 @@ class _CalculadoraReconstituicaoEcraState
         );
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Valores inválidos.'),
             backgroundColor: Colors.red,
           ),
         );
+      }
     }
   }
 
@@ -340,8 +341,9 @@ class _CalculadoraReconstituicaoEcraState
                       decimal: true,
                     ),
                     onTap: () {
-                      if (concentracaoCtrl.text.isEmpty)
+                      if (concentracaoCtrl.text.isEmpty) {
                         _abrirCalculadoraDiluicao();
+                      }
                     },
                     decoration: InputDecoration(
                       labelText: 'Concentração',
@@ -395,7 +397,7 @@ class _CalculadoraReconstituicaoEcraState
                 Expanded(
                   flex: 4,
                   child: DropdownButtonFormField<String>(
-                    value: unidadeSelecionada,
+                    initialValue: unidadeSelecionada,
                     decoration: const InputDecoration(
                       labelText: 'Unidade',
                       border: OutlineInputBorder(),
@@ -415,7 +417,7 @@ class _CalculadoraReconstituicaoEcraState
                 Expanded(
                   flex: 6,
                   child: DropdownButtonFormField<SyringeSize>(
-                    value: seringaSelecionada,
+                    initialValue: seringaSelecionada,
                     decoration: const InputDecoration(
                       labelText: 'Seringa (UI)',
                       border: OutlineInputBorder(),
