@@ -167,8 +167,9 @@ class _SyringePainter extends CustomPainter {
       if (isMajorTick && i > 0) {
         double mlVal = i / 100.0;
         String mlText = mlVal.toStringAsFixed(2).replaceAll('0.', '.');
-        if (sizeConfig == SyringeSize.u100)
+        if (sizeConfig == SyringeSize.u100) {
           mlText = mlVal.toStringAsFixed(1).replaceAll('0.', '.');
+        }
 
         double textOffsetAdjustment = (i == sizeConfig.maxUnits) ? 8.0 : 6.0;
 

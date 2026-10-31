@@ -5834,16 +5834,19 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
     });
 
     try {
-      final bool podeAutenticar =
-          await auth.canCheckBiometrics || await auth.isDeviceSupported();
+      // 1. SOLUÇÃO PARA QUEM NÃO TEM BIOMETRIA:
+      // Verifica exatamente quais biometrias estão cadastradas no telemóvel.
+      final List<BiometricType> biometrias = await auth
+          .getAvailableBiometrics();
 
-      if (!podeAutenticar) {
-        // Se o telemóvel não tem biometria ou não está configurada, avança direto
+      if (biometrias.isEmpty) {
+        // Se a lista estiver vazia (nenhuma digital cadastrada),
+        // ignora a tela de bloqueio e vai direto para o Dashboard.
         _irParaDashboard();
         return;
       }
 
-      // 👇 Formato minimalista, compatível com todas as versões do pacote 👇
+      // 2. Tenta acionar a biometria
       final bool autenticado = await auth.authenticate(
         localizedReason: 'Desbloqueie para aceder aos seus dados clínicos',
       );
@@ -5853,13 +5856,14 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
       } else {
         setState(() {
           _autenticando = false;
-          _mensagemErro = 'Autenticação cancelada ou falhada.';
+          _mensagemErro =
+              'Biometria cancelada. Tente novamente ou use a senha do App.';
         });
       }
     } catch (e) {
       setState(() {
         _autenticando = false;
-        _mensagemErro = 'Erro no sensor biométrico. Tente novamente.';
+        _mensagemErro = 'Erro no sensor biométrico.';
       });
     }
   }
@@ -5869,6 +5873,13 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const DashboardEcra()),
     );
+  }
+
+  // SOLUÇÃO PARA A SENHA DO APP:
+  // Esta função desloga a sessão em cache, forçando o AuthGate
+  // a redirecionar o utilizador para a tela de Login (E-mail/Senha).
+  Future<void> _usarSenhaDoApp() async {
+    await Supabase.instance.client.auth.signOut();
   }
 
   @override
@@ -5897,6 +5908,7 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
                 style: TextStyle(color: Colors.white70),
               ),
               const SizedBox(height: 32),
+
               if (_autenticando)
                 const CircularProgressIndicator(color: Colors.white)
               else ...[
@@ -5905,17 +5917,19 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Text(
                       _mensagemErro,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.orange,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
+
                 ElevatedButton.icon(
                   onPressed: _verificarEAutenticar,
-                  icon: const Icon(Icons.lock_open, color: Color(0xFF1E3A8A)),
+                  icon: const Icon(Icons.fingerprint, color: Color(0xFF1E3A8A)),
                   label: const Text(
-                    'TENTAR NOVAMENTE',
+                    'USAR BIOMETRIA',
                     style: TextStyle(
                       color: Color(0xFF1E3A8A),
                       fontWeight: FontWeight.bold,
@@ -5927,16 +5941,34 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
                       horizontal: 24,
                       vertical: 16,
                     ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
+
                 const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () async {
-                    await Supabase.instance.client.auth.signOut();
-                  },
-                  child: const Text(
-                    'Sair da conta',
-                    style: TextStyle(color: Colors.white70),
+
+                // 👇 NOVO BOTÃO: Permite o acesso com a senha original do aplicativo
+                OutlinedButton.icon(
+                  onPressed: _usarSenhaDoApp,
+                  icon: const Icon(Icons.password, color: Colors.white),
+                  label: const Text(
+                    'ACESSAR COM SENHA DO APP',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.white, width: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
               ],
