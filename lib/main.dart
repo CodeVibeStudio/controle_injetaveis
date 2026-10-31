@@ -120,6 +120,20 @@ Future<void> atualizarAlarmesNativos() async {
   }
 }
 
+// 👇 CONTROLO DE SESSÃO E LOGOUT GLOBAL
+bool sessaoRecemLogada = false;
+
+Future<void> sairDaConta(BuildContext context) async {
+  sessaoRecemLogada = false;
+  await Supabase.instance.client.auth.signOut();
+  if (context.mounted) {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const AuthGate()),
+      (Route<dynamic> route) => false, // Apaga todo o histórico de telas
+    );
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -234,8 +248,14 @@ class AuthGate extends StatelessWidget {
           );
         }
         final session = snapshot.data?.session;
-        // 👇 Se tiver sessão, vai para a biometria antes do Dashboard
-        if (session != null) return const BiometriaEcra();
+        if (session != null) {
+          // 👇 Se acabou de digitar a senha manualmente, vai direto para o Dashboard!
+          if (sessaoRecemLogada) {
+            return const DashboardEcra();
+          }
+          // Só pede biometria num arranque a frio (quando abre o app noutro dia)
+          return const BiometriaEcra();
+        }
         return const LoginEcra();
       },
     );
@@ -256,6 +276,7 @@ class _LoginEcraState extends State<LoginEcra> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool carregando = false;
+  bool _ocultarSenha = true; // 👇 NOVA VARIÁVEL ADICIONADA AQUI
 
   String _traduzirErro(Object erro) {
     final String msg = erro.toString();
@@ -298,6 +319,7 @@ class _LoginEcraState extends State<LoginEcra> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+      sessaoRecemLogada = true; // 👇 AVISA O SISTEMA QUE DIGITOU A SENHA AGORA
     } catch (e) {
       _mostrarAviso(_traduzirErro(e), Colors.red[700]!);
     }
@@ -311,6 +333,7 @@ class _LoginEcraState extends State<LoginEcra> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+      sessaoRecemLogada = true; // 👇 AVISA O SISTEMA AQUI TAMBÉM
       _mostrarAviso(
         'Conta criada! Verifique o seu email (e a pasta SPAM) para confirmar.',
         Colors.green[700]!,
@@ -404,11 +427,25 @@ class _LoginEcraState extends State<LoginEcra> {
                       const SizedBox(height: 16),
                       TextField(
                         controller: passwordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(
+                        obscureText: _ocultarSenha, // 👇 LIGADO À VARIÁVEL
+                        decoration: InputDecoration(
                           labelText: 'Palavra-passe',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.lock),
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.lock),
+                          suffixIcon: IconButton(
+                            // 👇 NOVO BOTÃO DO OLHO
+                            icon: Icon(
+                              _ocultarSenha
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: Colors.grey[600],
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _ocultarSenha = !_ocultarSenha;
+                              });
+                            },
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -1447,7 +1484,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sair',
-            onPressed: () async => await supabase.auth.signOut(),
+            onPressed: () => sairDaConta(context), // 👇 Atualizado
           ),
         ],
       ),
@@ -4980,10 +5017,7 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
               IconButton(
                 icon: const Icon(Icons.logout),
                 tooltip: 'Sair do App',
-                onPressed: () async {
-                  await Supabase.instance.client.auth.signOut();
-                  if (context.mounted) Navigator.pop(context);
-                },
+                onPressed: () => sairDaConta(context), // 👇 Atualizado
               ),
           ],
         ),
@@ -5686,9 +5720,7 @@ class _PerfilEcraState extends State<PerfilEcra> {
               IconButton(
                 icon: const Icon(Icons.logout),
                 tooltip: 'Sair do App',
-                onPressed: () async {
-                  await Supabase.instance.client.auth.signOut();
-                },
+                onPressed: () => sairDaConta(context), // 👇 Atualizado
               ),
           ],
         ),
@@ -5879,7 +5911,7 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
   // Esta função desloga a sessão em cache, forçando o AuthGate
   // a redirecionar o utilizador para a tela de Login (E-mail/Senha).
   Future<void> _usarSenhaDoApp() async {
-    await Supabase.instance.client.auth.signOut();
+    await sairDaConta(context); // 👇 Usa a nova função global
   }
 
   @override
