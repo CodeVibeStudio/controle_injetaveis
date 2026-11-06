@@ -805,14 +805,14 @@ class _DashboardEcraState extends State<DashboardEcra> {
                           CheckboxListTile(
                             activeColor: Colors.green,
                             title: const Text(
-                              '1. Jejum (8 a 12h)',
+                              '1. Jejum Estrito (8 a 12h)',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
                             ),
                             subtitle: const Text(
-                              'Máximo 14h para evitar falso catabolismo. Água está liberada e é obrigatória!',
+                              'Obrigatório para Insulina Basal e Glicemia. Máximo 14h. Beba bastante água, está liberada!',
                             ),
                             value: cienteJejum,
                             onChanged: (val) =>
@@ -828,7 +828,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
                               ),
                             ),
                             subtitle: const Text(
-                              'Suspenda musculação. Microlesões elevam falsamente a enzima hepática TGO (AST).',
+                              'Suspenda a musculação. Microlesões elevam falsamente a CPK (dano muscular), Creatinina e TGO (AST).',
                             ),
                             value: cienteTreino,
                             onChanged: (val) =>
@@ -837,14 +837,14 @@ class _DashboardEcraState extends State<DashboardEcra> {
                           CheckboxListTile(
                             activeColor: Colors.green,
                             title: const Text(
-                              '3. Protocolo de Próstata',
+                              '3. Repouso Pélvico (72h)',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
                             ),
                             subtitle: const Text(
-                              'Sem relação sexual por 72h. Não ande de moto, bicicleta ou a cavalo (inflama e altera o PSA).',
+                              'Sem ejaculação (evita picos falsos de Prolactina e PSA). Não ande de moto, bicicleta ou cavalo.',
                             ),
                             value: cienteProstata,
                             onChanged: (val) =>
@@ -860,7 +860,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
                               ),
                             ),
                             subtitle: const Text(
-                              'Zero álcool para não gerar picos agudos de Gama-GT e Triglicerídeos.',
+                              'Zero álcool para não gerar picos agudos de Gama-GT, Triglicerídeos e inflamação sistêmica (PCR).',
                             ),
                             value: cienteFigado,
                             onChanged: (val) =>
@@ -876,7 +876,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
                               ),
                             ),
                             subtitle: const Text(
-                              'Coleta estrita entre 07h e 09h da manhã para pegar a Testosterona e SHBG no pico basal.',
+                              'Coleta estrita entre 07h e 09h da manhã para pegar Testosterona, TSH e Prolactina no pico basal.',
                             ),
                             value: cienteHorario,
                             onChanged: (val) =>
@@ -892,7 +892,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
                               ),
                             ),
                             subtitle: const Text(
-                              'Não pause ou atrase as injeções no app. O exame deve refletir a cinética real.',
+                              'Não pause ou atrase as injeções no app. O exame deve refletir a cinética hormonal real do seu corpo.',
                             ),
                             value: cienteFidelidade,
                             onChanged: (val) =>
@@ -1126,9 +1126,11 @@ class _DashboardEcraState extends State<DashboardEcra> {
           .select()
           .eq('id', userId)
           .maybeSingle();
+
       String genero = perfil != null && perfil['genero'] != null
           ? perfil['genero']
           : 'Masculino';
+
       int idade = 30;
       if (perfil != null && perfil['data_nascimento'] != null) {
         DateTime nascimento = DateTime.parse(perfil['data_nascimento']);
@@ -1172,20 +1174,34 @@ class _DashboardEcraState extends State<DashboardEcra> {
         return;
       }
 
+      // 👇 NOVA MATRIZ DE EXAMES BASE (Inclui os pedidos do Médico do Esporte)
       Set<String> exames = {
         'Hemograma Completo',
-        'Perfil Lipídico Completo (HDL, LDL, Triglicerídeos)',
+        'Marcadores Inflamatórios (PCR e Ferritina)',
+        'Perfil Lipídico (Colesterol Total, HDL, LDL, VLDL, Triglicerídeos)',
         'Função Hepática (TGO, TGP, Gama-GT)',
+        'Função Renal (Ureia e Creatinina)',
+        'Dano Muscular (CPK)',
       };
 
+      // 👇 PAINEL HORMONAL AVANÇADO
       if (isHormonal) {
-        exames.addAll(['Testosterona Total e Livre', 'Estradiol (E2)', 'SHBG']);
+        exames.addAll([
+          'Testosterona Total e Livre',
+          'Estradiol (E2)',
+          'SHBG',
+          'DHT (Di-hidrotestosterona)',
+          'Prolactina',
+          'Tireoide (TSH e T4 Livre)',
+        ]);
+        // Mantém a regra inteligente para a próstata
         if (genero == 'Masculino' && idade >= 40) {
           exames.add('PSA Total e Livre (Próstata)');
         }
       }
 
-      if (isMetabolico) {
+      // 👇 PAINEL METABÓLICO E GLICÊMICO (Obrigatório para GLP-1 ou Hormônios)
+      if (isMetabolico || isHormonal) {
         exames.addAll([
           'Glicemia em Jejum',
           'Insulina Basal',
@@ -1267,7 +1283,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
       context: context,
       initialDate: DateTime.now().add(const Duration(days: 3)),
       firstDate: DateTime.now(),
-      // 👇 CORREÇÃO: Limite expandido para 150 dias (5 meses) para cobrir o ciclo de 120 dias
       lastDate: DateTime.now().add(const Duration(days: 150)),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
@@ -1372,7 +1387,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
                 ),
                 const SizedBox(height: 24),
 
-                // NOVO BOTÃO DE AGENDAMENTO
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -1396,7 +1410,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
                 ),
                 const SizedBox(height: 12),
 
-                // 👇 Botão atualizado com a cor primária
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -5578,12 +5591,22 @@ class _PerfilEcraState extends State<PerfilEcra> {
 
   final nomeCtrl = TextEditingController();
   final dataCtrl = TextEditingController();
+  final pesoCtrl = TextEditingController(); // 👇 NOVO: Controlador do peso
   String? generoSelecionado;
 
   @override
   void initState() {
     super.initState();
     _carregarPerfil();
+  }
+
+  @override
+  void dispose() {
+    // 👇 Boa prática: limpar os controladores da memória ao sair da tela
+    nomeCtrl.dispose();
+    dataCtrl.dispose();
+    pesoCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _carregarPerfil() async {
@@ -5599,6 +5622,12 @@ class _PerfilEcraState extends State<PerfilEcra> {
         setState(() {
           nomeCtrl.text = res['nome'] ?? '';
           generoSelecionado = res['genero'];
+
+          // 👇 NOVO: Carrega o peso caso já exista no banco
+          if (res['peso'] != null) {
+            pesoCtrl.text = res['peso'].toString();
+          }
+
           if (res['data_nascimento'] != null) {
             final partes = res['data_nascimento'].toString().split('-');
             if (partes.length == 3) {
@@ -5641,11 +5670,19 @@ class _PerfilEcraState extends State<PerfilEcra> {
       final partes = dataCtrl.text.split('/');
       final dataFormatadaBanco = '${partes[2]}-${partes[1]}-${partes[0]}';
 
+      // 👇 NOVO: Converte o texto do peso para número decimal (trocando vírgula por ponto)
+      double? pesoNum;
+      if (pesoCtrl.text.isNotEmpty) {
+        final pesoString = pesoCtrl.text.replaceAll(',', '.');
+        pesoNum = double.tryParse(pesoString);
+      }
+
       await supabase.from('perfis').upsert({
         'id': userId,
         'nome': nomeCtrl.text.trim(),
         'genero': generoSelecionado,
         'data_nascimento': dataFormatadaBanco,
+        'peso': pesoNum, // 👇 NOVO: Envia o peso para o banco
       });
 
       if (mounted) {
@@ -5720,7 +5757,7 @@ class _PerfilEcraState extends State<PerfilEcra> {
               IconButton(
                 icon: const Icon(Icons.logout),
                 tooltip: 'Sair do App',
-                onPressed: () => sairDaConta(context), // 👇 Atualizado
+                onPressed: () => sairDaConta(context),
               ),
           ],
         ),
@@ -5750,7 +5787,7 @@ class _PerfilEcraState extends State<PerfilEcra> {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Estas informações são essenciais para que o aplicativo cruze a sua idade e sexo biológico, gerando painéis de exames clínicos precisos e totalmente seguros.',
+                          'Estas informações são essenciais para que o aplicativo cruze a sua idade, sexo biológico e peso, gerando painéis de exames clínicos precisos e totalmente seguros.',
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 13, color: Colors.grey),
                         ),
@@ -5766,6 +5803,22 @@ class _PerfilEcraState extends State<PerfilEcra> {
                               val == null || val.isEmpty ? 'Obrigatório' : null,
                         ),
                         const SizedBox(height: 16),
+
+                        // 👇 NOVO: Campo de texto numérico para o Peso
+                        TextFormField(
+                          controller: pesoCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Peso (kg)',
+                            hintText: 'Ex: 107.5',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.scale),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
                         DropdownButtonFormField<String>(
                           initialValue: generoSelecionado,
                           decoration: const InputDecoration(
