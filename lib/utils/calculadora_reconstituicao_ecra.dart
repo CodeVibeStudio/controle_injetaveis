@@ -1,8 +1,12 @@
 // Ficheiro: utils/calculadora_reconstituicao_ecra.dart
+import 'pharmacokinetics_engine.dart';
+import 'pharmacokinetics_chart_widget.dart';
+
 import 'package:flutter/material.dart';
 
 import 'dose_calculator.dart';
 import 'syringe_widget.dart';
+import '../i18n/translations.g.dart';
 
 class CalculadoraReconstituicaoEcra extends StatefulWidget {
   const CalculadoraReconstituicaoEcra({super.key});
@@ -67,7 +71,6 @@ class _CalculadoraReconstituicaoEcraState
         concentracaoCtrl.text.isEmpty ||
         intervaloCtrl.text.isEmpty ||
         volumeCtrl.text.isEmpty) {
-      // O volume total também é necessário para calcular as doses totais
       setState(() {
         calcVolumeMl = 0.0;
         calcDoseUi = 0.0;
@@ -122,40 +125,38 @@ class _CalculadoraReconstituicaoEcraState
           }
         });
       }
-    } catch (e) {
-      // Ignora digitações incompletas silenciosamente
-    }
+    } catch (e) {}
   }
 
-  // (Mantenha a função _abrirCalculadoraDiluicao exatamente igual à versão anterior aqui)
   Future<void> _abrirCalculadoraDiluicao() async {
     final querUsar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.science, color: Color(0xFF1E3A8A)),
-            SizedBox(width: 8),
+            const Icon(Icons.science, color: Color(0xFF1E3A8A)),
+            const SizedBox(width: 8),
             Text(
-              'Diluição de Peptídeos',
-              style: TextStyle(color: Color(0xFF1E3A8A), fontSize: 18),
+              t.calculadora.diluicao_titulo,
+              style: const TextStyle(color: Color(0xFF1E3A8A), fontSize: 18),
             ),
           ],
         ),
-        content: const Text(
-          'Deseja calcular a reconstituição de um Pó Liofilizado (ex: Peptídeos, GH ou hCG)?\n\nIsto calculará automaticamente a Concentração cruzando a Massa Total do frasco com a quantidade de Água Bacteriostática inserida.',
-        ),
+        content: Text(t.calculadora.diluicao_desc),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Não'),
+            child: Text(t.geral.nao),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1E3A8A),
             ),
-            child: const Text('Sim', style: TextStyle(color: Colors.white)),
+            child: Text(
+              t.geral.sim,
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -166,27 +167,24 @@ class _CalculadoraReconstituicaoEcraState
     final passo1 = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Reconstituição\nPASSO 1 DE 2:',
-          style: TextStyle(fontSize: 16),
-        ),
+        title: Text(t.calculadora.passo1, style: const TextStyle(fontSize: 16)),
         content: TextField(
           controller: mgCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: "Massa Total do Liofilizado (mg ou UI)",
-            hintText: "Ex: 5 (para frascos de 5mg)",
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: t.calculadora.passo1_label,
+            hintText: t.calculadora.passo1_hint,
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Não'),
+            child: Text(t.geral.nao),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, mgCtrl.text),
-            child: const Text('OK'),
+            child: Text(t.geral.ok),
           ),
         ],
       ),
@@ -197,27 +195,24 @@ class _CalculadoraReconstituicaoEcraState
     final passo2 = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Reconstituição\nPASSO 2 DE 2:',
-          style: TextStyle(fontSize: 16),
-        ),
+        title: Text(t.calculadora.passo2, style: const TextStyle(fontSize: 16)),
         content: TextField(
           controller: mlCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: "Água Bacteriostática (mL)",
-            hintText: "Quantos mL vai injetar no pó?",
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: t.calculadora.passo2_label,
+            hintText: t.calculadora.passo2_hint,
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Não'),
+            child: Text(t.geral.nao),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, mlCtrl.text),
-            child: const Text('OK'),
+            child: Text(t.geral.ok),
           ),
         ],
       ),
@@ -241,8 +236,8 @@ class _CalculadoraReconstituicaoEcraState
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Diluição calculada com sucesso!'),
+          SnackBar(
+            content: Text(t.calculadora.msg_sucesso),
             backgroundColor: Colors.green,
           ),
         );
@@ -250,8 +245,8 @@ class _CalculadoraReconstituicaoEcraState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Valores inválidos.'),
+          SnackBar(
+            content: Text(t.calculadora.msg_invalido),
             backgroundColor: Colors.red,
           ),
         );
@@ -274,14 +269,8 @@ class _CalculadoraReconstituicaoEcraState
         value: SyringeSize.u100,
         child: Text('100 UI (1 mL)'),
       ),
-      const DropdownMenuItem(
-        value: SyringeSize.u300,
-        child: Text('Seringa 3 mL'),
-      ),
-      const DropdownMenuItem(
-        value: SyringeSize.u500,
-        child: Text('Seringa 5 mL'),
-      ),
+      const DropdownMenuItem(value: SyringeSize.u300, child: Text('3 mL')),
+      const DropdownMenuItem(value: SyringeSize.u500, child: Text('5 mL')),
     ];
 
     String strDoseFinal = unidadeSelecionada == 'mcg'
@@ -290,16 +279,16 @@ class _CalculadoraReconstituicaoEcraState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Calculadora de Injetáveis',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          t.calculadora.titulo,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Limpar Tudo',
+            tooltip: t.calculadora.limpar,
             onPressed: _limparTudo,
           ),
         ],
@@ -308,9 +297,9 @@ class _CalculadoraReconstituicaoEcraState
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            const Text(
-              '⚠️ Ferramenta educativa. Confirme doses com um profissional de saúde.',
-              style: TextStyle(
+            Text(
+              t.calculadora.aviso,
+              style: const TextStyle(
                 color: Colors.red,
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
@@ -327,9 +316,9 @@ class _CalculadoraReconstituicaoEcraState
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
-                      labelText: 'Volume Frasco (mL)',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: t.calculadora.volume,
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                 ),
@@ -346,12 +335,12 @@ class _CalculadoraReconstituicaoEcraState
                       }
                     },
                     decoration: InputDecoration(
-                      labelText: 'Concentração',
+                      labelText: t.calculadora.concentracao,
                       hintText: 'mg/mL',
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
                         icon: const Icon(Icons.calculate, color: Colors.blue),
-                        tooltip: 'Assistente de Reconstituição',
+                        tooltip: t.calculadora.assistente,
                         onPressed: _abrirCalculadoraDiluicao,
                       ),
                     ),
@@ -370,9 +359,9 @@ class _CalculadoraReconstituicaoEcraState
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
-                      labelText: 'Dose Semanal',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: t.calculadora.dose_semanal,
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                 ),
@@ -382,9 +371,9 @@ class _CalculadoraReconstituicaoEcraState
                   child: TextFormField(
                     controller: intervaloCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Intervalo (dias)',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: t.calculadora.intervalo,
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                 ),
@@ -398,9 +387,9 @@ class _CalculadoraReconstituicaoEcraState
                   flex: 4,
                   child: DropdownButtonFormField<String>(
                     initialValue: unidadeSelecionada,
-                    decoration: const InputDecoration(
-                      labelText: 'Unidade',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: t.calculadora.unidade,
+                      border: const OutlineInputBorder(),
                     ),
                     items: ['mg', 'mcg', 'UI', 'mL']
                         .map((e) => DropdownMenuItem(value: e, child: Text(e)))
@@ -418,38 +407,14 @@ class _CalculadoraReconstituicaoEcraState
                   flex: 6,
                   child: DropdownButtonFormField<SyringeSize>(
                     initialValue: seringaSelecionada,
-                    decoration: const InputDecoration(
-                      labelText: 'Seringa (UI)',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: t.calculadora.seringa,
+                      border: const OutlineInputBorder(),
                     ),
                     items: syringeOptions,
                     onChanged: (val) {
                       if (val != null) {
                         if (calcVolumeMl > val.maxMl) {
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Row(
-                                children: [
-                                  Icon(Icons.cancel, color: Colors.red),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Seringa Incompatível',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                ],
-                              ),
-                              content: Text(
-                                'O volume calculado é de $calcVolumeMl mL.\n\nNão é possível selecionar uma seringa de ${val.maxMl} mL.',
-                              ),
-                              actions: [
-                                ElevatedButton(
-                                  onPressed: () => Navigator.pop(ctx),
-                                  child: const Text('Entendido'),
-                                ),
-                              ],
-                            ),
-                          );
                           setState(() {});
                         } else {
                           setState(() => seringaSelecionada = val);
@@ -463,7 +428,6 @@ class _CalculadoraReconstituicaoEcraState
             ),
             const SizedBox(height: 24),
 
-            // 👇 CAIXA DE RESULTADOS UNIFICADA NO ESTILO DO SITE DE REFERÊNCIA
             Card(
               elevation: 4,
               clipBehavior: Clip.antiAlias,
@@ -477,10 +441,10 @@ class _CalculadoraReconstituicaoEcraState
                   Container(
                     color: const Color(0xFF1E3A8A),
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: const Text(
-                      'Resultados',
+                    child: Text(
+                      t.calculadora.resultados,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
@@ -493,17 +457,17 @@ class _CalculadoraReconstituicaoEcraState
                     child: calcVolumeMl == 0 || seringaSelecionada == null
                         ? Column(
                             children: [
-                              const Text(
-                                'Faça as seleções acima para calcular a quantidade de fluido aspirado para a dose desejada.',
+                              Text(
+                                t.calculadora.selecoes_vazias,
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 15,
                                   color: Color(0xFF1E3A8A),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              SyringeVisualizer(
+                              const SyringeVisualizer(
                                 syringeSize: SyringeSize.u100,
                                 filledUnits: 0,
                               ),
@@ -521,19 +485,17 @@ class _CalculadoraReconstituicaoEcraState
                                     height: 1.5,
                                   ),
                                   children: [
-                                    const TextSpan(text: 'Para a dose de '),
+                                    TextSpan(text: t.calculadora.res_para_dose),
                                     TextSpan(
                                       text: strDoseFinal,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    const TextSpan(
-                                      text: ', aspire o conteúdo da seringa até: ',
-                                    ),
+                                    TextSpan(text: t.calculadora.res_aspire),
                                     TextSpan(
                                       text:
-                                          '${calcVolumeMl.toStringAsFixed(2).replaceAll('.', ',')} mL ou ${calcDoseUi.toStringAsFixed(1).replaceAll('.0', '')} unidades.',
+                                          '${calcVolumeMl.toStringAsFixed(2).replaceAll('.', ',')}${t.calculadora.res_ou}${calcDoseUi.toStringAsFixed(1).replaceAll('.0', '')}${t.calculadora.res_unidades}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         decoration: TextDecoration.underline,
@@ -560,9 +522,7 @@ class _CalculadoraReconstituicaoEcraState
                                     height: 1.5,
                                   ),
                                   children: [
-                                    const TextSpan(
-                                      text: 'Concentração do frasco reconstituído:\n',
-                                    ),
+                                    TextSpan(text: t.calculadora.res_conc),
                                     TextSpan(
                                       text:
                                           '${concentracaoCtrl.text.replaceAll('.', ',')} mg/mL.',
@@ -585,15 +545,19 @@ class _CalculadoraReconstituicaoEcraState
                                     height: 1.5,
                                   ),
                                   children: [
-                                    const TextSpan(text: 'O frasco contém '),
+                                    TextSpan(text: t.calculadora.res_contem),
                                     TextSpan(
-                                      text: '$rendimentoDoses doses',
+                                      text:
+                                          '$rendimentoDoses${t.calculadora.res_doses}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         decoration: TextDecoration.underline,
                                       ),
                                     ),
-                                    TextSpan(text: ' de $strDoseFinal cada.'),
+                                    TextSpan(
+                                      text:
+                                          '${t.calculadora.res_de}$strDoseFinal${t.calculadora.res_cada}',
+                                    ),
                                   ],
                                 ),
                               ),
@@ -602,6 +566,48 @@ class _CalculadoraReconstituicaoEcraState
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 32),
+
+            const Divider(),
+            const SizedBox(height: 16),
+
+            Text(
+              t.calculadora.simulador_titulo,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E3A8A),
+              ),
+            ),
+            Text(
+              t.calculadora.simulador_desc,
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+
+            const PharmacokineticsChartWidget(
+              injections: [
+                InjectionEvent(
+                  day: 0,
+                  doseMg: 250,
+                  compound: Compound(
+                    name: 'Enantato',
+                    esterWeight: 0.70,
+                    halfLifeDays: 4.5,
+                  ),
+                ),
+                InjectionEvent(
+                  day: 7,
+                  doseMg: 250,
+                  compound: Compound(
+                    name: 'Enantato',
+                    esterWeight: 0.70,
+                    halfLifeDays: 4.5,
+                  ),
+                ),
+              ],
+              simulationDays: 30,
             ),
             const SizedBox(height: 32),
           ],

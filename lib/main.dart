@@ -18,6 +18,11 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'utils/calculadora_reconstituicao_ecra.dart';
+import 'utils/simulador_ciclos_ecra.dart'; // 👇 AQUI ESTÁ O IMPORT CORRETO
+
+import 'package:flutter_localizations/flutter_localizations.dart';
+
+import 'i18n/translations.g.dart';
 
 // ==========================================================
 // MOTOR DE NOTIFICAÇÕES CORRIGIDO
@@ -82,7 +87,9 @@ Future<void> atualizarAlarmesNativos() async {
           'id, data_aplicacao, local_aplicacao, medicamentos(nome, hora_aplicacao)',
         )
         .eq('user_id', userId)
-        .eq('status_aplicado', false);
+        .eq('status_aplicado', false)
+        .order('data_aplicacao', ascending: true)
+        .limit(60);
 
     for (var dose in pendentes) {
       DateTime dataBase = DateTime.parse(dose['data_aplicacao'].toString());
@@ -109,8 +116,11 @@ Future<void> atualizarAlarmesNativos() async {
 
         await agendarNotificacao(
           idNotificacao,
-          'Dia de Injeção! 💉',
-          'Hoje é dia de aplicar $nomeMed (${dose['local_aplicacao']}).',
+          t.notificacoes.titulo_injecao,
+          t.notificacoes.corpo_injecao(
+            medicamento: nomeMed,
+            local: dose['local_aplicacao'],
+          ),
           dataHoraExata,
         );
       }
@@ -129,13 +139,20 @@ Future<void> sairDaConta(BuildContext context) async {
   if (context.mounted) {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const AuthGate()),
-      (Route<dynamic> route) => false, // Apaga todo o histórico de telas
+      (Route<dynamic> route) => false,
     );
   }
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  LocaleSettings.useDeviceLocale();
+  final prefs = await SharedPreferences.getInstance();
+  final savedLocale = prefs.getString('app_locale');
+  if (savedLocale != null) {
+    LocaleSettings.setLocaleRaw(savedLocale);
+  }
 
   try {
     tz.initializeTimeZones();
@@ -175,39 +192,41 @@ void main() async {
       anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkd3JjcmtqdWRhZG53Y3FoZW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2OTUyODUsImV4cCI6MjEwNjI3MTI4NX0.0nzSgxmFp3Tc7PGcMKyBP3cTUrzXlR9mlj3NcVkQFUE',
     );
 
-    runApp(const InjetaveisApp());
+    runApp(TranslationProvider(child: const InjetaveisApp()));
   } catch (e, stackTrace) {
     debugPrint('Erro fatal na inicialização: $e\n$stackTrace');
 
     runApp(
-      MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          backgroundColor: Colors.white,
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.wifi_off, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Falha ao iniciar o aplicativo',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Verifique a sua ligação à internet e tente novamente. O aplicativo requer internet para sincronizar com o servidor seguro.',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Detalhe técnico: $e',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                ],
+      TranslationProvider(
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: Scaffold(
+            backgroundColor: Colors.white,
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.wifi_off, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text(
+                      t.erros.falha_app,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(t.erros.sem_internet, textAlign: TextAlign.center),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Detalhe técnico: $e',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -225,6 +244,9 @@ class InjetaveisApp extends StatelessWidget {
     return MaterialApp(
       title: 'Controle de Injetáveis',
       debugShowCheckedModeBanner: false,
+      locale: TranslationProvider.of(context).flutterLocale,
+      supportedLocales: AppLocaleUtils.supportedLocales,
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: ThemeData(
         primaryColor: const Color(0xFF1E3A8A),
         scaffoldBackgroundColor: Colors.grey[100],
@@ -249,11 +271,9 @@ class AuthGate extends StatelessWidget {
         }
         final session = snapshot.data?.session;
         if (session != null) {
-          // 👇 Se acabou de digitar a senha manualmente, vai direto para o Dashboard!
           if (sessaoRecemLogada) {
             return const DashboardEcra();
           }
-          // Só pede biometria num arranque a frio (quando abre o app noutro dia)
           return const BiometriaEcra();
         }
         return const LoginEcra();
@@ -276,7 +296,7 @@ class _LoginEcraState extends State<LoginEcra> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool carregando = false;
-  bool _ocultarSenha = true; // 👇 NOVA VARIÁVEL ADICIONADA AQUI
+  bool _ocultarSenha = true;
 
   String _traduzirErro(Object erro) {
     final String msg = erro.toString();
@@ -319,7 +339,7 @@ class _LoginEcraState extends State<LoginEcra> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
-      sessaoRecemLogada = true; // 👇 AVISA O SISTEMA QUE DIGITOU A SENHA AGORA
+      sessaoRecemLogada = true;
     } catch (e) {
       _mostrarAviso(_traduzirErro(e), Colors.red[700]!);
     }
@@ -333,7 +353,7 @@ class _LoginEcraState extends State<LoginEcra> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
-      sessaoRecemLogada = true; // 👇 AVISA O SISTEMA AQUI TAMBÉM
+      sessaoRecemLogada = true;
       _mostrarAviso(
         'Conta criada! Verifique o seu email (e a pasta SPAM) para confirmar.',
         Colors.green[700]!,
@@ -405,9 +425,9 @@ class _LoginEcraState extends State<LoginEcra> {
                         color: Color(0xFF1E3A8A),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Controle de Injetáveis',
-                        style: TextStyle(
+                      Text(
+                        t.login.titulo, // 👇 Traduzido
+                        style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF1E3A8A),
@@ -418,22 +438,21 @@ class _LoginEcraState extends State<LoginEcra> {
                       TextField(
                         controller: emailController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.email),
+                        decoration: InputDecoration(
+                          labelText: t.login.email, // 👇 Traduzido
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.email),
                         ),
                       ),
                       const SizedBox(height: 16),
                       TextField(
                         controller: passwordController,
-                        obscureText: _ocultarSenha, // 👇 LIGADO À VARIÁVEL
+                        obscureText: _ocultarSenha,
                         decoration: InputDecoration(
-                          labelText: 'Palavra-passe',
+                          labelText: t.login.senha, // 👇 Traduzido
                           border: const OutlineInputBorder(),
                           prefixIcon: const Icon(Icons.lock),
                           suffixIcon: IconButton(
-                            // 👇 NOVO BOTÃO DO OLHO
                             icon: Icon(
                               _ocultarSenha
                                   ? Icons.visibility
@@ -465,9 +484,11 @@ class _LoginEcraState extends State<LoginEcra> {
                                   vertical: 16,
                                 ),
                               ),
-                              child: const Text(
-                                'ENTRAR',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                              child: Text(
+                                t.login.entrar, // 👇 Traduzido
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -479,15 +500,15 @@ class _LoginEcraState extends State<LoginEcra> {
                                   vertical: 16,
                                 ),
                               ),
-                              child: const Text('CRIAR NOVA CONTA'),
+                              child: Text(t.login.criar_conta), // 👇 Traduzido
                             ),
 
                             const SizedBox(height: 8),
                             TextButton(
                               onPressed: recuperarSenha,
-                              child: const Text(
-                                'Esqueci minha senha',
-                                style: TextStyle(
+                              child: Text(
+                                t.login.esqueci_senha, // 👇 Traduzido
+                                style: const TextStyle(
                                   color: Colors.red,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -615,7 +636,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
   int diasParaExame = 999;
   bool exigeExames = false;
 
-  // 👇 NOVA VARIÁVEL DO CHECKLIST
   Map<String, dynamic>? agendamentoAtivo;
 
   Widget _formatarTextoDose(String textoOriginal) {
@@ -678,14 +698,8 @@ class _DashboardEcraState extends State<DashboardEcra> {
   }
 
   Future<void> _arranqueSeguro() async {
-    // 1. Liga o spinner de carregamento manualmente
     setState(() => carregando = true);
-
-    // 2. Faz o download do Agendamento e dos Exames ao mesmo tempo (em paralelo)
     await Future.wait([_verificarAgendamentoAtivo(), _calcularExames()]);
-
-    // 3. Por fim, carrega o Resumo. Como ele possui a instrução "carregando = false"
-    // no final do seu código, a tela só será exibida quando TUDO estiver 100% pronto.
     await _carregarResumo();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -694,9 +708,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
     });
   }
 
-  // ==========================================================
-  // INTELIGÊNCIA DO CHECKLIST PRÉ-EXAME
-  // ==========================================================
   Future<void> _verificarAgendamentoAtivo() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return;
@@ -705,7 +716,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
           .from('agendamento_exames')
           .select()
           .eq('user_id', userId)
-          // 👇 CORREÇÃO: Agora busca a última ação que o usuário fez, e não a data mais distante!
           .order('criado_em', ascending: false)
           .limit(1);
 
@@ -744,7 +754,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
   void _abrirChecklistExames() {
     if (agendamentoAtivo == null) return;
 
-    // Puxa o estado atual do banco para preencher as Checkboxes
     bool cienteJejum = agendamentoAtivo!['ciente_jejum'] ?? false;
     bool cienteTreino = agendamentoAtivo!['ciente_treino'] ?? false;
     bool cienteProstata = agendamentoAtivo!['ciente_prostata'] ?? false;
@@ -777,10 +786,10 @@ class _DashboardEcraState extends State<DashboardEcra> {
                           size: 32,
                         ),
                         const SizedBox(width: 8),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Protocolo Pré-Exame',
-                            style: TextStyle(
+                            t.exames.checklist_titulo, // 👇 Traduzido
+                            style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: Colors.black87,
@@ -794,9 +803,12 @@ class _DashboardEcraState extends State<DashboardEcra> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Confirme as regras abaixo para evitar falsos positivos nos seus resultados hormonais.',
-                      style: TextStyle(color: Colors.black54, fontSize: 14),
+                    Text(
+                      t.exames.checklist_subtitulo, // 👇 Traduzido
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 14,
+                      ),
                     ),
                     const Divider(height: 24),
                     Expanded(
@@ -804,96 +816,84 @@ class _DashboardEcraState extends State<DashboardEcra> {
                         children: [
                           CheckboxListTile(
                             activeColor: Colors.green,
-                            title: const Text(
-                              '1. Jejum Estrito (8 a 12h)',
-                              style: TextStyle(
+                            title: Text(
+                              t.exames.item1_tit,
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
-                            ),
-                            subtitle: const Text(
-                              'Obrigatório para Insulina Basal e Glicemia. Máximo 14h. Beba bastante água, está liberada!',
-                            ),
+                            ), // 👇 Traduzido
+                            subtitle: Text(t.exames.item1_desc), // 👇 Traduzido
                             value: cienteJejum,
                             onChanged: (val) =>
                                 setStateSheet(() => cienteJejum = val!),
                           ),
                           CheckboxListTile(
                             activeColor: Colors.green,
-                            title: const Text(
-                              '2. Pausa nos Treinos (48h)',
-                              style: TextStyle(
+                            title: Text(
+                              t.exames.item2_tit,
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
                             ),
-                            subtitle: const Text(
-                              'Suspenda a musculação. Microlesões elevam falsamente a CPK (dano muscular), Creatinina e TGO (AST).',
-                            ),
+                            subtitle: Text(t.exames.item2_desc),
                             value: cienteTreino,
                             onChanged: (val) =>
                                 setStateSheet(() => cienteTreino = val!),
                           ),
                           CheckboxListTile(
                             activeColor: Colors.green,
-                            title: const Text(
-                              '3. Repouso Pélvico (72h)',
-                              style: TextStyle(
+                            title: Text(
+                              t.exames.item3_tit,
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
                             ),
-                            subtitle: const Text(
-                              'Sem ejaculação (evita picos falsos de Prolactina e PSA). Não ande de moto, bicicleta ou cavalo.',
-                            ),
+                            subtitle: Text(t.exames.item3_desc),
                             value: cienteProstata,
                             onChanged: (val) =>
                                 setStateSheet(() => cienteProstata = val!),
                           ),
                           CheckboxListTile(
                             activeColor: Colors.green,
-                            title: const Text(
-                              '4. Proteção Hepática (72h)',
-                              style: TextStyle(
+                            title: Text(
+                              t.exames.item4_tit,
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
                             ),
-                            subtitle: const Text(
-                              'Zero álcool para não gerar picos agudos de Gama-GT, Triglicerídeos e inflamação sistêmica (PCR).',
-                            ),
+                            subtitle: Text(t.exames.item4_desc),
                             value: cienteFigado,
                             onChanged: (val) =>
                                 setStateSheet(() => cienteFigado = val!),
                           ),
                           CheckboxListTile(
                             activeColor: Colors.green,
-                            title: const Text(
-                              '5. Horário da Coleta',
-                              style: TextStyle(
+                            title: Text(
+                              t.exames.item5_tit,
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
                             ),
-                            subtitle: const Text(
-                              'Coleta estrita entre 07h e 09h da manhã para pegar Testosterona, TSH e Prolactina no pico basal.',
-                            ),
+                            subtitle: Text(t.exames.item5_desc),
                             value: cienteHorario,
                             onChanged: (val) =>
                                 setStateSheet(() => cienteHorario = val!),
                           ),
                           CheckboxListTile(
                             activeColor: Colors.green,
-                            title: const Text(
-                              '6. Fidelidade ao Ciclo',
-                              style: TextStyle(
+                            title: Text(
+                              t.exames.item6_tit,
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
                             ),
-                            subtitle: const Text(
-                              'Não pause ou atrase as injeções no app. O exame deve refletir a cinética hormonal real do seu corpo.',
-                            ),
+                            subtitle: Text(t.exames.item6_desc),
                             value: cienteFidelidade,
                             onChanged: (val) =>
                                 setStateSheet(() => cienteFidelidade = val!),
@@ -939,9 +939,9 @@ class _DashboardEcraState extends State<DashboardEcra> {
                           }
                         },
                         icon: const Icon(Icons.verified, color: Colors.white),
-                        label: const Text(
-                          'CONFIRMAR CHECKLIST',
-                          style: TextStyle(
+                        label: Text(
+                          t.exames.btn_confirmar, // 👇 Traduzido
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
@@ -1174,38 +1174,34 @@ class _DashboardEcraState extends State<DashboardEcra> {
         return;
       }
 
-      // 👇 NOVA MATRIZ DE EXAMES BASE (Inclui os pedidos do Médico do Esporte)
       Set<String> exames = {
-        'Hemograma Completo',
-        'Marcadores Inflamatórios (PCR e Ferritina)',
-        'Perfil Lipídico (Colesterol Total, HDL, LDL, VLDL, Triglicerídeos)',
-        'Função Hepática (TGO, TGP, Gama-GT)',
-        'Função Renal (Ureia e Creatinina)',
-        'Dano Muscular (CPK)',
+        t.exames.nomes.hemo,
+        t.exames.nomes.marcadores,
+        t.exames.nomes.lipidico,
+        t.exames.nomes.figado,
+        t.exames.nomes.rim,
+        t.exames.nomes.cpk,
       };
 
-      // 👇 PAINEL HORMONAL AVANÇADO
       if (isHormonal) {
         exames.addAll([
-          'Testosterona Total e Livre',
-          'Estradiol (E2)',
-          'SHBG',
-          'DHT (Di-hidrotestosterona)',
-          'Prolactina',
-          'Tireoide (TSH e T4 Livre)',
+          t.exames.nomes.testo,
+          t.exames.nomes.e2,
+          t.exames.nomes.shbg,
+          t.exames.nomes.dht,
+          t.exames.nomes.prolactina,
+          t.exames.nomes.tireoide,
         ]);
-        // Mantém a regra inteligente para a próstata
         if (genero == 'Masculino' && idade >= 40) {
-          exames.add('PSA Total e Livre (Próstata)');
+          exames.add(t.exames.nomes.psa);
         }
       }
 
-      // 👇 PAINEL METABÓLICO E GLICÊMICO (Obrigatório para GLP-1 ou Hormônios)
       if (isMetabolico || isHormonal) {
         exames.addAll([
-          'Glicemia em Jejum',
-          'Insulina Basal',
-          'Hemoglobina Glicada (HbA1c)',
+          t.exames.nomes.glicemia,
+          t.exames.nomes.insulina,
+          t.exames.nomes.hba1c,
         ]);
       }
 
@@ -1275,9 +1271,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
     }
   }
 
-  // ==========================================================
-  // NOVO MOTOR DE AGENDAMENTO DE EXAMES
-  // ==========================================================
   Future<void> _agendarExameFuturo() async {
     final dataEscolhida = await showDatePicker(
       context: context,
@@ -1344,13 +1337,13 @@ class _DashboardEcraState extends State<DashboardEcra> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.biotech, color: Colors.indigo, size: 32),
-                    SizedBox(width: 8),
+                    const Icon(Icons.biotech, color: Colors.indigo, size: 32),
+                    const SizedBox(width: 8),
                     Text(
-                      'Sugestão de Laboratório',
-                      style: TextStyle(
+                      t.exames.painel_titulo, // 👇 Traduzido
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.indigo,
@@ -1359,9 +1352,9 @@ class _DashboardEcraState extends State<DashboardEcra> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Abaixo está a lista gerada de forma personalizada pelo algoritmo. Agende a data da sua coleta para iniciar o protocolo de preparação.',
-                  style: TextStyle(color: Colors.black87),
+                Text(
+                  t.exames.painel_subtitulo, // 👇 Traduzido
+                  style: const TextStyle(color: Colors.black87),
                 ),
                 const SizedBox(height: 16),
                 ...listaExamesSugeridos.map(
@@ -1386,16 +1379,15 @@ class _DashboardEcraState extends State<DashboardEcra> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton.icon(
                     onPressed: _agendarExameFuturo,
                     icon: const Icon(Icons.edit_calendar, color: Colors.white),
-                    label: const Text(
-                      'AGENDAR DATA DA COLETA',
-                      style: TextStyle(
+                    label: Text(
+                      t.exames.btn_agendar, // 👇 Traduzido
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1409,16 +1401,15 @@ class _DashboardEcraState extends State<DashboardEcra> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: OutlinedButton.icon(
                     onPressed: _registarExameFeito,
                     icon: const Icon(Icons.history, color: Color(0xFF1E3A8A)),
-                    label: const Text(
-                      'JÁ FIZ A COLETA NO LABORATÓRIO',
-                      style: TextStyle(
+                    label: Text(
+                      t.exames.btn_ja_fiz, // 👇 Traduzido
+                      style: const TextStyle(
                         color: Color(0xFF1E3A8A),
                         fontWeight: FontWeight.bold,
                       ),
@@ -1451,21 +1442,18 @@ class _DashboardEcraState extends State<DashboardEcra> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // 👇 Título encurtado para evitar o corte em ecrãs menores
-        title: const Text(
-          'Tratamento',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          t.dashboard.titulo, // 👇 Traduzido
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
         actions: [
-          // 👇 Ícone atualizado para a imagem da seringa
           IconButton(
             icon: Image.asset(
               'assets/seringa_icon.png',
               width: 44,
               height: 44,
-              // Caso a imagem falhe a carregar, mostra o ícone antigo como fallback
               errorBuilder: (context, error, stackTrace) =>
                   const Icon(Icons.calculate),
             ),
@@ -1477,7 +1465,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
               ),
             ),
           ),
-
           IconButton(
             icon: const Icon(Icons.help_outline),
             tooltip: 'Guia e Termos',
@@ -1497,7 +1484,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sair',
-            onPressed: () => sairDaConta(context), // 👇 Atualizado
+            onPressed: () => sairDaConta(context),
           ),
         ],
       ),
@@ -1509,22 +1496,20 @@ class _DashboardEcraState extends State<DashboardEcra> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      'Resumo Clínico',
-                      style: TextStyle(
+                    Text(
+                      t.dashboard.resumo_clinico, // 👇 Traduzido
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF1E3A8A),
                       ),
                     ),
                     const SizedBox(height: 16),
-
                     Expanded(
                       child: SingleChildScrollView(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // 👇 1. CARD LARANJA (SÓ APARECE FALTANDO 3 DIAS OU MENOS)
                             if (agendamentoAtivo != null &&
                                 agendamentoAtivo!['dias_restantes'] <= 3)
                               Card(
@@ -1557,7 +1542,11 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                               agendamentoAtivo!['dias_restantes'] ==
                                                       0
                                                   ? 'A coleta de sangue é HOJE!'
-                                                  : 'Atenção! Coleta em ${agendamentoAtivo!['dias_restantes']} dia(s)',
+                                                  : t.dashboard_alertas
+                                                        .atencao_coleta(
+                                                          dias:
+                                                              agendamentoAtivo!['dias_restantes'],
+                                                        ),
                                               style: TextStyle(
                                                 fontSize: 18,
                                                 fontWeight: FontWeight.bold,
@@ -1568,9 +1557,9 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                         ],
                                       ),
                                       const SizedBox(height: 8),
-                                      const Text(
-                                        'O seu período de proteção laboratorial começou. Abra o checklist clínico para não invalidar os resultados.',
-                                        style: TextStyle(
+                                      Text(
+                                        t.dashboard_alertas.texto_protecao,
+                                        style: const TextStyle(
                                           fontSize: 14,
                                           color: Colors.black87,
                                         ),
@@ -1584,9 +1573,11 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                             Icons.checklist,
                                             color: Colors.white,
                                           ),
-                                          label: const Text(
-                                            'ABRIR CHECKLIST CLÍNICO',
-                                            style: TextStyle(
+                                          label: Text(
+                                            t
+                                                .dashboard_alertas
+                                                .btn_abrir_checklist,
+                                            style: const TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: Colors.white,
                                             ),
@@ -1600,11 +1591,8 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                   ),
                                 ),
                               ),
-
-                            // 👇 2. CARD PRINCIPAL DE EXAMES (AGORA DINÂMICO E INTELIGENTE)
                             if (exigeExames && proximaDataExame != null)
                               Card(
-                                // Se estiver agendado fica Indigo/Azul. Se não, usa as cores antigas do algoritmo
                                 color: agendamentoAtivo != null
                                     ? Colors.indigo[50]
                                     : (diasParaExame <= 0
@@ -1652,7 +1640,9 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                           Expanded(
                                             child: Text(
                                               agendamentoAtivo != null
-                                                  ? 'Coleta Agendada'
+                                                  ? t
+                                                        .dashboard_alertas
+                                                        .coleta_agendada
                                                   : (diasParaExame <= 0
                                                         ? 'Exames Atrasados'
                                                         : (diasParaExame <= 15
@@ -1678,7 +1668,12 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                       const SizedBox(height: 8),
                                       Text(
                                         agendamentoAtivo != null
-                                            ? 'Você possui exames agendados para daqui a ${agendamentoAtivo!['dias_restantes']} dias (${(agendamentoAtivo!['data_obj'] as DateTime).day.toString().padLeft(2, '0')}/${(agendamentoAtivo!['data_obj'] as DateTime).month.toString().padLeft(2, '0')}).'
+                                            ? t.dashboard_alertas.texto_exames(
+                                                dias:
+                                                    agendamentoAtivo!['dias_restantes'],
+                                                data:
+                                                    '${(agendamentoAtivo!['data_obj'] as DateTime).day.toString().padLeft(2, '0')}/${(agendamentoAtivo!['data_obj'] as DateTime).month.toString().padLeft(2, '0')}',
+                                              )
                                             : (diasParaExame <= 0
                                                   ? 'A sua janela ideal de exames de controle já começou! Veja o que solicitar ao seu médico.'
                                                   : 'Próxima coleta sugerida em $diasParaExame dias (${proximaDataExame!.day.toString().padLeft(2, '0')}/${proximaDataExame!.month.toString().padLeft(2, '0')}).'),
@@ -1693,18 +1688,19 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                         child: OutlinedButton(
                                           onPressed: _abrirPainelExames,
                                           style: OutlinedButton.styleFrom(
-                                            // 👇 Usando a cor primária para texto e borda
                                             foregroundColor: const Color(
                                               0xFF1E3A8A,
                                             ),
                                             side: const BorderSide(
                                               color: Color(0xFF1E3A8A),
-                                              width: 1.5, // 👇 Borda um pouco mais espessa para destaque
+                                              width: 1.5,
                                             ),
                                           ),
                                           child: Text(
                                             agendamentoAtivo != null
-                                                ? 'VER PAINEL E REAGENDAR'
+                                                ? t
+                                                      .dashboard_alertas
+                                                      .btn_ver_painel
                                                 : 'VER PAINEL SUGERIDO',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
@@ -1717,7 +1713,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                 ),
                               ),
                             if (exigeExames) const SizedBox(height: 16),
-
                             Card(
                               color: Colors.blue[50],
                               elevation: 4,
@@ -1729,17 +1724,17 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Row(
+                                    Row(
                                       children: [
-                                        Icon(
+                                        const Icon(
                                           Icons.notification_important,
                                           color: Colors.blue,
                                           size: 28,
                                         ),
-                                        SizedBox(width: 8),
+                                        const SizedBox(width: 8),
                                         Text(
-                                          'Próxima Aplicação',
-                                          style: TextStyle(
+                                          t.dashboard.proxima_aplicacao, // 👇 Traduzido
+                                          style: const TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
                                             color: Colors.blue,
@@ -1778,19 +1773,19 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                                 ),
                                               ),
                                               Text(
-                                                'Data: ${_formatarData(dose['data_aplicacao'])}',
+                                                '${t.dashboard_alertas.label_data}${_formatarData(dose['data_aplicacao'])}',
                                                 style: const TextStyle(
                                                   fontSize: 14,
                                                 ),
                                               ),
                                               Text(
-                                                'Local: ${dose['local_aplicacao']}',
+                                                '${t.dashboard_alertas.label_local}${dose['local_aplicacao']}',
                                                 style: const TextStyle(
                                                   fontSize: 14,
                                                 ),
                                               ),
                                               _formatarTextoDose(
-                                                'Dose: ${dose['dose_ajustada']}',
+                                                '${t.dashboard_alertas.label_dose}${dose['dose_ajustada']}',
                                               ),
                                             ],
                                           ),
@@ -1816,17 +1811,19 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Row(
+                                    Row(
                                       children: [
-                                        Icon(
+                                        const Icon(
                                           Icons.check_circle,
                                           color: Colors.green,
                                           size: 24,
                                         ),
-                                        SizedBox(width: 8),
+                                        const SizedBox(width: 8),
                                         Text(
-                                          'Última Aplicação',
-                                          style: TextStyle(
+                                          t
+                                              .dashboard
+                                              .ultima_aplicacao, // 👇 Traduzido
+                                          style: const TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
                                             color: Colors.green,
@@ -1855,7 +1852,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                                 ),
                                               ),
                                               Text(
-                                                'Data: ${_formatarData(dose['data_aplicacao'])}',
+                                                '${t.dashboard_alertas.label_data}${_formatarData(dose['data_aplicacao'])}',
                                               ),
                                             ],
                                           ),
@@ -1874,7 +1871,6 @@ class _DashboardEcraState extends State<DashboardEcra> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: () {
@@ -1884,14 +1880,13 @@ class _DashboardEcraState extends State<DashboardEcra> {
                             builder: (context) => const SetupEcra(),
                           ),
                         ).then((_) {
-                          // 👇 Agora chama o arranque completo e perfeitamente sincronizado
                           _arranqueSeguro();
                         });
                       },
                       icon: const Icon(Icons.settings, color: Colors.white),
-                      label: const Text(
-                        'GERIR MEDICAMENTOS',
-                        style: TextStyle(
+                      label: Text(
+                        t.dashboard.gerir_medicamentos, // 👇 Traduzido
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1913,7 +1908,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
 }
 
 // ==========================================================
-// BANCO DE MEDICAMENTOS
+// BANCO DE MEDICAMENTOS (SetupEcra)
 // ==========================================================
 class SetupEcra extends StatefulWidget {
   const SetupEcra({super.key});
@@ -2067,9 +2062,9 @@ class _SetupEcraState extends State<SetupEcra> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Banco de Medicamentos',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          t.setup.titulo, // 👇 Traduzido
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
@@ -2086,9 +2081,12 @@ class _SetupEcraState extends State<SetupEcra> {
         },
         backgroundColor: Colors.green[700],
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'NOVO',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        label: Text(
+          t.setup.btn_novo, // 👇 Traduzido
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: FutureBuilder<List<dynamic>>(
@@ -2101,109 +2099,175 @@ class _SetupEcraState extends State<SetupEcra> {
             return Center(child: Text('Erro: ${snapshot.error}'));
           }
           final medicamentos = snapshot.data ?? [];
-          if (medicamentos.isEmpty) {
-            return const Center(child: Text('Nenhum medicamento configurado.'));
-          }
 
-          return ListView.builder(
+          return ListView(
             padding: const EdgeInsets.all(16),
-            itemCount: medicamentos.length,
-            itemBuilder: (context, index) {
-              final med = medicamentos[index];
-              return InkWell(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CronogramaEcra(medicamento: med),
+            children: [
+              if (medicamentos.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24.0),
+                  child: Center(
+                    child: Text(
+                      t.setup.nenhum_medicamento, // 👇 Traduzido
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.black54,
+                      ),
+                    ),
                   ),
-                ),
-                child: Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                )
+              else
+                ...medicamentos.map((med) {
+                  return InkWell(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CronogramaEcra(medicamento: med),
+                      ),
+                    ),
+                    child: Card(
+                      elevation: 3,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Text(
-                                med['nome'],
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E3A8A),
-                                ),
-                              ),
-                            ),
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    color: Colors.orange,
-                                  ),
-                                  onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          FormularioMedicamentoEcra(
-                                            medicamentoEditado: med,
-                                          ),
+                                Expanded(
+                                  child: Text(
+                                    med['nome'],
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E3A8A),
                                     ),
-                                  ).then((_) => setState(() {})),
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
                                   ),
-                                  onPressed: () =>
-                                      _deletarMedicamento(med['id']),
                                 ),
-                                const Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: Colors.grey,
-                                  size: 16,
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        color: Colors.orange,
+                                      ),
+                                      onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              FormularioMedicamentoEcra(
+                                                medicamentoEditado: med,
+                                              ),
+                                        ),
+                                      ).then((_) => setState(() {})),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                      ),
+                                      onPressed: () =>
+                                          _deletarMedicamento(med['id']),
+                                    ),
+                                    const Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: Colors.grey,
+                                      size: 16,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
+                            const Divider(),
+                            if (med['detalhes_dose'] != null &&
+                                med['detalhes_dose'].toString().isNotEmpty) ...[
+                              _formatarTextoDose(
+                                'Dose: ${med['detalhes_dose']}',
+                              ),
+                              const SizedBox(height: 4),
+                            ] else if (med['dose_semanal'] != null &&
+                                med['dose_semanal'] > 0) ...[
+                              Text(
+                                'Dose Semanal: ${med['dose_semanal']} ${med['unidade_dose'] ?? 'mg'}',
+                                style: const TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                            ],
+                            Text(
+                              (med['tipo_frequencia'] == 'dias_semana' &&
+                                      med['dias_semana'] != null &&
+                                      med['dias_semana'].toString().isNotEmpty)
+                                  ? '${t.formulario.freq_dias_semana}: ${med['dias_semana'].toString().split(',').map((d) => t.formulario.dias_semana[d.toString()]!).join(', ')}'
+                                  : t.complementos.intervalo_cada(
+                                      dias: med['intervalo_dias'] ?? 1,
+                                    ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
                           ],
                         ),
-                        const Divider(),
-                        if (med['detalhes_dose'] != null &&
-                            med['detalhes_dose'].toString().isNotEmpty) ...[
-                          _formatarTextoDose('Dose: ${med['detalhes_dose']}'),
-                          const SizedBox(height: 4),
-                        ] else if (med['dose_semanal'] != null &&
-                            med['dose_semanal'] > 0) ...[
-                          Text(
-                            'Dose Semanal: ${med['dose_semanal']} ${med['unidade_dose'] ?? 'mg'}',
-                            style: const TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                        ],
-                        Text(
-                          'Intervalo: A cada ${med['intervalo_dias']} dias',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
+                      ),
+                    ),
+                  );
+                }),
+
+              const SizedBox(height: 24),
+              const Divider(thickness: 2),
+              const SizedBox(height: 24),
+
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Color(0xFF1E3A8A), width: 1),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFF1E3A8A),
+                    child: Icon(Icons.auto_graph, color: Colors.white),
+                  ),
+                  title: Text(
+                    t.setup.simulador_titulo, // 👇 Traduzido
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E3A8A),
                     ),
                   ),
+                  subtitle: Text(
+                    t.setup.simulador_subtitulo, // 👇 Traduzido
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  trailing: const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SimuladorCiclosEcra(),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+              const SizedBox(height: 64),
+            ],
           );
         },
       ),
@@ -2211,9 +2275,6 @@ class _SetupEcraState extends State<SetupEcra> {
   }
 }
 
-// ==========================================================
-// ECRÃ DE CRIAÇÃO (COM ALERTA MÉDICO DE LESÃO)
-// ==========================================================
 class FormularioMedicamentoEcra extends StatefulWidget {
   final Map<String, dynamic>? medicamentoEditado;
   const FormularioMedicamentoEcra({super.key, this.medicamentoEditado});
@@ -2228,13 +2289,16 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   final supabase = Supabase.instance.client;
   bool carregando = false;
 
-  List<Map<String, dynamic>> listaCatalogo = [];
+  List<dynamic> listaCatalogo = [];
   String? nomeSelecionado;
   bool modoNovoMedicamento = true;
   bool modoEdicao = false;
 
   bool _isMix = false;
-  List<Map<String, dynamic>> medicamentosBaseMix = [];
+  List<dynamic> medicamentosBaseMix = [];
+
+  String tipoFrequencia = 'intervalo';
+  List<int> diasSemanaSelecionados = [];
 
   final nomeCtrl = TextEditingController();
   final ampolasCtrl = TextEditingController();
@@ -2247,7 +2311,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   String? unidadeSelecionada;
   int? seringaSelecionada;
 
-  // 👇 NOVAS VARIÁVEIS AQUI
   String? regiaoSelecionada;
   List<String> regioesSelecionadasList = [];
 
@@ -2275,10 +2338,22 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       doseCtrl.text = widget.medicamentoEditado!['dose_semanal'].toString();
       intervaloCtrl.text = widget.medicamentoEditado!['intervalo_dias']
           .toString();
+
+      if (widget.medicamentoEditado!['tipo_frequencia'] != null) {
+        tipoFrequencia = widget.medicamentoEditado!['tipo_frequencia'];
+      }
+      if (widget.medicamentoEditado!['dias_semana'] != null &&
+          widget.medicamentoEditado!['dias_semana'].toString().isNotEmpty) {
+        diasSemanaSelecionados = widget.medicamentoEditado!['dias_semana']
+            .toString()
+            .split(',')
+            .map((e) => int.parse(e))
+            .toList();
+      }
+
       unidadeSelecionada = widget.medicamentoEditado!['unidade_dose'];
       seringaSelecionada = widget.medicamentoEditado!['seringa_ui'];
 
-      // 👇 BLOCO SUBSTITUÍDO: Lida com a lista desmembrada do banco
       if (widget.medicamentoEditado!['regiao_rodizio'] != null) {
         regiaoSelecionada = widget.medicamentoEditado!['regiao_rodizio'];
         regioesSelecionadasList = regiaoSelecionada!.split(', ');
@@ -2327,7 +2402,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   Future<void> _carregarCatalogo() async {
     try {
       final resposta = await supabase.rpc('obter_nomes_unicos');
-      List<Map<String, dynamic>> listaProcessada = [];
+      List<dynamic> listaProcessada = [];
 
       for (var item in resposta) {
         String nomeReal = item['nome'].toString();
@@ -2377,28 +2452,24 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       intervaloCtrl.clear();
       unidadeSelecionada = null;
       seringaSelecionada = null;
-
-      // 👇 TRAVA DE SEGURANÇA: Limpa também os arrays de Região
       regiaoSelecionada = null;
       regioesSelecionadasList = [];
-
       _isMix = false;
       textoDetalhesDose = '';
       calcVolumeMl = 0.0;
     });
   }
 
-  // 👇 NOVA FUNÇÃO: Motor Multi-Select
   Future<void> _abrirSeletorLocais() async {
     final locaisDisponiveis = [
-      'Ventro Glúteo (IM)',
-      'Vasto Lateral (IM)',
-      'Deltoide (IM)',
-      'Glúteo Superior (IM)',
-      'Barriga (SC)',
-      'Flanco (SC)',
-      'Perna Anterior (SC)',
-      'Braço Tríceps (SC)',
+      t.regioes.ventro_gluteo,
+      t.regioes.vasto_lateral,
+      t.regioes.deltoide,
+      t.regioes.gluteo_superior,
+      t.regioes.barriga,
+      t.regioes.flanco,
+      t.regioes.perna_anterior,
+      t.regioes.braco_triceps,
     ];
     List<String> tempSelecionados = List.from(regioesSelecionadasList);
 
@@ -2473,13 +2544,14 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     }
     setState(() => carregando = false);
 
-    List<Map<String, dynamic>> listaMisturavel =
-        List<Map<String, dynamic>>.from(meusMedicamentos).where((m) {
+    List<dynamic> listaMisturavel = List<dynamic>.from(meusMedicamentos)
+        .where((m) {
           final n = m['nome'].toString();
           return !n.startsWith('Mix') &&
               !n.startsWith('[Oculto]') &&
               !n.startsWith('[Arquivado]');
-        }).toList();
+        })
+        .toList();
 
     if (listaMisturavel.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2493,9 +2565,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       return;
     }
 
-    List<Map<String, dynamic>> selecionados = List.from(medicamentosBaseMix);
+    List<dynamic> selecionados = List<dynamic>.from(medicamentosBaseMix);
 
-    final resultado = await showDialog<List<Map<String, dynamic>>>(
+    final resultado = await showDialog(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
@@ -2612,7 +2684,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           intervaloCtrl.text = intRef.toString();
           seringaSelecionada = serRef;
 
-          // 👇 TRAVA DE SEGURANÇA: Mantém o Array e a String alinhados ao Herdar
           regiaoSelecionada = regRef;
           if (regRef != null) {
             regioesSelecionadasList = regRef.split(', ');
@@ -2662,7 +2733,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       setState(() => unidadeSelecionada = med['unidade'].toString());
     }
 
-    // 👇 TRAVA DE SEGURANÇA NO PREENCHIMENTO AUTOMÁTICO
     if (med['regiao_base'] != null) {
       setState(() {
         regiaoSelecionada = med['regiao_base'].toString();
@@ -2719,7 +2789,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           textoDetalhesDose = partes.join(' + ');
           calcVolumeMl = totalMl;
 
-          // 👇 INTELIGÊNCIA DA SERINGA
           if (seringaSelecionada == null ||
               calcVolumeMl > seringaSelecionada! / 100.0) {
             if (calcVolumeMl <= 0.3) {
@@ -2738,8 +2807,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     } else {
       if (doseCtrl.text.isEmpty ||
           concentracaoCtrl.text.isEmpty ||
-          intervaloCtrl.text.isEmpty ||
-          unidadeSelecionada == null) {
+          unidadeSelecionada == null ||
+          (tipoFrequencia == 'intervalo' && intervaloCtrl.text.isEmpty) ||
+          (tipoFrequencia == 'dias_semana' && diasSemanaSelecionados.isEmpty)) {
         setState(() {
           textoDetalhesDose = '';
           calcVolumeMl = 0.0;
@@ -2751,13 +2821,21 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         double concentracao = double.parse(
           concentracaoCtrl.text.replaceAll(',', '.'),
         );
-        int intervalo = int.parse(intervaloCtrl.text.replaceAll(',', '.'));
 
         if (concentracao > 0) {
           setState(() {
-            double fator = (intervalo == 3)
-                ? (doseSemanal / 2)
-                : ((doseSemanal / 7) * intervalo);
+            double fator = 0;
+            if (tipoFrequencia == 'dias_semana') {
+              fator = doseSemanal / diasSemanaSelecionados.length;
+            } else {
+              int intervalo = int.parse(
+                intervaloCtrl.text.replaceAll(',', '.'),
+              );
+              fator = (intervalo == 3)
+                  ? (doseSemanal / 2)
+                  : ((doseSemanal / 7) * intervalo);
+            }
+
             double doseMg = (unidadeSelecionada == 'mL')
                 ? (fator * concentracao)
                 : fator;
@@ -2767,7 +2845,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
             textoDetalhesDose =
                 '${doseMg.toStringAsFixed(2).replaceAll('.', ',')} mg / ${doseUi.toStringAsFixed(2).replaceAll('.', ',')} UI';
 
-            // 👇 INTELIGÊNCIA DA SERINGA
             if (seringaSelecionada == null ||
                 calcVolumeMl > seringaSelecionada! / 100.0) {
               if (calcVolumeMl <= 0.3) {
@@ -2791,22 +2868,23 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     final querUsar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Preenchimento Seguro',
-          style: TextStyle(color: Color(0xFF1E3A8A)),
+        title: Text(
+          t.formulario_extras.dialogo_rotulo_titulo,
+          style: const TextStyle(color: Color(0xFF1E3A8A)),
         ),
-        content: const Text(
-          'Deseja usar a Calculadora Automática de Rótulo?\n\nIsso evita erros na conversão de medicamentos como a Tirzepatida ou Semaglutida.',
-        ),
+        content: Text(t.formulario_extras.dialogo_rotulo_desc),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Não'),
+            child: Text(t.geral.nao),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-            child: const Text('Sim', style: TextStyle(color: Colors.white)),
+            child: Text(
+              t.geral.sim,
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -2825,7 +2903,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           controller: mgCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
-            labelText: "Quantos 'mg' totais no rótulo?",
+            labelText: 'Total da Substância (mg)', // 👈 Texto universal
             border: OutlineInputBorder(),
           ),
         ),
@@ -2855,7 +2933,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           controller: mlCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
-            labelText: "Volume em 'mL' da ampola/caneta?",
+            labelText: 'Volume do Líquido (mL)', // 👈 Texto universal
             border: OutlineInputBorder(),
           ),
         ),
@@ -3005,7 +3083,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   Future<void> _guardarMedicamento() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // 👇 TRAVA DE SEGURANÇA: Garante que escolheu pelo menos 1 local!
     if (regioesSelecionadasList.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -3016,7 +3093,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       return;
     }
 
-    // 👇 TRAVA BLINDADA: Alterado para .contains para funcionar com o multi-select
     if (calcVolumeMl >= 1.0 &&
         (regiaoSelecionada?.contains('Barriga') == true ||
             regiaoSelecionada?.contains('Flanco') == true)) {
@@ -3139,7 +3215,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           'dose_semanal':
               double.tryParse(doseCtrl.text.replaceAll(',', '.')) ?? 0.0,
           'unidade_dose': unidadeSelecionada,
-          'intervalo_dias': intervaloFinal,
+          'intervalo_dias': tipoFrequencia == 'intervalo' ? intervaloFinal : 1,
+          'tipo_frequencia': tipoFrequencia,
+          'dias_semana': diasSemanaSelecionados.join(','),
           'data_inicio': dataInicio.toIso8601String().split('T')[0],
           'hora_aplicacao':
               '${horaInicio.hour.toString().padLeft(2, '0')}:${horaInicio.minute.toString().padLeft(2, '0')}',
@@ -3156,7 +3234,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
             .update(dados)
             .eq('id', widget.medicamentoEditado!['id']);
 
-        // AUTO-LIMPEZA DAS DOSES FUTURAS AO MUDAR O LOCAL
         await supabase.from('cronograma').delete().match({
           'medicamento_id': widget.medicamentoEditado!['id'],
           'status_aplicado': false,
@@ -3267,13 +3344,11 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
     try {
       final mixNome = widget.medicamentoEditado!['nome'].toString();
 
-      // APAGA APENAS AS DOSES FUTURAS
       await supabase.from('cronograma').delete().match({
         'medicamento_id': widget.medicamentoEditado!['id'],
         'status_aplicado': false,
       });
 
-      // ARQUIVA O TRATAMENTO
       await supabase
           .from('medicamentos')
           .update({'nome': '[Arquivado] $mixNome'})
@@ -3306,7 +3381,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(modoEdicao ? 'Editar Medicamento' : 'Novo Medicamento'),
+        title: Text(
+          modoEdicao ? t.formulario.titulo_editar : t.formulario.titulo_novo,
+        ),
         backgroundColor: modoEdicao
             ? Colors.orange[800]
             : const Color(0xFF1E3A8A),
@@ -3325,18 +3402,20 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                     child: _isMix
                         ? TextFormField(
                             controller: nomeCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Mix Selecionado',
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: t.formulario.campo_mix, // 👇 Traduzido
+                              border: const OutlineInputBorder(),
                             ),
                             readOnly: true,
                           )
                         : (modoNovoMedicamento
                               ? TextFormField(
                                   controller: nomeCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Medicamento (Digitar)',
-                                    border: OutlineInputBorder(),
+                                  decoration: InputDecoration(
+                                    labelText: t
+                                        .formulario
+                                        .campo_medicamento, // 👇 Traduzido
+                                    border: const OutlineInputBorder(),
                                   ),
                                   readOnly: modoEdicao,
                                   validator: (val) => val == null || val.isEmpty
@@ -3376,11 +3455,11 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                         return TextFormField(
                                           controller: controller,
                                           focusNode: focusNode,
-                                          decoration: const InputDecoration(
+                                          decoration: InputDecoration(
                                             labelText:
-                                                'Catálogo (Pesquisar...)',
-                                            border: OutlineInputBorder(),
-                                            suffixIcon: Icon(
+                                                t.formulario.campo_catalogo,
+                                            border: const OutlineInputBorder(),
+                                            suffixIcon: const Icon(
                                               Icons.search,
                                               color: Colors.blue,
                                             ),
@@ -3422,7 +3501,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                   ],
                 ],
               ),
-
               if (!modoEdicao)
                 Padding(
                   padding: const EdgeInsets.only(top: 12.0, bottom: 16.0),
@@ -3436,9 +3514,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                             Icons.add_circle,
                             color: Colors.green,
                           ),
-                          label: const Text(
-                            'NOVO',
-                            style: TextStyle(
+                          label: Text(
+                            t.formulario.btn_novo_catalogo,
+                            style: const TextStyle(
                               color: Colors.green,
                               fontWeight: FontWeight.bold,
                             ),
@@ -3448,9 +3526,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                       if (modoNovoMedicamento && listaCatalogo.isNotEmpty)
                         OutlinedButton.icon(
                           icon: const Icon(Icons.list, color: Colors.blue),
-                          label: const Text(
-                            'CATÁLOGO',
-                            style: TextStyle(
+                          label: Text(
+                            t.formulario.btn_abrir_catalogo,
+                            style: const TextStyle(
                               color: Colors.blue,
                               fontWeight: FontWeight.bold,
                             ),
@@ -3460,9 +3538,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                         ),
                       OutlinedButton.icon(
                         icon: const Icon(Icons.science, color: Colors.orange),
-                        label: const Text(
-                          'CRIAR MIX',
-                          style: TextStyle(
+                        label: Text(
+                          t.formulario.btn_criar_mix,
+                          style: const TextStyle(
                             color: Colors.orange,
                             fontWeight: FontWeight.bold,
                           ),
@@ -3472,9 +3550,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                     ],
                   ),
                 ),
-
               if (modoEdicao) const SizedBox(height: 16),
-
               if (_isMix) ...[
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -3488,7 +3564,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                       const Icon(Icons.science, color: Colors.orange, size: 32),
                       const SizedBox(height: 8),
                       const Text(
-                        'MODO MIX ATIVADO', // 👇 Destrancado
+                        'MODO MIX ATIVADO',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.orange,
@@ -3508,11 +3584,11 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                 TextFormField(
                   controller: intervaloCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Intervalo (dias)',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: t.formulario.campo_intervalo,
+                    border: const OutlineInputBorder(),
                   ),
-                  readOnly: false, // 👇 DESBLOQUEADO
+                  readOnly: false,
                   onChanged: (val) => _recalcularEquivalencia(),
                   validator: (val) =>
                       val == null || val.isEmpty ? 'Obrigatório' : null,
@@ -3525,14 +3601,19 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                         controller: ampolasCtrl,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
-                          labelText: 'Qtd. Ampolas',
+                          labelText: 'Qtd. Frascos', // 👈 Rótulo corrigido
                           border: OutlineInputBorder(),
+                          isDense: true, // 👈 Espreme o layout
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 14,
+                          ),
                         ),
                         validator: (val) =>
                             val == null || val.isEmpty ? 'Obrigatório' : null,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: TextFormField(
                         controller: volumeCtrl,
@@ -3540,18 +3621,19 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                           decimal: true,
                         ),
                         decoration: const InputDecoration(
-                          labelText: 'Volume Frasco (mL)',
+                          labelText: 'Vol. (mL)', // 👈 Rótulo corrigido
                           border: OutlineInputBorder(),
+                          isDense: true, // 👈 Espreme o layout
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 14,
+                          ),
                         ),
                         validator: (val) =>
                             val == null || val.isEmpty ? 'Obrigatório' : null,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
+                    const SizedBox(width: 12),
                     Expanded(
                       child: TextFormField(
                         controller: concentracaoCtrl,
@@ -3564,28 +3646,25 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                           }
                         },
                         decoration: InputDecoration(
-                          labelText: 'Concentração (mg/mL)',
+                          labelText:
+                              'Conc. (mg/mL)', // 👈 Rótulo corrigido e curto
+                          hintText: 'mg/mL',
                           border: const OutlineInputBorder(),
+                          isDense: true, // 👈 Espreme o layout
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 14,
+                          ),
                           suffixIcon: IconButton(
                             icon: const Icon(
                               Icons.calculate,
                               color: Colors.blue,
                             ),
+                            tooltip: t.formulario_extras.assistente,
                             onPressed: _abrirCalculadoraSegura,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
                           ),
-                        ),
-                        validator: (val) =>
-                            val == null || val.isEmpty ? 'Obrigatório' : null,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextFormField(
-                        controller: intervaloCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Intervalo (dias)',
-                          border: OutlineInputBorder(),
                         ),
                         validator: (val) =>
                             val == null || val.isEmpty ? 'Obrigatório' : null,
@@ -3594,31 +3673,33 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                   ],
                 ),
                 const SizedBox(height: 16),
+
                 Row(
                   children: [
                     Expanded(
-                      flex: 2,
+                      // 👈 flex: 6 foi removido daqui
                       child: TextFormField(
                         controller: doseCtrl,
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        decoration: const InputDecoration(
-                          labelText: 'Dose Semanal',
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: t.formulario.campo_dose_semanal,
+                          border: const OutlineInputBorder(),
                         ),
                         validator: (val) =>
                             val == null || val.isEmpty ? 'Obrigatório' : null,
+                        onChanged: (val) => _recalcularEquivalencia(),
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      flex: 1,
+                      // 👈 flex: 4 foi removido daqui
                       child: DropdownButtonFormField<String>(
                         initialValue: unidadeSelecionada,
-                        decoration: const InputDecoration(
-                          labelText: 'Unidade',
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: t.formulario.campo_unidade,
+                          border: const OutlineInputBorder(),
                         ),
                         items: ['mg', 'mL']
                             .map(
@@ -3633,8 +3714,192 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                     ),
                   ],
                 ),
-              ],
+                const SizedBox(height: 24),
 
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.event_repeat,
+                            color: Color(0xFF1E3A8A),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Esquema de Aplicação',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E3A8A),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        height: 45,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() {
+                                  tipoFrequencia = 'intervalo';
+                                  _recalcularEquivalencia();
+                                }),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: tipoFrequencia == 'intervalo'
+                                        ? const Color(0xFF1E3A8A)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: tipoFrequencia == 'intervalo'
+                                        ? [
+                                            const BoxShadow(
+                                              color: Colors.black12,
+                                              blurRadius: 4,
+                                              offset: Offset(0, 2),
+                                            ),
+                                          ]
+                                        : [],
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    t.formulario.freq_intervalo,
+                                    style: TextStyle(
+                                      color: tipoFrequencia == 'intervalo'
+                                          ? Colors.white
+                                          : Colors.black54,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() {
+                                  tipoFrequencia = 'dias_semana';
+                                  _recalcularEquivalencia();
+                                }),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: tipoFrequencia == 'dias_semana'
+                                        ? const Color(0xFF1E3A8A)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: tipoFrequencia == 'dias_semana'
+                                        ? [
+                                            const BoxShadow(
+                                              color: Colors.black12,
+                                              blurRadius: 4,
+                                              offset: Offset(0, 2),
+                                            ),
+                                          ]
+                                        : [],
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    t.formulario.freq_dias_semana,
+                                    style: TextStyle(
+                                      color: tipoFrequencia == 'dias_semana'
+                                          ? Colors.white
+                                          : Colors.black54,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (tipoFrequencia == 'intervalo')
+                        TextFormField(
+                          controller: intervaloCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: t.formulario.campo_intervalo,
+                            hintText: 'Ex: 7 para uma vez por semana',
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.sync),
+                          ),
+                          validator: (val) =>
+                              val == null || val.isEmpty ? 'Obrigatório' : null,
+                          onChanged: (val) => _recalcularEquivalencia(),
+                        )
+                      else
+                        Center(
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 12,
+                            alignment: WrapAlignment.center,
+                            children: [1, 2, 3, 4, 5, 6, 7].map((dia) {
+                              final isSelected = diasSemanaSelecionados
+                                  .contains(dia);
+                              return FilterChip(
+                                label: Text(
+                                  t.formulario.dias_semana[dia.toString()]!,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.black87,
+                                  ),
+                                ),
+                                selected: isSelected,
+                                selectedColor: Colors.orange[700],
+                                backgroundColor: Colors.grey.shade100,
+                                checkmarkColor: Colors.transparent,
+                                showCheckmark: false,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  side: BorderSide.none,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                onSelected: (val) {
+                                  setState(() {
+                                    if (val)
+                                      diasSemanaSelecionados.add(dia);
+                                    else
+                                      diasSemanaSelecionados.remove(dia);
+                                    diasSemanaSelecionados.sort();
+                                    _recalcularEquivalencia();
+                                  });
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -3650,7 +3915,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                 child: Column(
                   children: [
                     Text(
-                      'Dose Calculada por Aplicação:',
+                      t.formulario.resultado_dose, // 👇 Traduzido
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: _isMix
@@ -3661,7 +3926,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                     const SizedBox(height: 8),
                     Text(
                       textoDetalhesDose.isEmpty
-                          ? 'Aguardando valores...'
+                          ? t
+                                .formulario
+                                .resultado_vazio // 👇 Traduzido
                           : textoDetalhesDose,
                       style: const TextStyle(
                         fontSize: 16,
@@ -3674,42 +3941,39 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                 ),
               ),
               const SizedBox(height: 16),
-
               Row(
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<int>(
-                      // 👇 Trocado 'initialValue' por 'value' para reatividade instantânea
                       initialValue: seringaSelecionada,
-                      decoration: const InputDecoration(
-                        labelText: 'Seringa (UI)',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: t.formulario.campo_seringa, // 👇 Traduzido
+                        border: const OutlineInputBorder(),
                       ),
-                      items: const [
+                      items: [
                         DropdownMenuItem(
                           value: 30,
-                          child: Text('30 UI (0.3 mL)'),
+                          child: Text(t.formulario_extras.seringa_30),
                         ),
                         DropdownMenuItem(
                           value: 50,
-                          child: Text('50 UI (0.5 mL)'),
+                          child: Text(t.formulario_extras.seringa_50),
                         ),
                         DropdownMenuItem(
                           value: 100,
-                          child: Text('100 UI (1 mL)'),
+                          child: Text(t.formulario_extras.seringa_100),
                         ),
                         DropdownMenuItem(
                           value: 300,
-                          child: Text('Seringa 3 mL'),
+                          child: Text(t.formulario_extras.seringa_3ml),
                         ),
                         DropdownMenuItem(
                           value: 500,
-                          child: Text('Seringa 5 mL'),
+                          child: Text(t.formulario_extras.seringa_5ml),
                         ),
                       ],
                       onChanged: (val) {
                         if (val != null) {
-                          // 👇 TRAVA MÉDICA: Impede que o utilizador escolha uma seringa menor que o volume calculado
                           double maxMl = val / 100.0;
                           if (calcVolumeMl > maxMl) {
                             showDialog(
@@ -3736,7 +4000,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                 ],
                               ),
                             );
-                            // Reverte a UI para a seringa segura sem quebrar a matemática
                             setState(() {});
                           } else {
                             setState(() => seringaSelecionada = val);
@@ -3747,15 +4010,13 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                       validator: (val) => val == null ? 'Erro' : null,
                     ),
                   ),
-
-                  // Locais:
                   const SizedBox(width: 16),
                   Expanded(
                     child: InkWell(
-                      onTap: _abrirSeletorLocais, // 👇 DESBLOQUEADO
+                      onTap: _abrirSeletorLocais,
                       child: InputDecorator(
                         decoration: InputDecoration(
-                          labelText: 'Locais do Rodízio',
+                          labelText: t.formulario.campo_locais, // 👇 Traduzido
                           border: const OutlineInputBorder(),
                           errorText: regioesSelecionadasList.isEmpty
                               ? 'Selecione'
@@ -3766,8 +4027,10 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                           children: [
                             Text(
                               regioesSelecionadasList.isEmpty
-                                  ? 'Nenhum'
-                                  : '${regioesSelecionadasList.length} selecionado(s)',
+                                  ? t.regioes.nenhum
+                                  : t.regioes.selecionados(
+                                      qtd: regioesSelecionadasList.length,
+                                    ),
                               style: TextStyle(
                                 fontSize: 16,
                                 color: _isMix ? Colors.grey : Colors.black,
@@ -3792,9 +4055,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                     child: InkWell(
                       onTap: () => _escolherData(context),
                       child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Data de Início',
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: t.formulario.campo_data,
+                          border: const OutlineInputBorder(),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3817,9 +4080,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                     child: InkWell(
                       onTap: () => _escolherHora(context),
                       child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Hora da Aplicação',
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: t.formulario.campo_hora,
+                          border: const OutlineInputBorder(),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3842,14 +4105,13 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // 1. O BOTÃO DE ATUALIZAR/GUARDAR APARECE SEMPRE
                         ElevatedButton.icon(
                           onPressed: _guardarMedicamento,
                           icon: const Icon(Icons.save, color: Colors.white),
                           label: Text(
                             modoEdicao
-                                ? 'ATUALIZAR MEDICAMENTO'
-                                : 'GUARDAR MEDICAMENTO',
+                                ? t.formulario.btn_atualizar
+                                : t.formulario.btn_guardar,
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -3863,8 +4125,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
                         ),
-
-                        // 2. O BOTÃO DE ARQUIVAR FICA ABAIXO SE ESTIVER A EDITAR
                         if (modoEdicao) ...[
                           const SizedBox(height: 12),
                           ElevatedButton.icon(
@@ -3873,9 +4133,9 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                               Icons.archive,
                               color: Colors.white,
                             ),
-                            label: const Text(
-                              'ENCERRAR TRATAMENTO (ARQUIVAR)',
-                              style: TextStyle(
+                            label: Text(
+                              t.formulario.btn_arquivar,
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -3897,9 +4157,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   }
 }
 
-// ==========================================================
-// ECRÃ DO CRONOGRAMA
-// ==========================================================
 class CronogramaEcra extends StatefulWidget {
   final Map<String, dynamic> medicamento;
   const CronogramaEcra({super.key, required this.medicamento});
@@ -4023,7 +4280,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
     }
   }
 
-  // 👇 NOVA FUNÇÃO: Junta todas as múltiplas escolhas de forma inteligente
   List<String> _obterListaRodizio(String regiaoBase) {
     List<String> pontosFinais = [];
     final regioes = regiaoBase.split(', ');
@@ -4035,7 +4291,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
           'Ventro Glúteo Esquerdo (IM)',
         ]);
       } else if (r.contains('Vasto')) {
-        // 👇 Corrigido para apanhar "Vasto Lateral"
         pontosFinais.addAll([
           'Vasto Lateral Direito (IM)',
           'Vasto Lateral Esquerdo (IM)',
@@ -4051,7 +4306,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
           'Dorso Glúteo Esquerdo (Sup. Ext.IM)',
         ]);
       } else if (r.contains('Barriga')) {
-        // 👇 A REGRA ORIGINAL DOS 8 PONTOS EXATOS
         pontosFinais.addAll([
           'Barriga Lateral Direita (SC)',
           'Barriga Lateral Esquerda (SC)',
@@ -4240,8 +4494,30 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
           .toDouble();
       double concentracao = (widget.medicamento['concentracao_mg_ml'] as num)
           .toDouble();
-      int intervalo = widget.medicamento['intervalo_dias'];
-      double doseMg = (doseSemanal / 7) * intervalo;
+
+      String tipoFreq = widget.medicamento['tipo_frequencia'] ?? 'intervalo';
+      List<int> diasSemana = [];
+      if (widget.medicamento['dias_semana'] != null &&
+          widget.medicamento['dias_semana'].toString().isNotEmpty) {
+        diasSemana = widget.medicamento['dias_semana']
+            .toString()
+            .split(',')
+            .map((e) => int.parse(e))
+            .toList();
+      }
+
+      int intervalo = widget.medicamento['intervalo_dias'] ?? 1;
+
+      double fator = 0;
+      if (tipoFreq == 'dias_semana' && diasSemana.isNotEmpty) {
+        fator = doseSemanal / diasSemana.length;
+      } else {
+        fator = (intervalo == 3)
+            ? (doseSemanal / 2)
+            : ((doseSemanal / 7) * intervalo);
+      }
+
+      double doseMg = fator;
       double volumeMl = doseMg / concentracao;
       double doseUi = volumeMl * 100;
 
@@ -4261,7 +4537,7 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
 
       String regiaoBase = widget.medicamento['regiao_rodizio'] ?? 'Barriga';
       List<String> locaisRodizio = _obterListaRodizio(regiaoBase);
-      List<Map<String, dynamic>> loteAplicacoes = [];
+      List<dynamic> loteAplicacoes = [];
 
       int indiceInicial = 0;
       Set<String> locaisOcupadosGlobais = {};
@@ -4296,16 +4572,20 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
         widget.medicamento['data_inicio'].toString(),
       );
 
-      // 👇 O MOTOR DE CONTINUIDADE QUE ESTAVA EM FALTA 👇
+      DateTime proximoDiaValido(DateTime atual, List<int> diasValidos) {
+        DateTime prox = atual.add(const Duration(days: 1));
+        while (!diasValidos.contains(prox.weekday)) {
+          prox = prox.add(const Duration(days: 1));
+        }
+        return prox;
+      }
+
       try {
         final ultimoDesteMed = await supabase
             .from('cronograma')
             .select('data_aplicacao')
             .eq('medicamento_id', widget.medicamento['id'])
-            .eq(
-              'status_aplicado',
-              true,
-            ) // Procura a última dose tomada com sucesso
+            .eq('status_aplicado', true)
             .order('data_aplicacao', ascending: false)
             .limit(1);
 
@@ -4313,14 +4593,24 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
           DateTime ultimaData = DateTime.parse(
             ultimoDesteMed.first['data_aplicacao'].toString(),
           );
-          dataBase = ultimaData.add(
-            Duration(days: intervalo),
-          ); // O ciclo segue no futuro!
+          if (tipoFreq == 'dias_semana' && diasSemana.isNotEmpty) {
+            dataBase = proximoDiaValido(ultimaData, diasSemana);
+          } else {
+            dataBase = ultimaData.add(Duration(days: intervalo));
+          }
+        } else {
+          if (tipoFreq == 'dias_semana' && diasSemana.isNotEmpty) {
+            if (!diasSemana.contains(dataBase.weekday)) {
+              dataBase = proximoDiaValido(
+                dataBase.subtract(const Duration(days: 1)),
+                diasSemana,
+              );
+            }
+          }
         }
       } catch (e) {
         debugPrint('Erro ao buscar continuidade: $e');
       }
-      // 👆 FIM DO MOTOR DE CONTINUIDADE 👆
 
       String horaStr = widget.medicamento['hora_aplicacao'] ?? '08:00';
       int horaDisp = int.parse(horaStr.split(':')[0]);
@@ -4360,15 +4650,11 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
           'status_aplicado': false,
         });
 
-        final int idUnico = dataBase.millisecondsSinceEpoch ~/ 1000 + i;
-        await agendarNotificacao(
-          idUnico,
-          'Dia de Injeção! 💉',
-          'Hoje é dia de aplicar ${widget.medicamento['nome']} ($localAtual).',
-          dataBase,
-        );
-
-        dataBase = dataBase.add(Duration(days: intervalo));
+        if (tipoFreq == 'dias_semana' && diasSemana.isNotEmpty) {
+          dataBase = proximoDiaValido(dataBase, diasSemana);
+        } else {
+          dataBase = dataBase.add(Duration(days: intervalo));
+        }
       }
 
       final usuarioId = supabase.auth.currentUser!.id;
@@ -4377,6 +4663,7 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       }
 
       await supabase.from('cronograma').insert(loteAplicacoes);
+      await atualizarAlarmesNativos(); // 👈 Sincroniza apenas as próximas 60 de forma segura
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -4403,14 +4690,11 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
     bool statusAtual = doseClicada['status_aplicado'] == true;
 
     if (!statusAtual) {
-      // 1. Validação de Ordem Cronológica
-      // Encontra a primeira dose que ainda não foi tomada (a mais antiga no topo)
       final primeiraPendente = todasDoses.firstWhere(
         (d) => d['status_aplicado'] == false,
         orElse: () => null,
       );
 
-      // Se a dose clicada não for a primeira pendente da fila, bloqueia!
       if (primeiraPendente != null &&
           primeiraPendente['id'] != doseClicada['id']) {
         if (mounted) {
@@ -4443,10 +4727,9 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
             ),
           );
         }
-        return; // Interrompe a execução
+        return;
       }
 
-      // 2. Confirmação de Aplicação
       bool? confirmar = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -4479,7 +4762,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
 
       if (confirmar != true) return;
     } else {
-      // 3. Confirmação para Desfazer (Se clicou sem querer numa já tomada)
       bool? desfazer = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -4513,13 +4795,13 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       if (desfazer != true) return;
     }
 
-    // Executa a alteração na base de dados
     try {
       await supabase
           .from('cronograma')
           .update({'status_aplicado': !statusAtual})
           .eq('id', doseClicada['id']);
       setState(() {});
+      atualizarAlarmesNativos(); // 👈 Garante que a fila ande e novos alarmes sejam agendados
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -4595,7 +4877,9 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text('Cronograma: ${widget.medicamento['nome']}'),
+            title: Text(
+              t.cronograma.titulo(nome: widget.medicamento['nome'].toString()),
+            ),
             backgroundColor: const Color(0xFF1E3A8A),
             foregroundColor: Colors.white,
             actions: [
@@ -4606,23 +4890,20 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
               ),
             ],
           ),
-
-          // 👇 A MÁGICA: O botão só aparece se não houver pendências
           floatingActionButton: (estaCarregando || temPendentes)
               ? null
               : FloatingActionButton.extended(
                   backgroundColor: Colors.green[700],
                   icon: const Icon(Icons.add_alarm, color: Colors.white),
-                  label: const Text(
-                    'GERAR NOVO CICLO',
-                    style: TextStyle(
+                  label: Text(
+                    t.cronograma.btn_gerar_novo,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   onPressed: _abrirDialogoGeracao,
                 ),
-
           body: SafeArea(
             child: Column(
               children: [
@@ -4631,7 +4912,10 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                   padding: const EdgeInsets.all(16),
                   color: Colors.blue[100],
                   child: Text(
-                    'Seringa: ${widget.medicamento['seringa_ui']} UI | Intervalo: ${widget.medicamento['intervalo_dias']} dias',
+                    t.complementos.seringa_intervalo(
+                      seringa: widget.medicamento['seringa_ui'],
+                      dias: widget.medicamento['intervalo_dias'],
+                    ), // 👇 Traduzido
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
@@ -4649,9 +4933,9 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text(
-                                  'Nenhum cronograma gerado ainda.',
-                                  style: TextStyle(
+                                Text(
+                                  t.cronograma.nenhum_gerado,
+                                  style: const TextStyle(
                                     color: Colors.grey,
                                     fontSize: 16,
                                   ),
@@ -4666,9 +4950,9 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                                       Icons.calendar_month,
                                       color: Colors.white,
                                     ),
-                                    label: const Text(
-                                      'GERAR CRONOGRAMA',
-                                      style: TextStyle(
+                                    label: Text(
+                                      t.cronograma.btn_gerar,
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -4726,10 +5010,7 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                               child: ListTile(
-                                onTap: () => alternarStatusDose(
-                                  dose,
-                                  doses,
-                                ), // 👇 Envia o objeto e a lista completa
+                                onTap: () => alternarStatusDose(dose, doses),
                                 leading: Icon(
                                   dose['status_aplicado']
                                       ? Icons.check_circle
@@ -4791,9 +5072,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
   }
 }
 
-// ==========================================================
-// ECRÃ DE GUIA, FAQ E TERMOS DE RESPONSABILIDADE
-// ==========================================================
 class VisualizadorImagemEcra extends StatelessWidget {
   final String caminhoImagem;
   final String titulo;
@@ -4821,15 +5099,15 @@ class VisualizadorImagemEcra extends StatelessWidget {
           child: Image.asset(
             caminhoImagem,
             fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) => const Column(
+            errorBuilder: (context, error, stackTrace) => Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.broken_image, size: 64, color: Colors.grey),
-                SizedBox(height: 12),
+                const Icon(Icons.broken_image, size: 64, color: Colors.grey),
+                const SizedBox(height: 12),
                 Text(
-                  'Imagem não encontrada.',
+                  t.visualizador.erro_imagem,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white70),
+                  style: const TextStyle(color: Colors.white70),
                 ),
               ],
             ),
@@ -5019,9 +5297,9 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: !widget.obrigatorio,
-          title: const Text(
-            'Guia e Termos de Uso',
-            style: TextStyle(fontWeight: FontWeight.bold),
+          title: Text(
+            t.guia.titulo,
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           backgroundColor: const Color(0xFF1E3A8A),
           foregroundColor: Colors.white,
@@ -5029,8 +5307,8 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
             if (widget.obrigatorio)
               IconButton(
                 icon: const Icon(Icons.logout),
-                tooltip: 'Sair do App',
-                onPressed: () => sairDaConta(context), // 👇 Atualizado
+                tooltip: t.guia.tooltip_sair,
+                onPressed: () => sairDaConta(context),
               ),
           ],
         ),
@@ -5043,12 +5321,12 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                   padding: const EdgeInsets.all(16),
                   children: [
                     _buildExpandableCard(
-                      titulo: '⚖️ TERMOS DE RESPONSABILIDADE',
+                      titulo: t.guia_conteudo.termos_titulo,
                       cor: Colors.orange[900]!,
                       icone: Icons.gavel,
-                      conteudo: const Text(
-                        'Ao utilizar o Controle Injetáveis, o usuário declara estar plenamente ciente de que:\n\n1. O usuário assume TOTAL e exclusiva responsabilidade pelas doses inseridas, misturas (Mix) criadas e aplicações realizadas.\n2. Os desenvolvedores (CodeVibe Studio) NÃO se responsabilizam por erros de preenchimento, cálculos equivocados gerados por introdução de dados incorretos ou danos à saúde.\n3. A lista do "Check-up de Biomarcadores" é uma sugestão puramente matemática baseada em protocolos de redução de danos. NÃO tem valor de pedido médico oficial.\n4. O utilizador isenta os criadores do aplicativo de qualquer complicação clínica ou responsabilidade legal decorrente do uso da ferramenta.',
-                        style: TextStyle(
+                      conteudo: Text(
+                        t.guia_conteudo.termos_texto,
+                        style: const TextStyle(
                           fontSize: 14,
                           height: 1.5,
                           color: Colors.black87,
@@ -5057,12 +5335,12 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ),
                     const SizedBox(height: 12),
                     _buildExpandableCard(
-                      titulo: '🚨 AVISO MÉDICO IMPORTANTE',
+                      titulo: t.guia_conteudo.aviso_titulo,
                       cor: Colors.red[900]!,
                       icone: Icons.warning_amber_rounded,
-                      conteudo: const Text(
-                        'Este aplicativo é exclusivamente uma ferramenta de apoio logístico e matemático. ELE NÃO SUBSTITUI A ORIENTAÇÃO MÉDICA.\n\n• O aplicativo não receita, não prescreve e não recomenda tratamentos.\n• Em caso de dor extrema, febre, vermelhidão intensa, inchaço, falta de ar ou qualquer mal-estar após uma aplicação, PROCURE UMA EMERGÊNCIA HOSPITALAR IMEDIATAMENTE ou contate o seu médico.\n• Nunca inicie ou altere dosagens sem o conhecimento e autorização do seu profissional de saúde.',
-                        style: TextStyle(
+                      conteudo: Text(
+                        t.guia_conteudo.aviso_texto,
+                        style: const TextStyle(
                           fontSize: 14,
                           height: 1.5,
                           color: Colors.black87,
@@ -5071,12 +5349,12 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ),
                     const SizedBox(height: 12),
                     _buildExpandableCard(
-                      titulo: '🧼 HIGIENE E ASSEPSIA',
+                      titulo: t.guia_conteudo.higiene_titulo,
                       cor: Colors.blueGrey[700]!,
                       icone: Icons.clean_hands,
-                      conteudo: const Text(
-                        'A falta de higiene pode causar infecções graves e abcessos. Siga rigorosamente:\n\n• Lave as mãos com água e sabão antes de tocar nos materiais.\n• Limpe a borracha do bujão com algodão e Álcool 70%.\n• Faça a assepsia da pele com Álcool 70% e deixe secar naturalmente antes de perfurar.\n• Utilize APENAS seringas e agulhas estéreis, de uso único (descartáveis).\n• Descarte o material perfurocortante em recipiente rígido adequado (Descarpack).',
-                        style: TextStyle(
+                      conteudo: Text(
+                        t.guia_conteudo.higiene_texto,
+                        style: const TextStyle(
                           fontSize: 14,
                           height: 1.5,
                           color: Colors.black87,
@@ -5085,12 +5363,12 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ),
                     const SizedBox(height: 12),
                     _buildExpandableCard(
-                      titulo: '📱 COMO USAR O APLICATIVO',
+                      titulo: t.guia_conteudo.como_usar_titulo,
                       cor: const Color(0xFF1E3A8A),
                       icone: Icons.help_center,
-                      conteudo: const Text(
-                        '• Banco de Medicamentos: Comece por aqui. Cadastre os seus frascos preenchendo a Concentração (mg/mL) e a Dose Semanal.\n\n• Calculadora Segura: Ao clicar no campo "Concentração", o app abre uma calculadora que divide os "mg totais" pelos "mL totais" do rótulo.\n\n• Criar Mix: Permite agrupar medicamentos na mesma injeção. Eles precisam estar configurados com o mesmo "Intervalo" e "Região Base".\n\n• Desmembrar Mix: Caso queira alterar a dose de apenas 1 composto da sua mistura, use esta opção para libertá-los de volta ao Banco.\n\n• Gerar Cronograma: Gere datas "Até o frasco acabar" ou "Apenas 1 Mês". O app automaticamente desviará agendamentos que colidam na mesma região e dia.',
-                        style: TextStyle(
+                      conteudo: Text(
+                        t.guia_conteudo.como_usar_texto,
+                        style: const TextStyle(
                           fontSize: 14,
                           height: 1.5,
                           color: Colors.black87,
@@ -5099,12 +5377,12 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ),
                     const SizedBox(height: 12),
                     _buildExpandableCard(
-                      titulo: '🧬 INTELIGÊNCIA CLÍNICA E EXAMES',
+                      titulo: t.guia_conteudo.cerebro_titulo,
                       cor: Colors.teal[800]!,
                       icone: Icons.biotech,
-                      conteudo: const Text(
-                        'O aplicativo possui um Motor Analítico Preditivo de segurança:\n\n• Meu Perfil (Ícone Superior): Preencha o seu sexo biológico e data de nascimento. Estes dados cruzam com os seus tratamentos para gerar painéis de exames clínicos precisos.\n\n• Auto-Classificação: Ao registrar um medicamento, o motor identifica a família clínica e prepara o protocolo de risco e controle laboratorial.\n\n• Check-up de Biomarcadores: O algoritmo calcula a janela de "steady state" (estabilidade sanguínea). O alerta de primeira coleta surge 45 dias após o início de um novo tratamento. Após registrar essa coleta, os exames de manutenção passarão a ser solicitados a cada 120 dias.',
-                        style: TextStyle(
+                      conteudo: Text(
+                        t.guia_conteudo.cerebro_texto,
+                        style: const TextStyle(
                           fontSize: 14,
                           height: 1.5,
                           color: Colors.black87,
@@ -5113,16 +5391,30 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ),
                     const SizedBox(height: 12),
                     _buildExpandableCard(
-                      titulo: 'GUIA DE SERINGAS E AGULHAS',
+                      titulo: t.guia_conteudo.notificacoes_titulo,
+                      cor: Colors.indigo,
+                      icone: Icons.notifications_active,
+                      conteudo: Text(
+                        t.guia_conteudo.notificacoes_texto,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildExpandableCard(
+                      titulo: t.guia_conteudo.seringas_titulo,
                       cor: Colors.orange,
                       icone: Icons.vaccines,
                       corFundo: Colors.orange[50],
                       conteudo: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Entenda o material adequado para cada aplicação:',
-                            style: TextStyle(
+                          Text(
+                            t.guia_conteudo.seringas_subtitulo,
+                            style: const TextStyle(
                               fontSize: 13,
                               color: Colors.black87,
                             ),
@@ -5130,34 +5422,34 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                           const SizedBox(height: 8),
                           _buildImageButton(
                             context: context,
-                            titulo: 'Visualizar Agulhas e Seringas',
+                            titulo: t.guia_conteudo.seringas_btn,
                             icone: Icons.science_outlined,
                             caminhoImagem: 'assets/regiao/agulhas_seringas.png',
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            '💉 AGULHAS RECOMENDADAS:',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          Text(
+                            t.guia_conteudo.seringas_texto1,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          const Text(
-                            '• Subcutânea (SC - Gordura): Agulhas curtas e finas, ex: 13x0.45mm ou 13x0.3mm (marrom/cinza). Aplicada em ângulo de 90° ou 45° dependendo do tecido adiposo.\n• Intramuscular (IM - Músculo): Agulhas longas para alcançar o músculo, ex: 25x0.7mm ou 30x0.7mm (preta/azul) e para volumes maiores 25x0.8mm (verde). Aplicar em ângulo de 90°.',
-                            style: TextStyle(fontSize: 13, height: 1.4),
+                          Text(
+                            t.guia_conteudo.seringas_texto2,
+                            style: const TextStyle(fontSize: 13, height: 1.4),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            '🧪 SERINGAS E ESCALAS:',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          Text(
+                            t.guia_conteudo.seringas_texto3,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          const Text(
-                            '• Seringas de Insulina (100 UI = 1 mL): Escala detalhada. 10 UI equivalem a 0.1 mL. Ideal para microdoses subcutâneas de alta precisão.\n• Seringas de 3 mL ou 5 mL: Usadas para aplicações intramusculares que requerem maior volume de diluente ou óleo.',
-                            style: TextStyle(fontSize: 13, height: 1.4),
+                          Text(
+                            t.guia_conteudo.seringas_texto4,
+                            style: const TextStyle(fontSize: 13, height: 1.4),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 12),
                     _buildExpandableCard(
-                      titulo: 'MAPA DE PONTOS DE APLICAÇÃO',
+                      titulo: t.guia_conteudo.mapas_titulo,
                       cor: const Color(0xFF1E3A8A),
                       icone: Icons.map,
                       corFundo: Colors.blue[50],
@@ -5171,21 +5463,21 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                               border: Border.all(color: Colors.red.shade200),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Column(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
-                                    Icon(
+                                    const Icon(
                                       Icons.warning_amber_rounded,
                                       color: Colors.red,
                                       size: 20,
                                     ),
-                                    SizedBox(width: 8),
+                                    const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        'ATUALIZAÇÃO CLÍNICA (IM)',
-                                        style: TextStyle(
+                                        t.guia_conteudo.mapas_alerta_titulo,
+                                        style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: Colors.red,
                                         ),
@@ -5193,10 +5485,10 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                                     ),
                                   ],
                                 ),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 Text(
-                                  '✅ O Ventro Glúteo é hoje considerado o padrão-ouro e o local mais seguro para injeções intramusculares, por estar totalmente livre de grandes vasos e nervos.\n\n❌ O antigo "Dorso Glúteo" (quadrante superior externo) está a ser abandonado na prática clínica atual. Ele oferece alto risco de lesão do nervo ciático e apresenta mais riscos do que benefícios.',
-                                  style: TextStyle(
+                                  t.guia_conteudo.mapas_alerta_texto,
+                                  style: const TextStyle(
                                     fontSize: 13,
                                     color: Colors.black87,
                                   ),
@@ -5205,9 +5497,9 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          const Text(
-                            'Clique na região para visualizar os locais exatos e fazer o rodízio correto:',
-                            style: TextStyle(
+                          Text(
+                            t.guia_conteudo.mapas_subtitulo,
+                            style: const TextStyle(
                               fontSize: 13,
                               color: Colors.black87,
                             ),
@@ -5215,33 +5507,32 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                           const SizedBox(height: 8),
                           _buildImageButton(
                             context: context,
-                            titulo: 'Pontos da Barriga (8 Pontos)',
+                            titulo: t.guia_conteudo.mapas_btn1,
                             icone: Icons.accessibility_new,
                             caminhoImagem: 'assets/regiao/barriga.png',
                           ),
                           _buildImageButton(
                             context: context,
-                            titulo: 'Pontos dos Flancos (9 Pontos)',
+                            titulo: t.guia_conteudo.mapas_btn2,
                             icone: Icons.airline_seat_flat_angled,
                             caminhoImagem: 'assets/regiao/flancos.png',
                           ),
                           _buildImageButton(
                             context: context,
-                            titulo:
-                                'Pontos dos Glúteos (Ventro Glúteo / Dorso)',
+                            titulo: t.guia_conteudo.mapas_btn3,
                             icone: Icons.directions_run,
                             caminhoImagem: 'assets/regiao/gluteos.png',
                           ),
                           _buildImageButton(
                             context: context,
-                            titulo: 'Pontos da Coxa (Vasto Lateral)',
+                            titulo: t.guia_conteudo.mapas_btn4,
                             icone: Icons.boy,
                             caminhoImagem:
                                 'assets/regiao/coxa_vastolateral.png',
                           ),
                           _buildImageButton(
                             context: context,
-                            titulo: 'Pontos do Deltoide (Braço)',
+                            titulo: t.guia_conteudo.mapas_btn5,
                             icone: Icons.shutter_speed_sharp,
                             caminhoImagem: 'assets/regiao/deltoide.png',
                           ),
@@ -5250,24 +5541,24 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     ),
                     const SizedBox(height: 12),
                     _buildExpandableCard(
-                      titulo: 'DICIONÁRIO MAROMBA E CLÍNICO',
+                      titulo: t.guia_conteudo.dicionario_titulo,
                       cor: Colors.purple,
                       icone: Icons.menu_book,
                       corFundo: Colors.purple[50],
                       conteudo: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'O dialeto das academias e dos tratamentos, traduzido de forma direta:',
-                            style: TextStyle(
+                          Text(
+                            t.guia_conteudo.dicionario_subtitulo,
+                            style: const TextStyle(
                               fontSize: 13,
                               color: Colors.black87,
                             ),
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            '💪 SOBRE O SHAPE (CORPO)',
-                            style: TextStyle(
+                          Text(
+                            t.guia_conteudo.dic_cat1,
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.purple,
                             ),
@@ -5306,9 +5597,9 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                             'Quem foge do treino, pega pouco peso, foca só nos braços ou não tem dedicação.',
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            '🏋️ SOBRE O TREINO',
-                            style: TextStyle(
+                          Text(
+                            t.guia_conteudo.dic_cat2,
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.purple,
                             ),
@@ -5335,9 +5626,9 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                             'Aeróbico em Jejum (fazer o cardio logo após acordar, antes da primeira refeição).',
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            '🥦 SOBRE A DIETA',
-                            style: TextStyle(
+                          Text(
+                            t.guia_conteudo.dic_cat3,
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.purple,
                             ),
@@ -5360,9 +5651,9 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                             'Uma refeição fora da dieta (antigo "dia do lixo", mas restrito a apenas uma refeição isolada).',
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            '💉 SOBRE OS INJETÁVEIS E "ADITIVOS"',
-                            style: TextStyle(
+                          Text(
+                            t.guia_conteudo.dic_cat4,
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.purple,
                             ),
@@ -5394,7 +5685,7 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                           ),
                           _buildDicionarioItem(
                             'Trembo',
-                            'Trembolona, um dos anabolizantes mais fortes, perigosos e com severos efeitos psicológicos.',
+                            'Trembolona, um dos anabolizantes mais fortes, perigosos e com severos efectos psicológicos.',
                           ),
                           _buildDicionarioItem(
                             'Fake Natty',
@@ -5432,11 +5723,11 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (!_chegouAoFim)
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 8.0),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
                             child: Text(
-                              '⬇️ Role a tela até o final para habilitar o aceite.',
-                              style: TextStyle(
+                              t.guia.aviso_scroll,
+                              style: const TextStyle(
                                 color: Colors.red,
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
@@ -5465,7 +5756,7 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                'Declaro que li as instruções, estou ciente dos riscos médicos e aceito os Termos de Responsabilidade e Isenção.',
+                                t.guia.texto_aceite,
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
@@ -5495,15 +5786,14 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                                           .from('aceites_termos')
                                           .insert({'user_id': usuarioId});
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Termos aceitos e registrados. Uso liberado!',
-                                                ),
-                                                backgroundColor: Colors.green,
-                                              ),
-                                            );
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(t.guia.msg_sucesso),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
                                         Navigator.pop(context);
                                       }
                                     } catch (e) {
@@ -5512,7 +5802,7 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                                             .showSnackBar(
                                               SnackBar(
                                                 content: Text(
-                                                  'Erro ao registrar: $e',
+                                                  '${t.guia.msg_erro}$e',
                                                 ),
                                                 backgroundColor: Colors.red,
                                               ),
@@ -5528,9 +5818,9 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: const Text(
-                              'ESTOU CIENTE E ACEITO',
-                              style: TextStyle(
+                            child: Text(
+                              t.guia.btn_aceitar,
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -5550,9 +5840,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
   }
 }
 
-// ==========================================================
-// FORMATADOR AUTOMÁTICO DE DATA (MÁSCARA DD/MM/AAAA)
-// ==========================================================
 class DataInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -5574,9 +5861,6 @@ class DataInputFormatter extends TextInputFormatter {
   }
 }
 
-// ==========================================================
-// ECRÃ DE PERFIL DO UTILIZADOR
-// ==========================================================
 class PerfilEcra extends StatefulWidget {
   final bool obrigatorio;
   const PerfilEcra({super.key, this.obrigatorio = false});
@@ -5591,7 +5875,7 @@ class _PerfilEcraState extends State<PerfilEcra> {
 
   final nomeCtrl = TextEditingController();
   final dataCtrl = TextEditingController();
-  final pesoCtrl = TextEditingController(); // 👇 NOVO: Controlador do peso
+  final pesoCtrl = TextEditingController();
   String? generoSelecionado;
 
   @override
@@ -5602,7 +5886,6 @@ class _PerfilEcraState extends State<PerfilEcra> {
 
   @override
   void dispose() {
-    // 👇 Boa prática: limpar os controladores da memória ao sair da tela
     nomeCtrl.dispose();
     dataCtrl.dispose();
     pesoCtrl.dispose();
@@ -5623,7 +5906,6 @@ class _PerfilEcraState extends State<PerfilEcra> {
           nomeCtrl.text = res['nome'] ?? '';
           generoSelecionado = res['genero'];
 
-          // 👇 NOVO: Carrega o peso caso já exista no banco
           if (res['peso'] != null) {
             pesoCtrl.text = res['peso'].toString();
           }
@@ -5670,7 +5952,6 @@ class _PerfilEcraState extends State<PerfilEcra> {
       final partes = dataCtrl.text.split('/');
       final dataFormatadaBanco = '${partes[2]}-${partes[1]}-${partes[0]}';
 
-      // 👇 NOVO: Converte o texto do peso para número decimal (trocando vírgula por ponto)
       double? pesoNum;
       if (pesoCtrl.text.isNotEmpty) {
         final pesoString = pesoCtrl.text.replaceAll(',', '.');
@@ -5682,7 +5963,7 @@ class _PerfilEcraState extends State<PerfilEcra> {
         'nome': nomeCtrl.text.trim(),
         'genero': generoSelecionado,
         'data_nascimento': dataFormatadaBanco,
-        'peso': pesoNum, // 👇 NOVO: Envia o peso para o banco
+        'peso': pesoNum,
       });
 
       if (mounted) {
@@ -5746,9 +6027,9 @@ class _PerfilEcraState extends State<PerfilEcra> {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: !widget.obrigatorio,
-          title: const Text(
-            'Meu Perfil',
-            style: TextStyle(fontWeight: FontWeight.bold),
+          title: Text(
+            t.perfil.titulo,
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           backgroundColor: const Color(0xFF1E3A8A),
           foregroundColor: Colors.white,
@@ -5776,74 +6057,117 @@ class _PerfilEcraState extends State<PerfilEcra> {
                           color: Color(0xFF1E3A8A),
                         ),
                         const SizedBox(height: 16),
-                        const Text(
-                          'Dados Biológicos',
+                        Text(
+                          t.perfil.dados_biologicos,
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF1E3A8A),
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Estas informações são essenciais para que o aplicativo cruze a sua idade, sexo biológico e peso, gerando painéis de exames clínicos precisos e totalmente seguros.',
+                        Text(
+                          t.perfil.descricao_biologicos,
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey,
+                          ),
                         ),
                         const SizedBox(height: 24),
                         TextFormField(
                           controller: nomeCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Nome Completo',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.person),
+                          decoration: InputDecoration(
+                            labelText: t.perfil.nome,
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.person),
                           ),
                           validator: (val) =>
                               val == null || val.isEmpty ? 'Obrigatório' : null,
                         ),
                         const SizedBox(height: 16),
 
-                        // 👇 NOVO: Campo de texto numérico para o Peso
                         TextFormField(
                           controller: pesoCtrl,
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
-                          decoration: const InputDecoration(
-                            labelText: 'Peso (kg)',
+                          decoration: InputDecoration(
+                            labelText: t.perfil.peso,
                             hintText: 'Ex: 107.5',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.scale),
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.scale),
                           ),
                         ),
                         const SizedBox(height: 16),
 
                         DropdownButtonFormField<String>(
                           initialValue: generoSelecionado,
-                          decoration: const InputDecoration(
-                            labelText: 'Sexo Biológico',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.wc),
+                          decoration: InputDecoration(
+                            labelText: t.perfil.sexo,
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.wc),
                           ),
-                          items: ['Masculino', 'Feminino']
-                              .map(
-                                (e) =>
-                                    DropdownMenuItem(value: e, child: Text(e)),
-                              )
-                              .toList(),
+                          items: [
+                            DropdownMenuItem(
+                              value: 'Masculino',
+                              child: Text(t.complementos.masculino),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Feminino',
+                              child: Text(t.complementos.feminino),
+                            ),
+                          ],
                           onChanged: (val) =>
                               setState(() => generoSelecionado = val),
                           validator: (val) =>
                               val == null ? 'Obrigatório' : null,
                         ),
                         const SizedBox(height: 16),
+
+                        DropdownButtonFormField<AppLocale?>(
+                          initialValue: LocaleSettings.currentLocale,
+                          decoration: InputDecoration(
+                            labelText: t.perfil.idioma,
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.language),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: AppLocale.pt,
+                              child: Text('Português'),
+                            ),
+                            DropdownMenuItem(
+                              value: AppLocale.en,
+                              child: Text('English'),
+                            ),
+                            DropdownMenuItem(
+                              value: AppLocale.es,
+                              child: Text('Español'),
+                            ),
+                          ],
+                          onChanged: (AppLocale? novoIdioma) async {
+                            if (novoIdioma != null) {
+                              LocaleSettings.setLocale(novoIdioma);
+                              final prefs =
+                                  await SharedPreferences.getInstance();
+                              await prefs.setString(
+                                'app_locale',
+                                novoIdioma.languageTag,
+                              );
+                              setState(() {});
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
                         TextFormField(
                           controller: dataCtrl,
                           keyboardType: TextInputType.number,
                           inputFormatters: [DataInputFormatter()],
                           decoration: InputDecoration(
-                            labelText: 'Data de Nascimento (DD/MM/AAAA)',
+                            labelText: t.perfil.data_nascimento,
                             hintText: 'Ex: 15/08/1985',
                             border: const OutlineInputBorder(),
                             prefixIcon: const Icon(Icons.cake),
@@ -5868,9 +6192,9 @@ class _PerfilEcraState extends State<PerfilEcra> {
                         ElevatedButton.icon(
                           onPressed: _salvarPerfil,
                           icon: const Icon(Icons.save, color: Colors.white),
-                          label: const Text(
-                            'SALVAR PERFIL',
-                            style: TextStyle(
+                          label: Text(
+                            t.perfil.btn_salvar,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -5891,9 +6215,6 @@ class _PerfilEcraState extends State<PerfilEcra> {
   }
 }
 
-// ==========================================================
-// ECRÃ DE BLOQUEIO BIOMÉTRICO
-// ==========================================================
 class BiometriaEcra extends StatefulWidget {
   const BiometriaEcra({super.key});
 
@@ -5919,21 +6240,16 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
     });
 
     try {
-      // 1. SOLUÇÃO PARA QUEM NÃO TEM BIOMETRIA:
-      // Verifica exatamente quais biometrias estão cadastradas no telemóvel.
       final List<BiometricType> biometrias = await auth
           .getAvailableBiometrics();
 
       if (biometrias.isEmpty) {
-        // Se a lista estiver vazia (nenhuma digital cadastrada),
-        // ignora a tela de bloqueio e vai direto para o Dashboard.
         _irParaDashboard();
         return;
       }
 
-      // 2. Tenta acionar a biometria
       final bool autenticado = await auth.authenticate(
-        localizedReason: 'Desbloqueie para aceder aos seus dados clínicos',
+        localizedReason: t.biometria.motivo,
       );
 
       if (autenticado) {
@@ -5941,14 +6257,13 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
       } else {
         setState(() {
           _autenticando = false;
-          _mensagemErro =
-              'Biometria cancelada. Tente novamente ou use a senha do App.';
+          _mensagemErro = t.biometria.erro_cancelado;
         });
       }
     } catch (e) {
       setState(() {
         _autenticando = false;
-        _mensagemErro = 'Erro no sensor biométrico.';
+        _mensagemErro = t.biometria.erro_sensor;
       });
     }
   }
@@ -5960,11 +6275,8 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
     );
   }
 
-  // SOLUÇÃO PARA A SENHA DO APP:
-  // Esta função desloga a sessão em cache, forçando o AuthGate
-  // a redirecionar o utilizador para a tela de Login (E-mail/Senha).
   Future<void> _usarSenhaDoApp() async {
-    await sairDaConta(context); // 👇 Usa a nova função global
+    await sairDaConta(context);
   }
 
   @override
@@ -5979,18 +6291,18 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
             children: [
               const Icon(Icons.fingerprint, size: 100, color: Colors.white),
               const SizedBox(height: 24),
-              const Text(
-                'Aplicativo Bloqueado',
-                style: TextStyle(
+              Text(
+                t.biometria.titulo,
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Protegendo o seu histórico clínico...',
-                style: TextStyle(color: Colors.white70),
+              Text(
+                t.biometria.subtitulo,
+                style: const TextStyle(color: Colors.white70),
               ),
               const SizedBox(height: 32),
 
@@ -6013,9 +6325,9 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
                 ElevatedButton.icon(
                   onPressed: _verificarEAutenticar,
                   icon: const Icon(Icons.fingerprint, color: Color(0xFF1E3A8A)),
-                  label: const Text(
-                    'USAR BIOMETRIA',
-                    style: TextStyle(
+                  label: Text(
+                    t.biometria.btn_biometria,
+                    style: const TextStyle(
                       color: Color(0xFF1E3A8A),
                       fontWeight: FontWeight.bold,
                     ),
@@ -6034,19 +6346,18 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
 
                 const SizedBox(height: 16),
 
-                // 👇 NOVO BOTÃO: Permite o acesso com a senha original do aplicativo
                 OutlinedButton.icon(
                   onPressed: _usarSenhaDoApp,
                   icon: const Icon(Icons.password, color: Colors.white),
-                  label: const Text(
-                    'ACESSAR COM SENHA DO APP',
-                    style: TextStyle(
+                  label: Text(
+                    t.biometria.btn_senha,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.white, width: 2),
+                    side: const BorderSide(color: Colors.white),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 16,
@@ -6056,7 +6367,7 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
                     ),
                   ),
                 ),
-              ],
+              ], // <-- Colchetes fechados corretamente!
             ],
           ),
         ),
