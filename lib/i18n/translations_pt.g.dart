@@ -305,14 +305,14 @@ class Translations$formulario$pt {
 	/// pt: 'Intervalo (dias)'
 	String get campo_intervalo => 'Intervalo (dias)';
 
-	/// pt: 'Qtd. Ampolas'
-	String get campo_ampolas => 'Qtd. Ampolas';
+	/// pt: 'Qtd. Frascos'
+	String get qtd_curto => 'Qtd. Frascos';
 
-	/// pt: 'Volume Frasco (mL)'
-	String get campo_volume => 'Volume Frasco (mL)';
+	/// pt: 'Vol. (mL)'
+	String get vol_curto => 'Vol. (mL)';
 
-	/// pt: 'Concentração (mg/mL)'
-	String get campo_concentracao => 'Concentração (mg/mL)';
+	/// pt: 'Conc. (mg/mL)'
+	String get conc_curto => 'Conc. (mg/mL)';
 
 	/// pt: 'Dose Semanal'
 	String get campo_dose_semanal => 'Dose Semanal';
@@ -624,29 +624,29 @@ class Translations$calculadora$pt {
 	/// pt: ' cada.'
 	String get res_cada => ' cada.';
 
-	/// pt: 'Diluição de Peptídeos'
-	String get diluicao_titulo => 'Diluição de Peptídeos';
+	/// pt: 'Calculadora de Diluição'
+	String get diluicao_titulo => 'Calculadora de Diluição';
 
-	/// pt: 'Deseja calcular a reconstituição de um Pó Liofilizado (ex: Peptídeos, GH ou hCG)? Isto calculará automaticamente a Concentração cruzando a Massa Total do frasco com a quantidade de Água Bacteriostática inserida.'
-	String get diluicao_desc => 'Deseja calcular a reconstituição de um Pó Liofilizado (ex: Peptídeos, GH ou hCG)?\n\nIsto calculará automaticamente a Concentração cruzando a Massa Total do frasco com a quantidade de Água Bacteriostática inserida.';
+	/// pt: 'Deseja calcular a reconstituição ou descobrir a concentração de um frasco? Isto calculará automaticamente a Concentração cruzando a Massa Total da substância com a quantidade de líquido.'
+	String get diluicao_desc => 'Deseja calcular a reconstituição ou descobrir a concentração de um frasco?\n\nIsto calculará automaticamente a Concentração cruzando a Massa Total da substância com a quantidade de líquido.';
 
-	/// pt: 'Reconstituição PASSO 1 DE 2:'
-	String get passo1 => 'Reconstituição\nPASSO 1 DE 2:';
+	/// pt: 'Cálculo PASSO 1 DE 2:'
+	String get passo1 => 'Cálculo\nPASSO 1 DE 2:';
 
-	/// pt: 'Massa Total do Liofilizado (mg ou UI)'
-	String get passo1_label => 'Massa Total do Liofilizado (mg ou UI)';
+	/// pt: 'Total da Substância (mg)'
+	String get passo1_label => 'Total da Substância (mg)';
 
 	/// pt: 'Ex: 5 (para frascos de 5mg)'
 	String get passo1_hint => 'Ex: 5 (para frascos de 5mg)';
 
-	/// pt: 'Reconstituição PASSO 2 DE 2:'
-	String get passo2 => 'Reconstituição\nPASSO 2 DE 2:';
+	/// pt: 'Cálculo PASSO 2 DE 2:'
+	String get passo2 => 'Cálculo\nPASSO 2 DE 2:';
 
-	/// pt: 'Água Bacteriostática (mL)'
-	String get passo2_label => 'Água Bacteriostática (mL)';
+	/// pt: 'Volume do Líquido (mL)'
+	String get passo2_label => 'Volume do Líquido (mL)';
 
-	/// pt: 'Quantos mL vai injetar no pó?'
-	String get passo2_hint => 'Quantos mL vai injetar no pó?';
+	/// pt: 'Quantos mL totais tem o frasco?'
+	String get passo2_hint => 'Quantos mL totais tem o frasco?';
 
 	/// pt: 'Diluição calculada com sucesso!'
 	String get msg_sucesso => 'Diluição calculada com sucesso!';
@@ -1085,9 +1085,9 @@ extension on Translations {
 			'formulario.modo_mix_editar' => 'Pode alterar o Intervalo, Seringa e Locais livremente. Para alterar as DOSES base, clique em DESMEMBRAR MIX.',
 			'formulario.modo_mix_novo' => 'O Intervalo, Seringa e Região foram importados automaticamente.',
 			'formulario.campo_intervalo' => 'Intervalo (dias)',
-			'formulario.campo_ampolas' => 'Qtd. Ampolas',
-			'formulario.campo_volume' => 'Volume Frasco (mL)',
-			'formulario.campo_concentracao' => 'Concentração (mg/mL)',
+			'formulario.qtd_curto' => 'Qtd. Frascos',
+			'formulario.vol_curto' => 'Vol. (mL)',
+			'formulario.conc_curto' => 'Conc. (mg/mL)',
 			'formulario.campo_dose_semanal' => 'Dose Semanal',
 			'formulario.campo_unidade' => 'Unidade',
 			'formulario.resultado_dose' => 'Dose Calculada por Aplicação:',
@@ -1177,14 +1177,14 @@ extension on Translations {
 			'calculadora.res_doses' => ' doses',
 			'calculadora.res_de' => ' de ',
 			'calculadora.res_cada' => ' cada.',
-			'calculadora.diluicao_titulo' => 'Diluição de Peptídeos',
-			'calculadora.diluicao_desc' => 'Deseja calcular a reconstituição de um Pó Liofilizado (ex: Peptídeos, GH ou hCG)?\n\nIsto calculará automaticamente a Concentração cruzando a Massa Total do frasco com a quantidade de Água Bacteriostática inserida.',
-			'calculadora.passo1' => 'Reconstituição\nPASSO 1 DE 2:',
-			'calculadora.passo1_label' => 'Massa Total do Liofilizado (mg ou UI)',
+			'calculadora.diluicao_titulo' => 'Calculadora de Diluição',
+			'calculadora.diluicao_desc' => 'Deseja calcular a reconstituição ou descobrir a concentração de um frasco?\n\nIsto calculará automaticamente a Concentração cruzando a Massa Total da substância com a quantidade de líquido.',
+			'calculadora.passo1' => 'Cálculo\nPASSO 1 DE 2:',
+			'calculadora.passo1_label' => 'Total da Substância (mg)',
 			'calculadora.passo1_hint' => 'Ex: 5 (para frascos de 5mg)',
-			'calculadora.passo2' => 'Reconstituição\nPASSO 2 DE 2:',
-			'calculadora.passo2_label' => 'Água Bacteriostática (mL)',
-			'calculadora.passo2_hint' => 'Quantos mL vai injetar no pó?',
+			'calculadora.passo2' => 'Cálculo\nPASSO 2 DE 2:',
+			'calculadora.passo2_label' => 'Volume do Líquido (mL)',
+			'calculadora.passo2_hint' => 'Quantos mL totais tem o frasco?',
 			'calculadora.msg_sucesso' => 'Diluição calculada com sucesso!',
 			'calculadora.msg_invalido' => 'Valores inválidos.',
 			'calculadora.simulador_titulo' => 'Simulador de Liberação (Farmacocinética)',
