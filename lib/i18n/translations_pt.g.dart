@@ -61,6 +61,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$formulario_extras$pt formulario_extras = Translations$formulario_extras$pt.internal(_root);
 	late final Translations$exames$pt exames = Translations$exames$pt.internal(_root);
 	late final Translations$complementos$pt complementos = Translations$complementos$pt.internal(_root);
+	late final Translations$navegacao$pt navegacao = Translations$navegacao$pt.internal(_root);
 }
 
 // Path: notificacoes
@@ -735,8 +736,8 @@ class Translations$simulador$pt {
 	/// pt: 'Semana ${s}'
 	String semana_n({required Object s}) => 'Semana ${s}';
 
-	/// pt: 'Trama'
-	String get btn_trama => 'Trama';
+	/// pt: 'Simular'
+	String get btn_trama => 'Simular';
 
 	/// pt: 'Adicionar Composto'
 	String get btn_adicionar => 'Adicionar Composto';
@@ -961,6 +962,27 @@ class Translations$complementos$pt {
 
 	/// pt: 'Seringa: ${seringa} UI | Intervalo: ${dias} dias'
 	String seringa_intervalo({required Object seringa, required Object dias}) => 'Seringa: ${seringa} UI | Intervalo: ${dias} dias';
+}
+
+// Path: navegacao
+class Translations$navegacao$pt {
+	Translations$navegacao$pt.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// pt: 'Início'
+	String get inicio => 'Início';
+
+	/// pt: 'Tratamento'
+	String get tratamento => 'Tratamento';
+
+	/// pt: 'Ferramentas'
+	String get ferramentas => 'Ferramentas';
+
+	/// pt: 'Perfil'
+	String get perfil => 'Perfil';
 }
 
 // Path: exames.nomes
@@ -1211,7 +1233,7 @@ extension on Translations {
 			'simulador.de_sem' => 'De (Semana)',
 			'simulador.ate_sem' => 'Até (Semana)',
 			'simulador.semana_n' => ({required Object s}) => 'Semana ${s}',
-			'simulador.btn_trama' => 'Trama',
+			'simulador.btn_trama' => 'Simular',
 			'simulador.btn_adicionar' => 'Adicionar Composto',
 			'simulador.btn_reiniciar' => 'Reiniciar',
 			'simulador.grafico_titulo' => 'Liberação Diária de Fármaco Ativo (mg)',
@@ -1287,6 +1309,10 @@ extension on Translations {
 			'complementos.feminino' => 'Feminino',
 			'complementos.selecione_erro' => 'Selecione',
 			'complementos.seringa_intervalo' => ({required Object seringa, required Object dias}) => 'Seringa: ${seringa} UI | Intervalo: ${dias} dias',
+			'navegacao.inicio' => 'Início',
+			'navegacao.tratamento' => 'Tratamento',
+			'navegacao.ferramentas' => 'Ferramentas',
+			'navegacao.perfil' => 'Perfil',
 			_ => null,
 		};
 	}

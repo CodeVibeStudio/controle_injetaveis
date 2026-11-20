@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import 'pharmacokinetics_engine.dart';
+import '../theme/app_theme.dart';
 
 class PharmacokineticsChartWidget extends StatefulWidget {
   final List<InjectionEvent> injections;
@@ -53,7 +54,7 @@ class _PharmacokineticsChartWidgetState
           return const SizedBox(
             height: 300,
             child: Center(
-              child: CircularProgressIndicator(color: Color(0xFF1E3A8A)),
+              child: CircularProgressIndicator(color: AppColors.primary),
             ),
           );
         }
@@ -77,15 +78,9 @@ class _PharmacokineticsChartWidgetState
           child: Container(
             padding: const EdgeInsets.only(right: 18, top: 24, bottom: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border),
             ),
             child: LineChart(
               LineChartData(
@@ -152,7 +147,7 @@ class _PharmacokineticsChartWidgetState
                   LineChartBarData(
                     spots: spots,
                     isCurved: true,
-                    color: const Color(0xFF1E3A8A),
+                    color: AppColors.primary,
                     barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: const FlDotData(show: false),
@@ -160,8 +155,8 @@ class _PharmacokineticsChartWidgetState
                       show: true,
                       gradient: LinearGradient(
                         colors: [
-                          const Color(0xFF1E3A8A).withValues(alpha: 0.4),
-                          const Color(0xFF1E3A8A).withValues(alpha: 0.0),
+                          AppColors.primary.withValues(alpha: 0.35),
+                          AppColors.primary.withValues(alpha: 0.0),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,

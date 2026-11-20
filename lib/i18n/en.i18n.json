@@ -213,7 +213,7 @@
     "de_sem": "From (Week)",
     "ate_sem": "To (Week)",
     "semana_n": "Week ${s}",
-    "btn_trama": "Plot",
+    "btn_trama": "Simulate",
     "btn_adicionar": "Add Compound",
     "btn_reiniciar": "Reset",
     "grafico_titulo": "Daily Active Drug Release (mg)",
@@ -301,5 +301,11 @@
     "feminino": "Female",
     "selecione_erro": "Select",
     "seringa_intervalo": "Syringe: ${seringa} IU | Interval: ${dias} days"
+  },
+  "navegacao": {
+    "inicio": "Home",
+    "tratamento": "Treatment",
+    "ferramentas": "Tools",
+    "perfil": "Profile"
   }
 }

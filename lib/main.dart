@@ -1,3 +1,6 @@
+import 'theme/app_theme.dart';
+import 'widgets/main_shell.dart';
+
 import 'package:local_auth/local_auth.dart';
 
 import 'dart:convert';
@@ -247,10 +250,7 @@ class InjetaveisApp extends StatelessWidget {
       locale: TranslationProvider.of(context).flutterLocale,
       supportedLocales: AppLocaleUtils.supportedLocales,
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      theme: ThemeData(
-        primaryColor: const Color(0xFF1E3A8A),
-        scaffoldBackgroundColor: Colors.grey[100],
-      ),
+      theme: AppTheme.darkTheme,
       home: const AuthGate(),
     );
   }
@@ -272,7 +272,12 @@ class AuthGate extends StatelessWidget {
         final session = snapshot.data?.session;
         if (session != null) {
           if (sessaoRecemLogada) {
-            return const DashboardEcra();
+            return const MainShell(
+              inicioPage: DashboardEcra(),
+              tratamentoPage: SetupEcra(),
+              ferramentasPage: CalculadoraReconstituicaoEcra(),
+              perfilPage: PerfilEcra(),
+            );
           }
           return const BiometriaEcra();
         }
@@ -402,35 +407,44 @@ class _LoginEcraState extends State<LoginEcra> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E3A8A),
+      backgroundColor: AppColors.background,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: AppColors.border, width: 1),
                 ),
-                elevation: 8,
                 child: Padding(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: const EdgeInsets.all(28.0),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.vaccines,
-                        size: 64,
-                        color: Color(0xFF1E3A8A),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.navPillActive,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(
+                          Icons.vaccines_rounded,
+                          size: 48,
+                          color: AppColors.primary,
+                        ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 18),
                       Text(
-                        t.login.titulo, // 👇 Traduzido
+                        t.login.titulo,
                         style: const TextStyle(
                           fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E3A8A),
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.5,
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -477,40 +491,21 @@ class _LoginEcraState extends State<LoginEcra> {
                           children: [
                             ElevatedButton(
                               onPressed: entrar,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1E3A8A),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                              ),
-                              child: Text(
-                                t.login.entrar, // 👇 Traduzido
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              child: Text(t.login.entrar),
                             ),
                             const SizedBox(height: 12),
                             OutlinedButton(
                               onPressed: registar,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF1E3A8A),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                              ),
-                              child: Text(t.login.criar_conta), // 👇 Traduzido
+                              child: Text(t.login.criar_conta),
                             ),
-
                             const SizedBox(height: 8),
                             TextButton(
                               onPressed: recuperarSenha,
                               child: Text(
-                                t.login.esqueci_senha, // 👇 Traduzido
+                                t.login.esqueci_senha,
                                 style: const TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -536,7 +531,7 @@ class _LoginEcraState extends State<LoginEcra> {
                       const SizedBox(width: 8),
                       const Text(
                         'codevibe.br@gmail.com',
-                        style: TextStyle(color: Colors.white),
+                        style: TextStyle(color: Color(0xFF64748B)),
                       ),
                     ],
                   ),
@@ -559,7 +554,7 @@ class _LoginEcraState extends State<LoginEcra> {
                       SizedBox(width: 8),
                       Text(
                         '@codevibestudio',
-                        style: TextStyle(color: Colors.white),
+                        style: TextStyle(color: Color(0xFF64748B)),
                       ),
                     ],
                   ),
@@ -593,7 +588,7 @@ class _LoginEcraState extends State<LoginEcra> {
                       const Text(
                         'codevibestudio.vercel.app',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -605,7 +600,7 @@ class _LoginEcraState extends State<LoginEcra> {
 
               const Text(
                 '© 2026 CodeVibe Studio. Todos os direitos reservados.',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
+                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -654,12 +649,25 @@ class _DashboardEcraState extends State<DashboardEcra> {
 
       if (matchString.contains('UI')) {
         spans.add(
+          const TextSpan(
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              color: AppColors.primary,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+            text: '',
+          ),
+        );
+        spans.removeLast();
+        spans.add(
           TextSpan(
             text: matchString,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 17,
-              color: Colors.deepPurple[700],
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              color: AppColors.primary,
+              fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
         );
@@ -667,10 +675,10 @@ class _DashboardEcraState extends State<DashboardEcra> {
         spans.add(
           TextSpan(
             text: matchString,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-              color: Colors.teal[800],
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: AppColors.success,
             ),
           ),
         );
@@ -684,7 +692,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
 
     return RichText(
       text: TextSpan(
-        style: const TextStyle(fontSize: 14, color: Colors.black87),
+        style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
         children: spans,
       ),
     );
@@ -1279,7 +1287,12 @@ class _DashboardEcraState extends State<DashboardEcra> {
       lastDate: DateTime.now().add(const Duration(days: 150)),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFF1E3A8A)),
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.primary,
+            onPrimary: AppColors.primaryDarkText,
+            surface: AppColors.surface,
+            onSurface: AppColors.textPrimary,
+          ),
         ),
         child: child!,
       ),
@@ -1326,8 +1339,10 @@ class _DashboardEcraState extends State<DashboardEcra> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: AppColors.border),
       ),
       builder: (context) {
         return SafeArea(
@@ -1339,22 +1354,32 @@ class _DashboardEcraState extends State<DashboardEcra> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.biotech, color: Colors.indigo, size: 32),
-                    const SizedBox(width: 8),
-                    Text(
-                      t.exames.painel_titulo, // 👇 Traduzido
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.indigo,
+                    const Icon(
+                      Icons.biotech_rounded,
+                      color: AppColors.primary,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        t.exames.painel_titulo,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Text(
-                  t.exames.painel_subtitulo, // 👇 Traduzido
-                  style: const TextStyle(color: Colors.black87),
+                  t.exames.painel_subtitulo,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 ...listaExamesSugeridos.map(
@@ -1363,15 +1388,18 @@ class _DashboardEcraState extends State<DashboardEcra> {
                     child: Row(
                       children: [
                         const Icon(
-                          Icons.check_circle_outline,
-                          color: Colors.green,
+                          Icons.check_circle_outline_rounded,
+                          color: AppColors.success,
                           size: 20,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             exame,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                         ),
                       ],
@@ -1379,51 +1407,16 @@ class _DashboardEcraState extends State<DashboardEcra> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton.icon(
-                    onPressed: _agendarExameFuturo,
-                    icon: const Icon(Icons.edit_calendar, color: Colors.white),
-                    label: Text(
-                      t.exames.btn_agendar, // 👇 Traduzido
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3A8A),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
+                ElevatedButton.icon(
+                  onPressed: _agendarExameFuturo,
+                  icon: const Icon(Icons.edit_calendar_rounded),
+                  label: Text(t.exames.btn_agendar),
                 ),
                 const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton.icon(
-                    onPressed: _registarExameFeito,
-                    icon: const Icon(Icons.history, color: Color(0xFF1E3A8A)),
-                    label: Text(
-                      t.exames.btn_ja_fiz, // 👇 Traduzido
-                      style: const TextStyle(
-                        color: Color(0xFF1E3A8A),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(
-                        color: Color(0xFF1E3A8A),
-                        width: 1.5,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
+                OutlinedButton.icon(
+                  onPressed: _registarExameFeito,
+                  icon: const Icon(Icons.history_rounded),
+                  label: Text(t.exames.btn_ja_fiz),
                 ),
               ],
             ),
@@ -1443,30 +1436,12 @@ class _DashboardEcraState extends State<DashboardEcra> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          t.dashboard.titulo, // 👇 Traduzido
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          t.dashboard.titulo,
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: const Color(0xFF1E3A8A),
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: Image.asset(
-              'assets/seringa_icon.png',
-              width: 44,
-              height: 44,
-              errorBuilder: (context, error, stackTrace) =>
-                  const Icon(Icons.calculate),
-            ),
-            tooltip: 'Calculadora de Reconstituição',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const CalculadoraReconstituicaoEcra(),
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.help_outline),
+            icon: const Icon(Icons.help_outline_rounded),
             tooltip: 'Guia e Termos',
             onPressed: () => Navigator.push(
               context,
@@ -1474,15 +1449,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.account_circle),
-            tooltip: 'Meu Perfil',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const PerfilEcra()),
-            ).then((_) => _calcularExames()),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
             tooltip: 'Sair',
             onPressed: () => sairDaConta(context),
           ),
@@ -1492,17 +1459,13 @@ class _DashboardEcraState extends State<DashboardEcra> {
         child: carregando
             ? const Center(child: CircularProgressIndicator())
             : Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      t.dashboard.resumo_clinico, // 👇 Traduzido
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E3A8A),
-                      ),
+                      t.dashboard.resumo_clinico,
+                      style: AppTextStyles.pageTitle,
                     ),
                     const SizedBox(height: 16),
                     Expanded(
@@ -1513,30 +1476,31 @@ class _DashboardEcraState extends State<DashboardEcra> {
                             if (agendamentoAtivo != null &&
                                 agendamentoAtivo!['dias_restantes'] <= 3)
                               Card(
-                                color: Colors.orange[50],
-                                elevation: 4,
+                                color: AppColors.warningBg,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(20),
                                   side: BorderSide(
-                                    color: Colors.orange[800]!,
-                                    width: 1.5,
+                                    color: AppColors.warning.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                    width: 1,
                                   ),
                                 ),
                                 margin: const EdgeInsets.only(bottom: 16),
                                 child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
+                                  padding: const EdgeInsets.all(18.0),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
-                                          Icon(
-                                            Icons.assignment_late,
-                                            color: Colors.orange[800],
-                                            size: 28,
+                                          const Icon(
+                                            Icons.assignment_late_rounded,
+                                            color: AppColors.warning,
+                                            size: 24,
                                           ),
-                                          const SizedBox(width: 8),
+                                          const SizedBox(width: 10),
                                           Expanded(
                                             child: Text(
                                               agendamentoAtivo!['dias_restantes'] ==
@@ -1547,10 +1511,10 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                                           dias:
                                                               agendamentoAtivo!['dias_restantes'],
                                                         ),
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.orange[800],
+                                              style: const TextStyle(
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.warning,
                                               ),
                                             ),
                                           ),
@@ -1561,29 +1525,27 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                         t.dashboard_alertas.texto_protecao,
                                         style: const TextStyle(
                                           fontSize: 14,
-                                          color: Colors.black87,
+                                          color: AppColors.textSecondary,
+                                          height: 1.4,
                                         ),
                                       ),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 14),
                                       SizedBox(
                                         width: double.infinity,
                                         child: ElevatedButton.icon(
                                           onPressed: _abrirChecklistExames,
                                           icon: const Icon(
-                                            Icons.checklist,
-                                            color: Colors.white,
+                                            Icons.checklist_rounded,
                                           ),
                                           label: Text(
                                             t
                                                 .dashboard_alertas
                                                 .btn_abrir_checklist,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
                                           ),
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.orange[800],
+                                            backgroundColor: AppColors.warning,
+                                            foregroundColor:
+                                                AppColors.primaryDarkText,
                                           ),
                                         ),
                                       ),
@@ -1593,29 +1555,27 @@ class _DashboardEcraState extends State<DashboardEcra> {
                               ),
                             if (exigeExames && proximaDataExame != null)
                               Card(
-                                color: agendamentoAtivo != null
-                                    ? Colors.indigo[50]
-                                    : (diasParaExame <= 0
-                                          ? Colors.red[50]
-                                          : (diasParaExame <= 15
-                                                ? Colors.orange[50]
-                                                : Colors.teal[50])),
-                                elevation: 4,
+                                color: AppColors.surface,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(20),
                                   side: BorderSide(
                                     color: agendamentoAtivo != null
-                                        ? Colors.indigo
+                                        ? AppColors.border
                                         : (diasParaExame <= 0
-                                              ? Colors.red
+                                              ? AppColors.error.withValues(
+                                                  alpha: 0.6,
+                                                )
                                               : (diasParaExame <= 15
-                                                    ? Colors.orange
-                                                    : Colors.teal)),
-                                    width: 1.5,
+                                                    ? AppColors.warning
+                                                          .withValues(
+                                                            alpha: 0.6,
+                                                          )
+                                                    : AppColors.border)),
+                                    width: 1,
                                   ),
                                 ),
                                 child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
+                                  padding: const EdgeInsets.all(18.0),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
@@ -1624,19 +1584,19 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                         children: [
                                           Icon(
                                             agendamentoAtivo != null
-                                                ? Icons.event_available
-                                                : Icons.biotech,
+                                                ? Icons.event_available_rounded
+                                                : Icons.biotech_rounded,
                                             color: agendamentoAtivo != null
-                                                ? Colors.indigo[800]
+                                                ? AppColors.primary
                                                 : (diasParaExame <= 0
-                                                      ? Colors.red[800]
+                                                      ? AppColors.error
                                                       : (diasParaExame <= 15
-                                                            ? Colors.orange[800]
-                                                            : Colors
-                                                                  .teal[800])),
-                                            size: 28,
+                                                            ? AppColors.warning
+                                                            : AppColors
+                                                                  .success)),
+                                            size: 24,
                                           ),
-                                          const SizedBox(width: 8),
+                                          const SizedBox(width: 10),
                                           Expanded(
                                             child: Text(
                                               agendamentoAtivo != null
@@ -1648,18 +1608,10 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                                         : (diasParaExame <= 15
                                                               ? 'Exames Próximos'
                                                               : 'Check-up de Biomarcadores')),
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                                color: agendamentoAtivo != null
-                                                    ? Colors.indigo[800]
-                                                    : (diasParaExame <= 0
-                                                          ? Colors.red[800]
-                                                          : (diasParaExame <= 15
-                                                                ? Colors
-                                                                      .orange[800]
-                                                                : Colors
-                                                                      .teal[800])),
+                                              style: const TextStyle(
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.textPrimary,
                                               ),
                                             ),
                                           ),
@@ -1679,32 +1631,21 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                                   : 'Próxima coleta sugerida em $diasParaExame dias (${proximaDataExame!.day.toString().padLeft(2, '0')}/${proximaDataExame!.month.toString().padLeft(2, '0')}).'),
                                         style: const TextStyle(
                                           fontSize: 14,
-                                          color: Colors.black87,
+                                          color: AppColors.textSecondary,
+                                          height: 1.4,
                                         ),
                                       ),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 14),
                                       SizedBox(
                                         width: double.infinity,
                                         child: OutlinedButton(
                                           onPressed: _abrirPainelExames,
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: const Color(
-                                              0xFF1E3A8A,
-                                            ),
-                                            side: const BorderSide(
-                                              color: Color(0xFF1E3A8A),
-                                              width: 1.5,
-                                            ),
-                                          ),
                                           child: Text(
                                             agendamentoAtivo != null
                                                 ? t
                                                       .dashboard_alertas
                                                       .btn_ver_painel
                                                 : 'VER PAINEL SUGERIDO',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
                                           ),
                                         ),
                                       ),
@@ -1714,40 +1655,54 @@ class _DashboardEcraState extends State<DashboardEcra> {
                               ),
                             if (exigeExames) const SizedBox(height: 16),
                             Card(
-                              color: Colors.blue[50],
-                              elevation: 4,
+                              color: AppColors.surfaceHighlight,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(20),
+                                side: const BorderSide(
+                                  color: AppColors.borderHighlight,
+                                  width: 1,
+                                ),
                               ),
                               child: Padding(
-                                padding: const EdgeInsets.all(16.0),
+                                padding: const EdgeInsets.all(18.0),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
                                       children: [
                                         const Icon(
-                                          Icons.notification_important,
-                                          color: Colors.blue,
-                                          size: 28,
+                                          Icons.notifications_active_rounded,
+                                          color: AppColors.primary,
+                                          size: 22,
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          t.dashboard.proxima_aplicacao, // 👇 Traduzido
+                                          t.dashboard.proxima_aplicacao,
                                           style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.blue,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.primary,
                                           ),
                                         ),
                                       ],
                                     ),
-                                    const Divider(),
+                                    const Divider(height: 24),
                                     if (proximasDoses.isNotEmpty) ...[
                                       ...proximasDoses.map(
-                                        (dose) => Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 12.0,
+                                        (dose) => Container(
+                                          width: double.infinity,
+                                          margin: const EdgeInsets.only(
+                                            bottom: 12,
+                                          ),
+                                          padding: const EdgeInsets.all(14),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surfaceInner,
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                            border: Border.all(
+                                              color: AppColors.border,
+                                            ),
                                           ),
                                           child: Column(
                                             crossAxisAlignment:
@@ -1768,22 +1723,29 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                                     : 'Medicamento indisponível',
                                                 style: const TextStyle(
                                                   fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Color(0xFF1E3A8A),
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.textPrimary,
                                                 ),
                                               ),
+                                              const SizedBox(height: 6),
                                               Text(
                                                 '${t.dashboard_alertas.label_data}${_formatarData(dose['data_aplicacao'])}',
                                                 style: const TextStyle(
-                                                  fontSize: 14,
+                                                  fontSize: 13,
+                                                  color:
+                                                      AppColors.textSecondary,
                                                 ),
                                               ),
+                                              const SizedBox(height: 2),
                                               Text(
                                                 '${t.dashboard_alertas.label_local}${dose['local_aplicacao']}',
                                                 style: const TextStyle(
-                                                  fontSize: 14,
+                                                  fontSize: 13,
+                                                  color:
+                                                      AppColors.textSecondary,
                                                 ),
                                               ),
+                                              const SizedBox(height: 6),
                                               _formatarTextoDose(
                                                 '${t.dashboard_alertas.label_dose}${dose['dose_ajustada']}',
                                               ),
@@ -1794,65 +1756,97 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                     ] else
                                       const Text(
                                         'Nenhuma aplicação futura agendada.',
-                                        style: TextStyle(color: Colors.grey),
+                                        style: TextStyle(
+                                          color: AppColors.textMuted,
+                                        ),
                                       ),
                                   ],
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             Card(
-                              elevation: 2,
+                              color: AppColors.surface,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(20),
+                                side: const BorderSide(
+                                  color: AppColors.border,
+                                  width: 1,
+                                ),
                               ),
                               child: Padding(
-                                padding: const EdgeInsets.all(16.0),
+                                padding: const EdgeInsets.all(18.0),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
                                       children: [
                                         const Icon(
-                                          Icons.check_circle,
-                                          color: Colors.green,
-                                          size: 24,
+                                          Icons.check_circle_rounded,
+                                          color: AppColors.success,
+                                          size: 22,
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          t
-                                              .dashboard
-                                              .ultima_aplicacao, // 👇 Traduzido
+                                          t.dashboard.ultima_aplicacao,
                                           style: const TextStyle(
                                             fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.green,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.textPrimary,
                                           ),
                                         ),
                                       ],
                                     ),
-                                    const Divider(),
+                                    const Divider(height: 24),
                                     if (ultimasDoses.isNotEmpty) ...[
                                       ...ultimasDoses.map(
                                         (dose) => Padding(
                                           padding: const EdgeInsets.only(
-                                            bottom: 8.0,
+                                            bottom: 10.0,
                                           ),
-                                          child: Column(
+                                          child: Row(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Text(
-                                                dose['medicamentos'] != null
-                                                    ? dose['medicamentos']['nome']
-                                                          .toString()
-                                                    : 'Medicamento indisponível',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
+                                              const Padding(
+                                                padding: EdgeInsets.only(
+                                                  top: 2,
+                                                ),
+                                                child: Icon(
+                                                  Icons.check_rounded,
+                                                  color: AppColors.success,
+                                                  size: 16,
                                                 ),
                                               ),
-                                              Text(
-                                                '${t.dashboard_alertas.label_data}${_formatarData(dose['data_aplicacao'])}',
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      dose['medicamentos'] !=
+                                                              null
+                                                          ? dose['medicamentos']['nome']
+                                                                .toString()
+                                                          : 'Medicamento indisponível',
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: AppColors
+                                                            .textPrimary,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      '${t.dashboard_alertas.label_data}${_formatarData(dose['data_aplicacao'])}',
+                                                      style: const TextStyle(
+                                                        fontSize: 13,
+                                                        color: AppColors
+                                                            .textSecondary,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -1861,41 +1855,15 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                     ] else
                                       const Text(
                                         'Nenhum histórico de aplicações.',
-                                        style: TextStyle(color: Colors.grey),
+                                        style: TextStyle(
+                                          color: AppColors.textMuted,
+                                        ),
                                       ),
                                   ],
                                 ),
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SetupEcra(),
-                          ),
-                        ).then((_) {
-                          _arranqueSeguro();
-                        });
-                      },
-                      icon: const Icon(Icons.settings, color: Colors.white),
-                      label: Text(
-                        t.dashboard.gerir_medicamentos, // 👇 Traduzido
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E3A8A),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                     ),
@@ -1937,10 +1905,11 @@ class _SetupEcraState extends State<SetupEcra> {
         spans.add(
           TextSpan(
             text: matchString,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 17,
-              color: Colors.deepPurple[700],
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              color: AppColors.primary,
+              fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
         );
@@ -1948,10 +1917,10 @@ class _SetupEcraState extends State<SetupEcra> {
         spans.add(
           TextSpan(
             text: matchString,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-              color: Colors.teal[800],
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: AppColors.success,
             ),
           ),
         );
@@ -1965,7 +1934,7 @@ class _SetupEcraState extends State<SetupEcra> {
 
     return RichText(
       text: TextSpan(
-        style: const TextStyle(fontSize: 14, color: Colors.black87),
+        style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
         children: spans,
       ),
     );
@@ -2066,8 +2035,6 @@ class _SetupEcraState extends State<SetupEcra> {
           t.setup.titulo, // 👇 Traduzido
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: const Color(0xFF1E3A8A),
-        foregroundColor: Colors.white,
         centerTitle: true,
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -2079,14 +2046,13 @@ class _SetupEcraState extends State<SetupEcra> {
             ),
           ).then((_) => setState(() {}));
         },
-        backgroundColor: Colors.green[700],
-        icon: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.primaryDarkText,
+        elevation: 0,
+        icon: const Icon(Icons.add_rounded),
         label: Text(
-          t.setup.btn_novo, // 👇 Traduzido
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          t.setup.btn_novo,
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
       body: FutureBuilder<List<dynamic>>(
@@ -2108,10 +2074,10 @@ class _SetupEcraState extends State<SetupEcra> {
                   padding: const EdgeInsets.only(bottom: 24.0),
                   child: Center(
                     child: Text(
-                      t.setup.nenhum_medicamento, // 👇 Traduzido
+                      t.setup.nenhum_medicamento,
                       style: const TextStyle(
                         fontSize: 16,
-                        color: Colors.black54,
+                        color: AppColors.textMuted,
                       ),
                     ),
                   ),
@@ -2119,6 +2085,7 @@ class _SetupEcraState extends State<SetupEcra> {
               else
                 ...medicamentos.map((med) {
                   return InkWell(
+                    borderRadius: BorderRadius.circular(20),
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -2126,13 +2093,14 @@ class _SetupEcraState extends State<SetupEcra> {
                       ),
                     ),
                     child: Card(
-                      elevation: 3,
-                      margin: const EdgeInsets.only(bottom: 12),
+                      color: AppColors.surface,
+                      margin: const EdgeInsets.only(bottom: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(20),
+                        side: const BorderSide(color: AppColors.border),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -2143,18 +2111,20 @@ class _SetupEcraState extends State<SetupEcra> {
                                   child: Text(
                                     med['nome'],
                                     style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1E3A8A),
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
                                     ),
                                   ),
                                 ),
                                 Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
                                       icon: const Icon(
-                                        Icons.edit,
-                                        color: Colors.orange,
+                                        Icons.edit_outlined,
+                                        color: AppColors.warning,
+                                        size: 20,
                                       ),
                                       onPressed: () => Navigator.push(
                                         context,
@@ -2168,51 +2138,85 @@ class _SetupEcraState extends State<SetupEcra> {
                                     ),
                                     IconButton(
                                       icon: const Icon(
-                                        Icons.delete,
-                                        color: Colors.red,
+                                        Icons.delete_outline_rounded,
+                                        color: AppColors.error,
+                                        size: 20,
                                       ),
                                       onPressed: () =>
                                           _deletarMedicamento(med['id']),
-                                    ),
-                                    const Icon(
-                                      Icons.arrow_forward_ios,
-                                      color: Colors.grey,
-                                      size: 16,
                                     ),
                                   ],
                                 ),
                               ],
                             ),
-                            const Divider(),
-                            if (med['detalhes_dose'] != null &&
-                                med['detalhes_dose'].toString().isNotEmpty) ...[
-                              _formatarTextoDose(
-                                'Dose: ${med['detalhes_dose']}',
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceInner,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.border),
                               ),
-                              const SizedBox(height: 4),
-                            ] else if (med['dose_semanal'] != null &&
-                                med['dose_semanal'] > 0) ...[
-                              Text(
-                                'Dose Semanal: ${med['dose_semanal']} ${med['unidade_dose'] ?? 'mg'}',
-                                style: const TextStyle(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                            ],
-                            Text(
-                              (med['tipo_frequencia'] == 'dias_semana' &&
-                                      med['dias_semana'] != null &&
-                                      med['dias_semana'].toString().isNotEmpty)
-                                  ? '${t.formulario.freq_dias_semana}: ${med['dias_semana'].toString().split(',').map((d) => t.formulario.dias_semana[d.toString()]!).join(', ')}'
-                                  : t.complementos.intervalo_cada(
-                                      dias: med['intervalo_dias'] ?? 1,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (med['detalhes_dose'] != null &&
+                                      med['detalhes_dose']
+                                          .toString()
+                                          .isNotEmpty)
+                                    _formatarTextoDose(
+                                      'Dose: ${med['detalhes_dose']}',
+                                    )
+                                  else if (med['dose_semanal'] != null &&
+                                      med['dose_semanal'] > 0)
+                                    Text(
+                                      'Dose Semanal: ${med['dose_semanal']} ${med['unidade_dose'] ?? 'mg'}',
+                                      style: const TextStyle(
+                                        color: AppColors.success,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black87,
+                                ],
                               ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.schedule_rounded,
+                                      size: 16,
+                                      color: AppColors.textMuted,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      (med['tipo_frequencia'] ==
+                                                  'dias_semana' &&
+                                              med['dias_semana'] != null &&
+                                              med['dias_semana']
+                                                  .toString()
+                                                  .isNotEmpty)
+                                          ? '${t.formulario.freq_dias_semana}: ${med['dias_semana'].toString().split(',').map((d) => t.formulario.dias_semana[d.toString()]!).join(', ')}'
+                                          : t.complementos.intervalo_cada(
+                                              dias: med['intervalo_dias'] ?? 1,
+                                            ),
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: AppColors.textMuted,
+                                  size: 20,
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -2226,35 +2230,44 @@ class _SetupEcraState extends State<SetupEcra> {
               const SizedBox(height: 24),
 
               Card(
-                elevation: 4,
+                color: AppColors.surfaceHighlight,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: Color(0xFF1E3A8A), width: 1),
+                  borderRadius: BorderRadius.circular(20),
+                  side: const BorderSide(
+                    color: AppColors.borderHighlight,
+                    width: 1,
+                  ),
                 ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 8,
+                    vertical: 10,
                   ),
                   leading: const CircleAvatar(
-                    backgroundColor: Color(0xFF1E3A8A),
-                    child: Icon(Icons.auto_graph, color: Colors.white),
+                    backgroundColor: AppColors.navPillActive,
+                    child: Icon(
+                      Icons.auto_graph_rounded,
+                      color: AppColors.primary,
+                    ),
                   ),
                   title: Text(
-                    t.setup.simulador_titulo, // 👇 Traduzido
+                    t.setup.simulador_titulo,
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E3A8A),
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   subtitle: Text(
-                    t.setup.simulador_subtitulo, // 👇 Traduzido
-                    style: const TextStyle(fontSize: 13),
+                    t.setup.simulador_subtitulo,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   trailing: const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: Colors.grey,
+                    Icons.chevron_right_rounded,
+                    size: 22,
+                    color: AppColors.primary,
                   ),
                   onTap: () {
                     Navigator.push(
@@ -3016,7 +3029,12 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       lastDate: DateTime(2030),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFF1E3A8A)),
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.primary,
+            onPrimary: AppColors.primaryDarkText,
+            surface: AppColors.surface,
+            onSurface: AppColors.textPrimary,
+          ),
         ),
         child: child!,
       ),
@@ -3032,7 +3050,12 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       initialTime: horaInicio,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFF1E3A8A)),
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.primary,
+            onPrimary: AppColors.primaryDarkText,
+            surface: AppColors.surface,
+            onSurface: AppColors.textPrimary,
+          ),
         ),
         child: child!,
       ),
@@ -3384,10 +3407,6 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         title: Text(
           modoEdicao ? t.formulario.titulo_editar : t.formulario.titulo_novo,
         ),
-        backgroundColor: modoEdicao
-            ? Colors.orange[800]
-            : const Color(0xFF1E3A8A),
-        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -3555,27 +3574,37 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.orange[50],
-                    border: Border.all(color: Colors.orange),
-                    borderRadius: BorderRadius.circular(8),
+                    color: AppColors.warningBg,
+                    border: Border.all(
+                      color: AppColors.warning.withValues(alpha: 0.5),
+                    ),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(
                     children: [
-                      const Icon(Icons.science, color: Colors.orange, size: 32),
+                      const Icon(
+                        Icons.science_rounded,
+                        color: AppColors.warning,
+                        size: 30,
+                      ),
                       const SizedBox(height: 8),
                       const Text(
                         'MODO MIX ATIVADO',
                         style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.warning,
                         ),
                       ),
+                      const SizedBox(height: 4),
                       Text(
                         modoEdicao
                             ? 'Pode alterar o Intervalo, Seringa e Locais livremente. Para alterar as DOSES base, clique em DESMEMBRAR MIX.'
                             : 'O Intervalo, Seringa e Região foram importados automaticamente.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 13),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -3719,43 +3748,39 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.border, width: 1),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      const Row(
                         children: [
-                          const Icon(
-                            Icons.event_repeat,
-                            color: Color(0xFF1E3A8A),
+                          Icon(
+                            Icons.event_repeat_rounded,
+                            color: AppColors.primary,
+                            size: 20,
                           ),
-                          const SizedBox(width: 8),
-                          const Text(
+                          SizedBox(width: 8),
+                          Text(
                             'Esquema de Aplicação',
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E3A8A),
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       Container(
-                        height: 45,
+                        height: 46,
+                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(8),
+                          color: AppColors.surfaceInner,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border),
                         ),
                         child: Row(
                           children: [
@@ -3768,27 +3793,18 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: tipoFrequencia == 'intervalo'
-                                        ? const Color(0xFF1E3A8A)
+                                        ? AppColors.navPillActive
                                         : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(8),
-                                    boxShadow: tipoFrequencia == 'intervalo'
-                                        ? [
-                                            const BoxShadow(
-                                              color: Colors.black12,
-                                              blurRadius: 4,
-                                              offset: Offset(0, 2),
-                                            ),
-                                          ]
-                                        : [],
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                   alignment: Alignment.center,
                                   child: Text(
                                     t.formulario.freq_intervalo,
                                     style: TextStyle(
                                       color: tipoFrequencia == 'intervalo'
-                                          ? Colors.white
-                                          : Colors.black54,
-                                      fontWeight: FontWeight.bold,
+                                          ? AppColors.primary
+                                          : AppColors.textSecondary,
+                                      fontWeight: FontWeight.w700,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -3804,27 +3820,18 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: tipoFrequencia == 'dias_semana'
-                                        ? const Color(0xFF1E3A8A)
+                                        ? AppColors.navPillActive
                                         : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(8),
-                                    boxShadow: tipoFrequencia == 'dias_semana'
-                                        ? [
-                                            const BoxShadow(
-                                              color: Colors.black12,
-                                              blurRadius: 4,
-                                              offset: Offset(0, 2),
-                                            ),
-                                          ]
-                                        : [],
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                   alignment: Alignment.center,
                                   child: Text(
                                     t.formulario.freq_dias_semana,
                                     style: TextStyle(
                                       color: tipoFrequencia == 'dias_semana'
-                                          ? Colors.white
-                                          : Colors.black54,
-                                      fontWeight: FontWeight.bold,
+                                          ? AppColors.primary
+                                          : AppColors.textSecondary,
+                                      fontWeight: FontWeight.w700,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -3842,8 +3849,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                           decoration: InputDecoration(
                             labelText: t.formulario.campo_intervalo,
                             hintText: 'Ex: 7 para uma vez por semana',
-                            border: const OutlineInputBorder(),
-                            prefixIcon: const Icon(Icons.sync),
+                            prefixIcon: const Icon(Icons.sync_rounded),
                           ),
                           validator: (val) =>
                               val == null || val.isEmpty ? 'Obrigatório' : null,
@@ -3853,7 +3859,7 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                         Center(
                           child: Wrap(
                             spacing: 8,
-                            runSpacing: 12,
+                            runSpacing: 10,
                             alignment: WrapAlignment.center,
                             children: [1, 2, 3, 4, 5, 6, 7].map((dia) {
                               final isSelected = diasSemanaSelecionados
@@ -3862,32 +3868,37 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                                 label: Text(
                                   t.formulario.dias_semana[dia.toString()]!,
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
                                     color: isSelected
-                                        ? Colors.white
-                                        : Colors.black87,
+                                        ? AppColors.primaryDarkText
+                                        : AppColors.textSecondary,
                                   ),
                                 ),
                                 selected: isSelected,
-                                selectedColor: Colors.orange[700],
-                                backgroundColor: Colors.grey.shade100,
+                                selectedColor: AppColors.primary,
+                                backgroundColor: AppColors.surfaceInner,
                                 checkmarkColor: Colors.transparent,
                                 showCheckmark: false,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                  side: BorderSide.none,
+                                  borderRadius: BorderRadius.circular(14),
+                                  side: BorderSide(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : AppColors.border,
+                                  ),
                                 ),
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
+                                  horizontal: 12,
+                                  vertical: 8,
                                 ),
                                 onSelected: (val) {
                                   setState(() {
-                                    if (val)
+                                    if (val) {
                                       diasSemanaSelecionados.add(dia);
-                                    else
+                                    } else {
                                       diasSemanaSelecionados.remove(dia);
+                                    }
                                     diasSemanaSelecionados.sort();
                                     _recalcularEquivalencia();
                                   });
@@ -3902,38 +3913,40 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
               ],
               const SizedBox(height: 16),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _isMix ? Colors.orange[50] : Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
+                  color: _isMix
+                      ? AppColors.warningBg
+                      : AppColors.surfaceHighlight,
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: _isMix
-                        ? Colors.orange.shade200
-                        : Colors.blue.shade200,
+                        ? AppColors.warning.withValues(alpha: 0.5)
+                        : AppColors.borderHighlight,
                   ),
                 ),
                 child: Column(
                   children: [
                     Text(
-                      t.formulario.resultado_dose, // 👇 Traduzido
+                      t.formulario.resultado_dose,
                       style: TextStyle(
-                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                         color: _isMix
-                            ? Colors.orange[800]
-                            : const Color(0xFF1E3A8A),
+                            ? AppColors.warning
+                            : AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       textoDetalhesDose.isEmpty
-                          ? t
-                                .formulario
-                                .resultado_vazio // 👇 Traduzido
+                          ? t.formulario.resultado_vazio
                           : textoDetalhesDose,
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.success,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -4025,21 +4038,30 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              regioesSelecionadasList.isEmpty
-                                  ? t.regioes.nenhum
-                                  : t.regioes.selecionados(
-                                      qtd: regioesSelecionadasList.length,
-                                    ),
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: _isMix ? Colors.grey : Colors.black,
-                                fontWeight: FontWeight.bold,
+                            Expanded(
+                              child: Text(
+                                regioesSelecionadasList.isEmpty
+                                    ? t.regioes.nenhum
+                                    : t.regioes.selecionados(
+                                        qtd: regioesSelecionadasList.length,
+                                      ),
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: _isMix
+                                      ? AppColors.textMuted
+                                      : AppColors.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
+                            const SizedBox(width: 4),
                             Icon(
-                              Icons.checklist,
-                              color: _isMix ? Colors.grey : Colors.orange,
+                              Icons.checklist_rounded,
+                              size: 20,
+                              color: _isMix
+                                  ? AppColors.textMuted
+                                  : AppColors.warning,
                             ),
                           ],
                         ),
@@ -4184,10 +4206,11 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
         spans.add(
           TextSpan(
             text: matchString,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 17,
-              color: Colors.deepPurple[700],
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              color: AppColors.primary,
+              fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
         );
@@ -4195,10 +4218,10 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
         spans.add(
           TextSpan(
             text: matchString,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-              color: Colors.teal[800],
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: AppColors.success,
             ),
           ),
         );
@@ -4210,7 +4233,7 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
     }
     return RichText(
       text: TextSpan(
-        style: const TextStyle(fontSize: 14, color: Colors.black87),
+        style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
         children: spans,
       ),
     );
@@ -4880,8 +4903,6 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
             title: Text(
               t.cronograma.titulo(nome: widget.medicamento['nome'].toString()),
             ),
-            backgroundColor: const Color(0xFF1E3A8A),
-            foregroundColor: Colors.white,
             actions: [
               IconButton(
                 icon: const Icon(Icons.delete_sweep),
@@ -4893,14 +4914,13 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
           floatingActionButton: (estaCarregando || temPendentes)
               ? null
               : FloatingActionButton.extended(
-                  backgroundColor: Colors.green[700],
-                  icon: const Icon(Icons.add_alarm, color: Colors.white),
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.primaryDarkText,
+                  elevation: 0,
+                  icon: const Icon(Icons.add_alarm_rounded),
                   label: Text(
                     t.cronograma.btn_gerar_novo,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   onPressed: _abrirDialogoGeracao,
                 ),
@@ -4909,17 +4929,26 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
               children: [
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  color: Colors.blue[100],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: AppColors.surfaceHighlight,
+                    border: Border(
+                      bottom: BorderSide(color: AppColors.borderHighlight),
+                    ),
+                  ),
                   child: Text(
                     t.complementos.seringa_intervalo(
                       seringa: widget.medicamento['seringa_ui'],
                       dias: widget.medicamento['intervalo_dias'],
-                    ), // 👇 Traduzido
+                    ),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E3A8A),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: AppColors.primary,
                     ),
                   ),
                 ),
@@ -4983,14 +5012,23 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                             final bool isPendenteEFinal =
                                 isUltimasDuas && !dose['status_aplicado'];
 
-                            Color? corFundo = dose['status_aplicado']
-                                ? Colors.green[50]
+                            final bool aplicado =
+                                dose['status_aplicado'] == true;
+                            final Color corFundo = aplicado
+                                ? AppColors.surfaceInner
                                 : (isPendenteEFinal
-                                      ? Colors.red[100]
-                                      : Colors.white);
-                            Color corTexto = isPendenteEFinal
-                                ? Colors.red[900]!
-                                : Colors.black;
+                                      ? AppColors.error.withValues(alpha: 0.12)
+                                      : AppColors.surface);
+                            final Color corBorda = aplicado
+                                ? AppColors.success.withValues(alpha: 0.35)
+                                : (isPendenteEFinal
+                                      ? AppColors.error
+                                      : AppColors.border);
+                            final Color corTitulo = aplicado
+                                ? AppColors.textMuted
+                                : (isPendenteEFinal
+                                      ? AppColors.error
+                                      : AppColors.textPrimary);
 
                             return Card(
                               margin: const EdgeInsets.symmetric(
@@ -4998,62 +5036,71 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
                                 vertical: 6,
                               ),
                               color: corFundo,
-                              shape: isPendenteEFinal
-                                  ? RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      side: const BorderSide(
-                                        color: Colors.red,
-                                        width: 2,
-                                      ),
-                                    )
-                                  : RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                                side: BorderSide(
+                                  color: corBorda,
+                                  width: isPendenteEFinal ? 1.5 : 1,
+                                ),
+                              ),
                               child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
                                 onTap: () => alternarStatusDose(dose, doses),
                                 leading: Icon(
-                                  dose['status_aplicado']
-                                      ? Icons.check_circle
+                                  aplicado
+                                      ? Icons.check_circle_rounded
                                       : (isPendenteEFinal
                                             ? Icons.warning_amber_rounded
                                             : Icons.circle_outlined),
-                                  color: dose['status_aplicado']
-                                      ? Colors.green
+                                  color: aplicado
+                                      ? AppColors.success
                                       : (isPendenteEFinal
-                                            ? Colors.red
-                                            : Colors.grey),
-                                  size: 32,
+                                            ? AppColors.error
+                                            : AppColors.textMuted),
+                                  size: 28,
                                 ),
                                 title: Text(
                                   dataFormatada,
                                   style: TextStyle(
                                     fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    decoration: dose['status_aplicado']
+                                    fontWeight: FontWeight.w700,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                    decoration: aplicado
                                         ? TextDecoration.lineThrough
                                         : null,
-                                    color: dose['status_aplicado']
-                                        ? Colors.grey
-                                        : corTexto,
+                                    color: corTitulo,
                                   ),
                                 ),
-                                subtitle: dose['status_aplicado']
+                                subtitle: aplicado
                                     ? Text(
                                         '${dose['dose_ajustada']}\nLocal: ${dose['local_aplicacao']}',
                                         style: const TextStyle(
-                                          color: Colors.grey,
+                                          fontSize: 13,
+                                          color: AppColors.textMuted,
                                         ),
                                       )
                                     : Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
+                                          const SizedBox(height: 4),
                                           _formatarTextoDose(
                                             '${dose['dose_ajustada']}',
                                           ),
+                                          const SizedBox(height: 2),
                                           Text(
                                             'Local: ${dose['local_aplicacao']}',
-                                            style: TextStyle(color: corTexto),
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: isPendenteEFinal
+                                                  ? AppColors.error
+                                                  : AppColors.textSecondary,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -5166,11 +5213,11 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
   }) {
     if (widget.obrigatorio) {
       return Card(
-        color: corFundo ?? Colors.white,
-        elevation: 2,
+        color: AppColors.surface,
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: cor.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: cor.withValues(alpha: 0.35)),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -5179,14 +5226,14 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
             children: [
               Row(
                 children: [
-                  Icon(icone, color: cor, size: 28),
-                  const SizedBox(width: 8),
+                  Icon(icone, color: cor, size: 24),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       titulo,
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                         color: cor,
                       ),
                     ),
@@ -5202,11 +5249,11 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
       );
     }
     return Card(
-      color: corFundo ?? Colors.white,
-      elevation: 2,
+      color: AppColors.surface,
+      elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: cor.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: cor.withValues(alpha: 0.35)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Theme(
@@ -5214,12 +5261,12 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
         child: ExpansionTile(
           iconColor: cor,
           collapsedIconColor: cor,
-          leading: Icon(icone, color: cor, size: 28),
+          leading: Icon(icone, color: cor, size: 24),
           title: Text(
             titulo,
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
               color: cor,
             ),
           ),
@@ -5247,14 +5294,23 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
     required String caminhoImagem,
   }) {
     return Card(
-      elevation: 2,
+      color: AppColors.surfaceInner,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: AppColors.border),
+      ),
       child: ListTile(
-        leading: Icon(icone, color: const Color(0xFF1E3A8A)),
+        leading: Icon(icone, color: AppColors.primary),
         title: Text(
           titulo,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+            fontSize: 14,
+          ),
         ),
-        trailing: const Icon(Icons.zoom_in, color: Colors.orange),
+        trailing: const Icon(Icons.zoom_in_rounded, color: AppColors.warning),
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
@@ -5275,13 +5331,16 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
         text: TextSpan(
           style: const TextStyle(
             fontSize: 13,
-            color: Colors.black87,
+            color: AppColors.textSecondary,
             height: 1.4,
           ),
           children: [
             TextSpan(
               text: '• $termo: ',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
             TextSpan(text: definicao),
           ],
@@ -5301,8 +5360,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
             t.guia.titulo,
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
-          backgroundColor: const Color(0xFF1E3A8A),
-          foregroundColor: Colors.white,
           actions: [
             if (widget.obrigatorio)
               IconButton(
@@ -5322,93 +5379,92 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                   children: [
                     _buildExpandableCard(
                       titulo: t.guia_conteudo.termos_titulo,
-                      cor: Colors.orange[900]!,
-                      icone: Icons.gavel,
+                      cor: AppColors.warning,
+                      icone: Icons.gavel_rounded,
                       conteudo: Text(
                         t.guia_conteudo.termos_texto,
                         style: const TextStyle(
                           fontSize: 14,
                           height: 1.5,
-                          color: Colors.black87,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     _buildExpandableCard(
                       titulo: t.guia_conteudo.aviso_titulo,
-                      cor: Colors.red[900]!,
+                      cor: AppColors.error,
                       icone: Icons.warning_amber_rounded,
                       conteudo: Text(
                         t.guia_conteudo.aviso_texto,
                         style: const TextStyle(
                           fontSize: 14,
                           height: 1.5,
-                          color: Colors.black87,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     _buildExpandableCard(
                       titulo: t.guia_conteudo.higiene_titulo,
-                      cor: Colors.blueGrey[700]!,
-                      icone: Icons.clean_hands,
+                      cor: AppColors.textPrimary,
+                      icone: Icons.clean_hands_rounded,
                       conteudo: Text(
                         t.guia_conteudo.higiene_texto,
                         style: const TextStyle(
                           fontSize: 14,
                           height: 1.5,
-                          color: Colors.black87,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     _buildExpandableCard(
                       titulo: t.guia_conteudo.como_usar_titulo,
-                      cor: const Color(0xFF1E3A8A),
-                      icone: Icons.help_center,
+                      cor: AppColors.primary,
+                      icone: Icons.help_center_rounded,
                       conteudo: Text(
                         t.guia_conteudo.como_usar_texto,
                         style: const TextStyle(
                           fontSize: 14,
                           height: 1.5,
-                          color: Colors.black87,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     _buildExpandableCard(
                       titulo: t.guia_conteudo.cerebro_titulo,
-                      cor: Colors.teal[800]!,
-                      icone: Icons.biotech,
+                      cor: AppColors.success,
+                      icone: Icons.biotech_rounded,
                       conteudo: Text(
                         t.guia_conteudo.cerebro_texto,
                         style: const TextStyle(
                           fontSize: 14,
                           height: 1.5,
-                          color: Colors.black87,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     _buildExpandableCard(
                       titulo: t.guia_conteudo.notificacoes_titulo,
-                      cor: Colors.indigo,
-                      icone: Icons.notifications_active,
+                      cor: AppColors.primary,
+                      icone: Icons.notifications_active_rounded,
                       conteudo: Text(
                         t.guia_conteudo.notificacoes_texto,
                         style: const TextStyle(
                           fontSize: 14,
                           height: 1.5,
-                          color: Colors.black87,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     _buildExpandableCard(
                       titulo: t.guia_conteudo.seringas_titulo,
-                      cor: Colors.orange,
-                      icone: Icons.vaccines,
-                      corFundo: Colors.orange[50],
+                      cor: AppColors.warning,
+                      icone: Icons.vaccines_rounded,
                       conteudo: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -5416,7 +5472,7 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                             t.guia_conteudo.seringas_subtitulo,
                             style: const TextStyle(
                               fontSize: 13,
-                              color: Colors.black87,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -5429,20 +5485,34 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                           const SizedBox(height: 12),
                           Text(
                             t.guia_conteudo.seringas_texto1,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                           Text(
                             t.guia_conteudo.seringas_texto2,
-                            style: const TextStyle(fontSize: 13, height: 1.4),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.4,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             t.guia_conteudo.seringas_texto3,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                           Text(
                             t.guia_conteudo.seringas_texto4,
-                            style: const TextStyle(fontSize: 13, height: 1.4),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.4,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ],
                       ),
@@ -5450,18 +5520,19 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     const SizedBox(height: 12),
                     _buildExpandableCard(
                       titulo: t.guia_conteudo.mapas_titulo,
-                      cor: const Color(0xFF1E3A8A),
-                      icone: Icons.map,
-                      corFundo: Colors.blue[50],
+                      cor: AppColors.primary,
+                      icone: Icons.map_rounded,
                       conteudo: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.red[50],
-                              border: Border.all(color: Colors.red.shade200),
-                              borderRadius: BorderRadius.circular(8),
+                              color: AppColors.error.withValues(alpha: 0.12),
+                              border: Border.all(
+                                color: AppColors.error.withValues(alpha: 0.4),
+                              ),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -5470,7 +5541,7 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                                   children: [
                                     const Icon(
                                       Icons.warning_amber_rounded,
-                                      color: Colors.red,
+                                      color: AppColors.error,
                                       size: 20,
                                     ),
                                     const SizedBox(width: 8),
@@ -5478,8 +5549,8 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                                       child: Text(
                                         t.guia_conteudo.mapas_alerta_titulo,
                                         style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.red,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.error,
                                         ),
                                       ),
                                     ),
@@ -5490,7 +5561,8 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                                   t.guia_conteudo.mapas_alerta_texto,
                                   style: const TextStyle(
                                     fontSize: 13,
-                                    color: Colors.black87,
+                                    color: AppColors.textSecondary,
+                                    height: 1.4,
                                   ),
                                 ),
                               ],
@@ -5501,7 +5573,7 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                             t.guia_conteudo.mapas_subtitulo,
                             style: const TextStyle(
                               fontSize: 13,
-                              color: Colors.black87,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -5542,9 +5614,8 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                     const SizedBox(height: 12),
                     _buildExpandableCard(
                       titulo: t.guia_conteudo.dicionario_titulo,
-                      cor: Colors.purple,
-                      icone: Icons.menu_book,
-                      corFundo: Colors.purple[50],
+                      cor: const Color(0xFFC084FC),
+                      icone: Icons.menu_book_rounded,
                       conteudo: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -5552,7 +5623,7 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                             t.guia_conteudo.dicionario_subtitulo,
                             style: const TextStyle(
                               fontSize: 13,
-                              color: Colors.black87,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -5705,17 +5776,13 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 12,
+                    vertical: 14,
                   ),
                   decoration: const BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 6,
-                        offset: Offset(0, -3),
-                      ),
-                    ],
+                    color: AppColors.surface,
+                    border: Border(
+                      top: BorderSide(color: AppColors.border, width: 1),
+                    ),
                   ),
                   child: SafeArea(
                     top: false,
@@ -5728,9 +5795,9 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                             child: Text(
                               t.guia.aviso_scroll,
                               style: const TextStyle(
-                                color: Colors.red,
+                                color: AppColors.error,
                                 fontSize: 13,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -5743,7 +5810,7 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                               height: 24,
                               child: Checkbox(
                                 value: _aceitouTermos,
-                                activeColor: Colors.green[700],
+                                activeColor: AppColors.success,
                                 onChanged: _chegouAoFim
                                     ? (val) {
                                         setState(
@@ -5759,10 +5826,10 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
                                 t.guia.texto_aceite,
                                 style: TextStyle(
                                   fontSize: 13,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w600,
                                   color: _chegouAoFim
-                                      ? Colors.black
-                                      : Colors.grey,
+                                      ? AppColors.textPrimary
+                                      : AppColors.textMuted,
                                 ),
                               ),
                             ),
@@ -5973,7 +6040,9 @@ class _PerfilEcraState extends State<PerfilEcra> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -6007,7 +6076,12 @@ class _PerfilEcraState extends State<PerfilEcra> {
       lastDate: DateTime.now(),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFF1E3A8A)),
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.primary,
+            onPrimary: AppColors.primaryDarkText,
+            surface: AppColors.surface,
+            onSurface: AppColors.textPrimary,
+          ),
         ),
         child: child!,
       ),
@@ -6031,8 +6105,6 @@ class _PerfilEcraState extends State<PerfilEcra> {
             t.perfil.titulo,
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
-          backgroundColor: const Color(0xFF1E3A8A),
-          foregroundColor: Colors.white,
           actions: [
             if (widget.obrigatorio)
               IconButton(
@@ -6051,19 +6123,31 @@ class _PerfilEcraState extends State<PerfilEcra> {
                     key: _formKey,
                     child: ListView(
                       children: [
-                        const Icon(
-                          Icons.account_circle,
-                          size: 80,
-                          color: Color(0xFF1E3A8A),
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: AppColors.navPillActive,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppColors.borderHighlight,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.person_rounded,
+                              size: 48,
+                              color: AppColors.primary,
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           t.perfil.dados_biologicos,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E3A8A),
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -6072,7 +6156,8 @@ class _PerfilEcraState extends State<PerfilEcra> {
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 13,
-                            color: Colors.grey,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -6173,8 +6258,8 @@ class _PerfilEcraState extends State<PerfilEcra> {
                             prefixIcon: const Icon(Icons.cake),
                             suffixIcon: IconButton(
                               icon: const Icon(
-                                Icons.calendar_month,
-                                color: Color(0xFF1E3A8A),
+                                Icons.calendar_month_rounded,
+                                color: AppColors.primary,
                               ),
                               tooltip: 'Escolher no Calendário',
                               onPressed: _escolherData,
@@ -6188,22 +6273,11 @@ class _PerfilEcraState extends State<PerfilEcra> {
                             return null;
                           },
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 28),
                         ElevatedButton.icon(
                           onPressed: _salvarPerfil,
-                          icon: const Icon(Icons.save, color: Colors.white),
-                          label: Text(
-                            t.perfil.btn_salvar,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green[700],
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
+                          icon: const Icon(Icons.save_rounded),
+                          label: Text(t.perfil.btn_salvar),
                         ),
                       ],
                     ),
@@ -6271,7 +6345,14 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
   void _irParaDashboard() {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const DashboardEcra()),
+      MaterialPageRoute(
+        builder: (context) => const MainShell(
+          inicioPage: DashboardEcra(),
+          tratamentoPage: SetupEcra(),
+          ferramentasPage: CalculadoraReconstituicaoEcra(),
+          perfilPage: PerfilEcra(),
+        ),
+      ),
     );
   }
 
@@ -6282,32 +6363,44 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E3A8A),
+      backgroundColor: AppColors.background,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.fingerprint, size: 100, color: Colors.white),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.navPillActive,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.borderHighlight),
+                ),
+                child: const Icon(
+                  Icons.fingerprint_rounded,
+                  size: 64,
+                  color: AppColors.primary,
+                ),
+              ),
               const SizedBox(height: 24),
               Text(
                 t.biometria.titulo,
                 style: const TextStyle(
                   fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 t.biometria.subtitulo,
-                style: const TextStyle(color: Colors.white70),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 32),
-
               if (_autenticando)
-                const CircularProgressIndicator(color: Colors.white)
+                const CircularProgressIndicator(color: AppColors.primary)
               else ...[
                 if (_mensagemErro.isNotEmpty)
                   Padding(
@@ -6316,58 +6409,23 @@ class _BiometriaEcraState extends State<BiometriaEcra> {
                       _mensagemErro,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        color: Colors.orange,
-                        fontWeight: FontWeight.bold,
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-
                 ElevatedButton.icon(
                   onPressed: _verificarEAutenticar,
-                  icon: const Icon(Icons.fingerprint, color: Color(0xFF1E3A8A)),
-                  label: Text(
-                    t.biometria.btn_biometria,
-                    style: const TextStyle(
-                      color: Color(0xFF1E3A8A),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
+                  icon: const Icon(Icons.fingerprint_rounded),
+                  label: Text(t.biometria.btn_biometria),
                 ),
-
-                const SizedBox(height: 16),
-
+                const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: _usarSenhaDoApp,
-                  icon: const Icon(Icons.password, color: Colors.white),
-                  label: Text(
-                    t.biometria.btn_senha,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.white),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
+                  icon: const Icon(Icons.password_rounded),
+                  label: Text(t.biometria.btn_senha),
                 ),
-              ], // <-- Colchetes fechados corretamente!
+              ],
             ],
           ),
         ),

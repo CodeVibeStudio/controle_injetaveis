@@ -59,6 +59,7 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$formulario_extras$en formulario_extras = _Translations$formulario_extras$en._(_root);
 	@override late final _Translations$exames$en exames = _Translations$exames$en._(_root);
 	@override late final _Translations$complementos$en complementos = _Translations$complementos$en._(_root);
+	@override late final _Translations$navegacao$en navegacao = _Translations$navegacao$en._(_root);
 }
 
 // Path: notificacoes
@@ -379,7 +380,7 @@ class _Translations$simulador$en extends Translations$simulador$pt {
 	@override String get de_sem => 'From (Week)';
 	@override String get ate_sem => 'To (Week)';
 	@override String semana_n({required Object s}) => 'Week ${s}';
-	@override String get btn_trama => 'Plot';
+	@override String get btn_trama => 'Simulate';
 	@override String get btn_adicionar => 'Add Compound';
 	@override String get btn_reiniciar => 'Reset';
 	@override String get grafico_titulo => 'Daily Active Drug Release (mg)';
@@ -485,6 +486,19 @@ class _Translations$complementos$en extends Translations$complementos$pt {
 	@override String get feminino => 'Female';
 	@override String get selecione_erro => 'Select';
 	@override String seringa_intervalo({required Object seringa, required Object dias}) => 'Syringe: ${seringa} IU | Interval: ${dias} days';
+}
+
+// Path: navegacao
+class _Translations$navegacao$en extends Translations$navegacao$pt {
+	_Translations$navegacao$en._(TranslationsEn root) : this._root = root, super.internal(root);
+
+	final TranslationsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get inicio => 'Home';
+	@override String get tratamento => 'Treatment';
+	@override String get ferramentas => 'Tools';
+	@override String get perfil => 'Profile';
 }
 
 // Path: exames.nomes
@@ -703,7 +717,7 @@ extension on TranslationsEn {
 			'simulador.de_sem' => 'From (Week)',
 			'simulador.ate_sem' => 'To (Week)',
 			'simulador.semana_n' => ({required Object s}) => 'Week ${s}',
-			'simulador.btn_trama' => 'Plot',
+			'simulador.btn_trama' => 'Simulate',
 			'simulador.btn_adicionar' => 'Add Compound',
 			'simulador.btn_reiniciar' => 'Reset',
 			'simulador.grafico_titulo' => 'Daily Active Drug Release (mg)',
@@ -779,6 +793,10 @@ extension on TranslationsEn {
 			'complementos.feminino' => 'Female',
 			'complementos.selecione_erro' => 'Select',
 			'complementos.seringa_intervalo' => ({required Object seringa, required Object dias}) => 'Syringe: ${seringa} IU | Interval: ${dias} days',
+			'navegacao.inicio' => 'Home',
+			'navegacao.tratamento' => 'Treatment',
+			'navegacao.ferramentas' => 'Tools',
+			'navegacao.perfil' => 'Profile',
 			_ => null,
 		};
 	}

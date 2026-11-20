@@ -1,7 +1,7 @@
 name: controle_injetaveis
 description: "A new Flutter project."
 publish_to: "none"
-version: 1.0.58+59
+version: 1.0.59+60
 
 environment:
   sdk: ^3.13.4
@@ -36,6 +36,17 @@ flutter:
     - assets/seringa_icon.png
     - assets/logo.png
     - assets/regiao/
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/PlusJakartaSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/PlusJakartaSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/PlusJakartaSans-Bold.ttf
+          weight: 700
 
 flutter_launcher_icons:
   android: "launcher_icon"

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'pharmacokinetics_engine.dart';
 import 'pharmacokinetics_chart_widget.dart';
 import '../i18n/translations.g.dart';
+import '../theme/app_theme.dart';
 
 final Map<String, List<Compound>> baseDeDadosCompostos = {
   'Esteroides/Hormônios Anabolizantes': [
@@ -199,23 +200,14 @@ class _SimuladorCiclosEcraState extends State<SimuladorCiclosEcra> {
       appBar: AppBar(
         title: Text(
           t.simulador.titulo,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: const Color(0xFF1E3A8A),
-        foregroundColor: Colors.white,
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            Text(
-              t.simulador.subtitulo,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E3A8A),
-              ),
-            ),
+            Text(t.simulador.subtitulo, style: AppTextStyles.pageTitle),
             const SizedBox(height: 16),
 
             Card(
@@ -267,24 +259,18 @@ class _SimuladorCiclosEcraState extends State<SimuladorCiclosEcra> {
               ),
             ),
             const SizedBox(height: 24),
-            Text(
-              t.simulador.composto_title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E3A8A),
-              ),
-            ),
-            const SizedBox(height: 8),
+            Text(t.simulador.composto_title, style: AppTextStyles.sectionTitle),
+            const SizedBox(height: 10),
 
             ...List.generate(linhas.length, (index) {
               final linha = linhas[index];
               return Card(
-                elevation: 3,
+                color: AppColors.surface,
+                elevation: 0,
                 margin: const EdgeInsets.only(bottom: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(20),
+                  side: const BorderSide(color: AppColors.border),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -561,11 +547,7 @@ class _SimuladorCiclosEcraState extends State<SimuladorCiclosEcra> {
               Text(
                 t.simulador.grafico_titulo,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E3A8A),
-                ),
+                style: AppTextStyles.sectionTitle,
               ),
               const SizedBox(height: 16),
 

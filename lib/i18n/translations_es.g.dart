@@ -59,6 +59,7 @@ class TranslationsEs extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$formulario_extras$es formulario_extras = _Translations$formulario_extras$es._(_root);
 	@override late final _Translations$exames$es exames = _Translations$exames$es._(_root);
 	@override late final _Translations$complementos$es complementos = _Translations$complementos$es._(_root);
+	@override late final _Translations$navegacao$es navegacao = _Translations$navegacao$es._(_root);
 }
 
 // Path: notificacoes
@@ -379,7 +380,7 @@ class _Translations$simulador$es extends Translations$simulador$pt {
 	@override String get de_sem => 'De (Semana)';
 	@override String get ate_sem => 'Hasta (Semana)';
 	@override String semana_n({required Object s}) => 'Semana ${s}';
-	@override String get btn_trama => 'Trama';
+	@override String get btn_trama => 'Simular';
 	@override String get btn_adicionar => 'Añadir Compuesto';
 	@override String get btn_reiniciar => 'Reiniciar';
 	@override String get grafico_titulo => 'Liberación Diaria de Fármaco Activo (mg)';
@@ -485,6 +486,19 @@ class _Translations$complementos$es extends Translations$complementos$pt {
 	@override String get feminino => 'Femenino';
 	@override String get selecione_erro => 'Seleccione';
 	@override String seringa_intervalo({required Object seringa, required Object dias}) => 'Jeringa: ${seringa} UI | Intervalo: ${dias} días';
+}
+
+// Path: navegacao
+class _Translations$navegacao$es extends Translations$navegacao$pt {
+	_Translations$navegacao$es._(TranslationsEs root) : this._root = root, super.internal(root);
+
+	final TranslationsEs _root; // ignore: unused_field
+
+	// Translations
+	@override String get inicio => 'Inicio';
+	@override String get tratamento => 'Tratamiento';
+	@override String get ferramentas => 'Herramientas';
+	@override String get perfil => 'Perfil';
 }
 
 // Path: exames.nomes
@@ -703,7 +717,7 @@ extension on TranslationsEs {
 			'simulador.de_sem' => 'De (Semana)',
 			'simulador.ate_sem' => 'Hasta (Semana)',
 			'simulador.semana_n' => ({required Object s}) => 'Semana ${s}',
-			'simulador.btn_trama' => 'Trama',
+			'simulador.btn_trama' => 'Simular',
 			'simulador.btn_adicionar' => 'Añadir Compuesto',
 			'simulador.btn_reiniciar' => 'Reiniciar',
 			'simulador.grafico_titulo' => 'Liberación Diaria de Fármaco Activo (mg)',
@@ -779,6 +793,10 @@ extension on TranslationsEs {
 			'complementos.feminino' => 'Femenino',
 			'complementos.selecione_erro' => 'Seleccione',
 			'complementos.seringa_intervalo' => ({required Object seringa, required Object dias}) => 'Jeringa: ${seringa} UI | Intervalo: ${dias} días',
+			'navegacao.inicio' => 'Inicio',
+			'navegacao.tratamento' => 'Tratamiento',
+			'navegacao.ferramentas' => 'Herramientas',
+			'navegacao.perfil' => 'Perfil',
 			_ => null,
 		};
 	}

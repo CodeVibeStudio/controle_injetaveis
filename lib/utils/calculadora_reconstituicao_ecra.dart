@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'dose_calculator.dart';
 import 'syringe_widget.dart';
 import '../i18n/translations.g.dart';
+import '../theme/app_theme.dart';
 
 class CalculadoraReconstituicaoEcra extends StatefulWidget {
   const CalculadoraReconstituicaoEcra({super.key});
@@ -281,13 +282,11 @@ class _CalculadoraReconstituicaoEcraState
       appBar: AppBar(
         title: Text(
           t.calculadora.titulo,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: const Color(0xFF1E3A8A),
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             tooltip: t.calculadora.limpar,
             onPressed: _limparTudo,
           ),
@@ -297,16 +296,27 @@ class _CalculadoraReconstituicaoEcraState
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            Text(
-              t.calculadora.aviso,
-              style: const TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.warningBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AppColors.warning.withValues(alpha: 0.45),
+                ),
               ),
-              textAlign: TextAlign.center,
+              child: Text(
+                t.calculadora.aviso,
+                style: const TextStyle(
+                  color: AppColors.warning,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  height: 1.35,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
             Row(
               children: [
@@ -429,30 +439,29 @@ class _CalculadoraReconstituicaoEcraState
             const SizedBox(height: 24),
 
             Card(
-              elevation: 4,
+              color: AppColors.surface,
               clipBehavior: Clip.antiAlias,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: const BorderSide(color: Color(0xFF1E3A8A), width: 1.5),
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(color: AppColors.borderHighlight),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Container(
-                    color: const Color(0xFF1E3A8A),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    color: AppColors.surfaceHighlight,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     child: Text(
                       t.calculadora.resultados,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
                       ),
                     ),
                   ),
-                  Container(
-                    color: Colors.white,
+                  Padding(
                     padding: const EdgeInsets.all(16),
                     child: calcVolumeMl == 0 || seringaSelecionada == null
                         ? Column(
@@ -461,9 +470,9 @@ class _CalculadoraReconstituicaoEcraState
                                 t.calculadora.selecoes_vazias,
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
-                                  fontSize: 15,
-                                  color: Color(0xFF1E3A8A),
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: AppColors.textSecondary,
+                                  height: 1.4,
                                 ),
                               ),
                               const SizedBox(height: 16),
@@ -479,9 +488,8 @@ class _CalculadoraReconstituicaoEcraState
                                 textAlign: TextAlign.center,
                                 text: TextSpan(
                                   style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Color(0xFF1E3A8A),
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                    color: AppColors.textSecondary,
                                     height: 1.5,
                                   ),
                                   children: [
@@ -489,7 +497,8 @@ class _CalculadoraReconstituicaoEcraState
                                     TextSpan(
                                       text: strDoseFinal,
                                       style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
                                       ),
                                     ),
                                     TextSpan(text: t.calculadora.res_aspire),
@@ -497,28 +506,25 @@ class _CalculadoraReconstituicaoEcraState
                                       text:
                                           '${calcVolumeMl.toStringAsFixed(2).replaceAll('.', ',')}${t.calculadora.res_ou}${calcDoseUi.toStringAsFixed(1).replaceAll('.0', '')}${t.calculadora.res_unidades}',
                                       style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        decoration: TextDecoration.underline,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.primary,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
                               const SizedBox(height: 16),
-
                               SyringeVisualizer(
                                 syringeSize: seringaSelecionada!,
                                 filledUnits: calcDoseUi,
                               ),
-
                               const SizedBox(height: 16),
                               RichText(
                                 textAlign: TextAlign.center,
                                 text: TextSpan(
                                   style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Color(0xFF1E3A8A),
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    color: AppColors.textSecondary,
                                     height: 1.5,
                                   ),
                                   children: [
@@ -527,21 +533,20 @@ class _CalculadoraReconstituicaoEcraState
                                       text:
                                           '${concentracaoCtrl.text.replaceAll('.', ',')} mg/mL.',
                                       style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        decoration: TextDecoration.underline,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 8),
                               RichText(
                                 textAlign: TextAlign.center,
                                 text: TextSpan(
                                   style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Color(0xFF1E3A8A),
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    color: AppColors.textSecondary,
                                     height: 1.5,
                                   ),
                                   children: [
@@ -550,8 +555,8 @@ class _CalculadoraReconstituicaoEcraState
                                       text:
                                           '$rendimentoDoses${t.calculadora.res_doses}',
                                       style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        decoration: TextDecoration.underline,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.success,
                                       ),
                                     ),
                                     TextSpan(
@@ -567,22 +572,20 @@ class _CalculadoraReconstituicaoEcraState
                 ],
               ),
             ),
-            const SizedBox(height: 32),
-
+            const SizedBox(height: 28),
             const Divider(),
-            const SizedBox(height: 16),
-
+            const SizedBox(height: 12),
             Text(
               t.calculadora.simulador_titulo,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E3A8A),
-              ),
+              style: AppTextStyles.sectionTitle,
             ),
+            const SizedBox(height: 4),
             Text(
               t.calculadora.simulador_desc,
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 16),
 

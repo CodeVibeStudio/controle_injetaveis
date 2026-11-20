@@ -213,7 +213,7 @@
     "de_sem": "De (Semana)",
     "ate_sem": "Hasta (Semana)",
     "semana_n": "Semana ${s}",
-    "btn_trama": "Trama",
+    "btn_trama": "Simular",
     "btn_adicionar": "Añadir Compuesto",
     "btn_reiniciar": "Reiniciar",
     "grafico_titulo": "Liberación Diaria de Fármaco Activo (mg)",
@@ -301,5 +301,11 @@
     "feminino": "Femenino",
     "selecione_erro": "Seleccione",
     "seringa_intervalo": "Jeringa: ${seringa} UI | Intervalo: ${dias} días"
+  },
+  "navegacao": {
+    "inicio": "Inicio",
+    "tratamento": "Tratamiento",
+    "ferramentas": "Herramientas",
+    "perfil": "Perfil"
   }
 }

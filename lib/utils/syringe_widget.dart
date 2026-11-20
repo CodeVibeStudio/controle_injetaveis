@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import 'dose_calculator.dart';
+import '../theme/app_theme.dart';
 
 class SyringeVisualizer extends StatelessWidget {
   final SyringeSize syringeSize;
@@ -19,7 +20,11 @@ class SyringeVisualizer extends StatelessWidget {
       width: double.infinity,
       height: 110,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-      color: Colors.white,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceInner,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
       child: CustomPaint(
         painter: _SyringePainter(
           sizeConfig: syringeSize,
@@ -47,12 +52,12 @@ class _SyringePainter extends CustomPainter {
     final double barrelStartX = needleWidth;
 
     final paintOutline = Paint()
-      ..color = Colors.black
+      ..color = AppColors.textSecondary
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
+      ..strokeWidth = 1.8;
 
     final paintLiquid = Paint()
-      ..color = Colors.lightBlueAccent.shade100
+      ..color = AppColors.primary.withValues(alpha: 0.45)
       ..style = PaintingStyle.fill;
 
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
@@ -204,9 +209,9 @@ class _SyringePainter extends CustomPainter {
     painter.text = TextSpan(
       text: text,
       style: TextStyle(
-        color: Colors.black,
+        color: AppColors.textPrimary,
         fontSize: fontSize,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w700,
       ),
     );
     painter.layout();
