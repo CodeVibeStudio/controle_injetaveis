@@ -408,202 +408,205 @@ class _LoginEcraState extends State<LoginEcra> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: AppColors.border, width: 1),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(28.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.navPillActive,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Icon(
-                          Icons.vaccines_rounded,
-                          size: 48,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Text(
-                        t.login.titulo,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-
-                      TextField(
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: InputDecoration(
-                          labelText: t.login.email, // 👇 Traduzido
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.email),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: passwordController,
-                        obscureText: _ocultarSenha,
-                        decoration: InputDecoration(
-                          labelText: t.login.senha, // 👇 Traduzido
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.lock),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _ocultarSenha
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              color: Colors.grey[600],
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _ocultarSenha = !_ocultarSenha;
-                              });
-                            },
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: AppColors.border, width: 1),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(28.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.navPillActive,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(
+                            Icons.vaccines_rounded,
+                            size: 48,
+                            color: AppColors.primary,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 18),
+                        Text(
+                          t.login.titulo,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 32),
 
-                      if (carregando)
-                        const CircularProgressIndicator()
-                      else
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            ElevatedButton(
-                              onPressed: entrar,
-                              child: Text(t.login.entrar),
+                        TextField(
+                          controller: emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: InputDecoration(
+                            labelText: t.login.email, // 👇 Traduzido
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.email),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: passwordController,
+                          obscureText: _ocultarSenha,
+                          decoration: InputDecoration(
+                            labelText: t.login.senha, // 👇 Traduzido
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.lock),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _ocultarSenha
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                color: Colors.grey[600],
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _ocultarSenha = !_ocultarSenha;
+                                });
+                              },
                             ),
-                            const SizedBox(height: 12),
-                            OutlinedButton(
-                              onPressed: registar,
-                              child: Text(t.login.criar_conta),
-                            ),
-                            const SizedBox(height: 8),
-                            TextButton(
-                              onPressed: recuperarSenha,
-                              child: Text(
-                                t.login.esqueci_senha,
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        if (carregando)
+                          const CircularProgressIndicator()
+                        else
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ElevatedButton(
+                                onPressed: entrar,
+                                child: Text(t.login.entrar),
+                              ),
+                              const SizedBox(height: 12),
+                              OutlinedButton(
+                                onPressed: registar,
+                                child: Text(t.login.criar_conta),
+                              ),
+                              const SizedBox(height: 8),
+                              TextButton(
+                                onPressed: recuperarSenha,
+                                child: Text(
+                                  t.login.esqueci_senha,
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+                const Divider(color: Colors.white24),
+                const SizedBox(height: 16),
+
+                InkWell(
+                  onTap: () => _abrirUrl('mailto:codevibe.br@gmail.com'),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.email, color: Colors.red[400], size: 20),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'codevibe.br@gmail.com',
+                          style: TextStyle(color: Color(0xFF64748B)),
                         ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 4),
 
-              const SizedBox(height: 32),
-              const Divider(color: Colors.white24),
-              const SizedBox(height: 16),
-
-              InkWell(
-                onTap: () => _abrirUrl('mailto:codevibe.br@gmail.com'),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.email, color: Colors.red[400], size: 20),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'codevibe.br@gmail.com',
-                        style: TextStyle(color: Color(0xFF64748B)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-
-              InkWell(
-                onTap: () => _abrirUrl('https://instagram.com/codevibestudio'),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.camera_alt,
-                        color: Colors.pinkAccent,
-                        size: 20,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        '@codevibestudio',
-                        style: TextStyle(color: Color(0xFF64748B)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-
-              InkWell(
-                onTap: () => _abrirUrl('https://codevibestudio.vercel.app'),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: Image.asset(
-                          'assets/logo.png',
-                          height: 24,
-                          width: 24,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(
-                                Icons.language,
-                                color: Colors.blueAccent,
-                                size: 20,
-                              ),
+                InkWell(
+                  onTap: () =>
+                      _abrirUrl('https://instagram.com/codevibestudio'),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.camera_alt,
+                          color: Colors.pinkAccent,
+                          size: 20,
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'codevibestudio.vercel.app',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.bold,
+                        SizedBox(width: 8),
+                        Text(
+                          '@codevibestudio',
+                          style: TextStyle(color: Color(0xFF64748B)),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 4),
 
-              const Text(
-                '© 2026 CodeVibe Studio. Todos os direitos reservados.',
-                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
-                textAlign: TextAlign.center,
-              ),
-            ],
+                InkWell(
+                  onTap: () => _abrirUrl('https://codevibestudio.vercel.app'),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Image.asset(
+                            'assets/logo.png',
+                            height: 24,
+                            width: 24,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.language,
+                                  color: Colors.blueAccent,
+                                  size: 20,
+                                ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'codevibestudio.vercel.app',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                const Text(
+                  '© 2026 CodeVibe Studio. Todos os direitos reservados.',
+                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -2333,6 +2336,15 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
   String textoDetalhesDose = '';
   double calcVolumeMl = 0.0;
 
+  String _obterRecomendacaoSeringa(double volMl) {
+    if (volMl <= 0) return '';
+    if (volMl <= 0.3) return 'Seringa recomendada: Insulina 0,3 mL (30 UI)';
+    if (volMl <= 0.5) return 'Seringa recomendada: Insulina 0,5 mL (50 UI)';
+    if (volMl < 1.0) return 'Seringa recomendada: Insulina 1,0 mL (100 UI)';
+    if (volMl <= 3.0) return 'Seringa recomendada: 3 mL (Via IM obrigatória)';
+    return 'Seringa recomendada: 5 mL (Via IM obrigatória — avalie fracionar o volume)';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -2484,7 +2496,21 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       t.regioes.perna_anterior,
       t.regioes.braco_triceps,
     ];
+    final bool bloquearSC = calcVolumeMl >= 1.0;
+
+    bool isSubcutaneo(String local) {
+      final l = local.toLowerCase();
+      return l.contains('(sc)') ||
+          l.contains('barriga') ||
+          l.contains('flanco') ||
+          l.contains('abdomen') ||
+          l.contains('abdom');
+    }
+
     List<String> tempSelecionados = List.from(regioesSelecionadasList);
+    if (bloquearSC) {
+      tempSelecionados.removeWhere((l) => isSubcutaneo(l));
+    }
 
     await showDialog(
       context: context,
@@ -2492,51 +2518,97 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
         builder: (context, setStateDialog) => AlertDialog(
           title: const Text(
             'Selecione os Locais',
-            style: TextStyle(color: Color(0xFF1E3A8A)),
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           content: SingleChildScrollView(
             child: Column(
-              children: locaisDisponiveis
-                  .map(
-                    (local) => CheckboxListTile(
-                      title: Text(
-                        local,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (bloquearSC)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.warningBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.warning.withValues(alpha: 0.5),
                       ),
-                      value: tempSelecionados.contains(local),
-                      activeColor: Colors.orange,
-                      onChanged: (val) {
-                        setStateDialog(() {
-                          if (val == true) {
-                            tempSelecionados.add(local);
-                          } else {
-                            tempSelecionados.remove(local);
-                          }
-                        });
-                      },
                     ),
-                  )
-                  .toList(),
+                    child: Text(
+                      'Volume ≥ 1,0 mL (${calcVolumeMl.toStringAsFixed(2).replaceAll('.', ',')} mL): vias Subcutâneas (SC) bloqueadas por segurança. Selecione uma via Intramuscular (IM).',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ...locaisDisponiveis.map((local) {
+                  final bool bloqueado = bloquearSC && isSubcutaneo(local);
+                  return CheckboxListTile(
+                    title: Text(
+                      local,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: bloqueado
+                            ? AppColors.textMuted
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    subtitle: bloqueado
+                        ? const Text(
+                            'Bloqueado para volumes ≥ 1,0 mL',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.error,
+                            ),
+                          )
+                        : null,
+                    value: !bloqueado && tempSelecionados.contains(local),
+                    activeColor: AppColors.primary,
+                    onChanged: bloqueado
+                        ? null
+                        : (val) {
+                            setStateDialog(() {
+                              if (val == true) {
+                                tempSelecionados.add(local);
+                              } else {
+                                tempSelecionados.remove(local);
+                              }
+                            });
+                          },
+                  );
+                }),
+              ],
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              onPressed: () {
-                setState(() {
-                  regioesSelecionadasList = tempSelecionados;
-                  regiaoSelecionada = regioesSelecionadasList.join(', ');
-                });
-                Navigator.pop(ctx);
-              },
-              child: const Text(
-                'CONFIRMAR',
-                style: TextStyle(color: Colors.white),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancelar'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        regioesSelecionadasList = tempSelecionados;
+                        regiaoSelecionada = regioesSelecionadasList.join(', ');
+                      });
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('CONFIRMAR'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -2883,21 +2955,32 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       builder: (ctx) => AlertDialog(
         title: Text(
           t.formulario_extras.dialogo_rotulo_titulo,
-          style: const TextStyle(color: Color(0xFF1E3A8A)),
-        ),
-        content: Text(t.formulario_extras.dialogo_rotulo_desc),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(t.geral.nao),
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-            child: Text(
-              t.geral.sim,
-              style: const TextStyle(color: Colors.white),
-            ),
+        ),
+        content: Text(
+          t.formulario_extras.dialogo_rotulo_desc,
+          style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(t.geral.nao),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(t.geral.sim),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -2910,21 +2993,16 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       builder: (ctx) => AlertDialog(
         title: const Text(
           'Calculadora de Rótulo\nPASSO 1 DE 2:',
-          style: TextStyle(fontSize: 16),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         content: TextField(
           controller: mgCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
-            labelText: 'Total da Substância (mg)', // 👈 Texto universal
-            border: OutlineInputBorder(),
+            labelText: 'Total da Substância (mg)',
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, mgCtrl.text),
             child: const Text('OK'),
@@ -2940,21 +3018,16 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
       builder: (ctx) => AlertDialog(
         title: const Text(
           'Calculadora de Rótulo\nPASSO 2 DE 2:',
-          style: TextStyle(fontSize: 16),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         content: TextField(
           controller: mlCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
-            labelText: 'Volume do Líquido (mL)', // 👈 Texto universal
-            border: OutlineInputBorder(),
+            labelText: 'Volume do Líquido (mL)',
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, mlCtrl.text),
             child: const Text('OK'),
@@ -3121,16 +3194,20 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
             regiaoSelecionada?.contains('Flanco') == true)) {
       showDialog(
         context: context,
+        barrierDismissible: false,
         builder: (ctx) => AlertDialog(
           title: const Row(
             children: [
-              Icon(Icons.cancel, color: Colors.deepOrange, size: 28),
+              Icon(Icons.gpp_bad_rounded, color: AppColors.error, size: 28),
               SizedBox(width: 8),
-              Text(
-                'Risco de Lesão',
-                style: TextStyle(
-                  color: Colors.deepOrange,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  'RISCO DE LESÃO (BLOQUEIO DE SEGURANÇA)',
+                  style: TextStyle(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ],
@@ -3140,45 +3217,57 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'ALERTA MÉDICO - VOLUME INCOMPATÍVEL COM VIA SUBCUTÂNEA',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                const SizedBox(height: 12),
                 Text(
-                  'Volume: ${calcVolumeMl.toStringAsFixed(2)} mL.',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  'Volume calculado: ${calcVolumeMl.toStringAsFixed(2).replaceAll('.', ',')} mL.',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.warning,
+                  ),
                 ),
+                const SizedBox(height: 8),
                 const Text(
-                  'Volumes iguais ou maiores que 1 mL devem ser aplicados via INTRAMUSCULAR!',
+                  'Volumes iguais ou superiores a 1,0 mL no tecido subcutâneo (Barriga/Flanco) causam risco elevado de dor intensa, nódulos, abcessos, fibrose e má absorção.',
+                  style: TextStyle(color: AppColors.textSecondary, height: 1.4),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 const Text(
-                  '✅ OPÇÕES SEGURAS:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  'OPÇÕES INTRAMUSCULARES (IM) RECOMENDADAS:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.success,
+                    fontSize: 13,
+                  ),
                 ),
+                const SizedBox(height: 4),
                 const Text(
-                  '- Glúteo (Ventroglúteo): Mais seguro, distante de grandes nervos.',
+                  '• Ventroglúteo: Região mais segura e recomendada na medicina atual, distante de nervos.\n'
+                  '• Vasto Lateral (Coxa): Face externa, muito seguro e prático para autoinjeção.\n'
+                  '• Deltoide (Ombro): Seguro para volumes moderados (preferencialmente até 1-2 mL).\n'
+                  '• Obs.: O Dorsoglúteo já não é considerado a opção mais segura na prática clínica atual. Se preferir, fracione a dose conforme orientação médica.',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
                 ),
+                const SizedBox(height: 14),
                 const Text(
-                  '- Coxa (Vasto lateral): Face externa. O mais prático para autoinjeção.',
+                  'MATERIAIS NECESSÁRIOS (VIA IM):',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                    fontSize: 13,
+                  ),
                 ),
+                const SizedBox(height: 4),
                 const Text(
-                  '- Deltoide (Ombro): Apenas se o volume final for no máximo 1 mL.',
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  '💉 MATERIAIS NECESSÁRIOS:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const Text(
-                  '• Seringa: 3 mL ou 5 mL com bico Luer-Lok (rosca).',
-                ),
-                const Text(
-                  '• Aspiração: Agulha grossa 18G ou 20G (rosa/verde).',
-                ),
-                const Text(
-                  '• Aplicação: Agulha 25G a 30G (cinza/preta) trocada após aspiração.',
+                  '• Seringa compatível de 3 mL ou 5 mL (não usar seringa de insulina).\n'
+                  '• Agulha intramuscular adequada (ex: 25×7 mm ou 30×7 mm).',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
@@ -3186,7 +3275,11 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           actions: [
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('OK'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('ENTENDI, VOU AJUSTAR'),
             ),
           ],
         ),
@@ -3408,11 +3501,11 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
           modoEdicao ? t.formulario.titulo_editar : t.formulario.titulo_novo,
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 80),
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -3950,6 +4043,20 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                       ),
                       textAlign: TextAlign.center,
                     ),
+                    if (calcVolumeMl > 0) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        _obterRecomendacaoSeringa(calcVolumeMl),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: calcVolumeMl >= 1.0
+                              ? AppColors.warning
+                              : AppColors.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -5209,7 +5316,6 @@ class _GuiaFaqEcraState extends State<GuiaFaqEcra> {
     required Color cor,
     required IconData icone,
     required Widget conteudo,
-    Color? corFundo,
   }) {
     if (widget.obrigatorio) {
       return Card(

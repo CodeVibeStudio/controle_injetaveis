@@ -24,7 +24,7 @@ class _CalculadoraReconstituicaoEcraState
   final doseSemanalCtrl = TextEditingController();
   final intervaloCtrl = TextEditingController();
 
-  String unidadeSelecionada = 'mg';
+  String? unidadeSelecionada;
   SyringeSize? seringaSelecionada;
 
   double calcVolumeMl = 0.0;
@@ -57,7 +57,7 @@ class _CalculadoraReconstituicaoEcraState
     doseSemanalCtrl.clear();
     intervaloCtrl.clear();
     setState(() {
-      unidadeSelecionada = 'mg';
+      unidadeSelecionada = null;
       seringaSelecionada = null;
       calcVolumeMl = 0.0;
       calcDoseUi = 0.0;
@@ -71,7 +71,8 @@ class _CalculadoraReconstituicaoEcraState
     if (doseSemanalCtrl.text.isEmpty ||
         concentracaoCtrl.text.isEmpty ||
         intervaloCtrl.text.isEmpty ||
-        volumeCtrl.text.isEmpty) {
+        volumeCtrl.text.isEmpty ||
+        unidadeSelecionada == null) {
       setState(() {
         calcVolumeMl = 0.0;
         calcDoseUi = 0.0;
@@ -135,29 +136,41 @@ class _CalculadoraReconstituicaoEcraState
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.science, color: Color(0xFF1E3A8A)),
+            const Icon(Icons.science_rounded, color: AppColors.primary),
             const SizedBox(width: 8),
-            Text(
-              t.calculadora.diluicao_titulo,
-              style: const TextStyle(color: Color(0xFF1E3A8A), fontSize: 18),
+            Expanded(
+              child: Text(
+                t.calculadora.diluicao_titulo,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
-        content: Text(t.calculadora.diluicao_desc),
+        content: Text(
+          t.calculadora.diluicao_desc,
+          style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
+        ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(t.geral.nao),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1E3A8A),
-            ),
-            child: Text(
-              t.geral.sim,
-              style: const TextStyle(color: Colors.white),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(t.geral.nao),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(t.geral.sim),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -175,14 +188,9 @@ class _CalculadoraReconstituicaoEcraState
           decoration: InputDecoration(
             labelText: t.calculadora.passo1_label,
             hintText: t.calculadora.passo1_hint,
-            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(t.geral.nao),
-          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, mgCtrl.text),
             child: Text(t.geral.ok),
@@ -203,14 +211,9 @@ class _CalculadoraReconstituicaoEcraState
           decoration: InputDecoration(
             labelText: t.calculadora.passo2_label,
             hintText: t.calculadora.passo2_hint,
-            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(t.geral.nao),
-          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, mlCtrl.text),
             child: Text(t.geral.ok),
@@ -257,26 +260,27 @@ class _CalculadoraReconstituicaoEcraState
 
   @override
   Widget build(BuildContext context) {
-    List<DropdownMenuItem<SyringeSize>> syringeOptions = [
-      const DropdownMenuItem(
-        value: SyringeSize.u30,
-        child: Text('30 UI (0.3 mL)'),
-      ),
-      const DropdownMenuItem(
-        value: SyringeSize.u50,
-        child: Text('50 UI (0.5 mL)'),
-      ),
-      const DropdownMenuItem(
-        value: SyringeSize.u100,
-        child: Text('100 UI (1 mL)'),
-      ),
-      const DropdownMenuItem(value: SyringeSize.u300, child: Text('3 mL')),
-      const DropdownMenuItem(value: SyringeSize.u500, child: Text('5 mL')),
+    final allSyringes = [
+      (SyringeSize.u30, '30 UI (0.3 mL)'),
+      (SyringeSize.u50, '50 UI (0.5 mL)'),
+      (SyringeSize.u100, '100 UI (1 mL)'),
+      (SyringeSize.u300, '3 mL'),
+      (SyringeSize.u500, '5 mL'),
     ];
 
-    String strDoseFinal = unidadeSelecionada == 'mcg'
+    final filteredSyringes = calcVolumeMl > 0
+        ? allSyringes.where((s) => s.$1.maxMl >= calcVolumeMl).toList()
+        : allSyringes;
+
+    final List<DropdownMenuItem<SyringeSize>> syringeOptions =
+        (filteredSyringes.isEmpty ? [allSyringes.last] : filteredSyringes)
+            .map((s) => DropdownMenuItem(value: s.$1, child: Text(s.$2)))
+            .toList();
+
+    final unidadeTexto = unidadeSelecionada ?? 'mg';
+    String strDoseFinal = unidadeTexto == 'mcg'
         ? '${(doseMgFinal * 1000).toStringAsFixed(1).replaceAll('.0', '')} mcg'
-        : '${doseMgFinal.toStringAsFixed(2).replaceAll('.00', '')} $unidadeSelecionada';
+        : '${doseMgFinal.toStringAsFixed(2).replaceAll('.00', '')} $unidadeTexto';
 
     return Scaffold(
       appBar: AppBar(
@@ -326,13 +330,17 @@ class _CalculadoraReconstituicaoEcraState
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: InputDecoration(
-                      labelText: t.calculadora.volume,
-                      border: const OutlineInputBorder(),
+                    decoration: const InputDecoration(
+                      labelText: 'Vol. (mL)',
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 10),
                 Expanded(
                   child: TextFormField(
                     controller: concentracaoCtrl,
@@ -345,13 +353,23 @@ class _CalculadoraReconstituicaoEcraState
                       }
                     },
                     decoration: InputDecoration(
-                      labelText: t.calculadora.concentracao,
+                      labelText: 'Conc. (mg/mL)',
                       hintText: 'mg/mL',
-                      border: const OutlineInputBorder(),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 14,
+                      ),
                       suffixIcon: IconButton(
-                        icon: const Icon(Icons.calculate, color: Colors.blue),
+                        icon: const Icon(
+                          Icons.calculate_rounded,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
                         tooltip: t.calculadora.assistente,
                         onPressed: _abrirCalculadoraDiluicao,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
                     ),
                   ),
@@ -396,10 +414,10 @@ class _CalculadoraReconstituicaoEcraState
                 Expanded(
                   flex: 4,
                   child: DropdownButtonFormField<String>(
+                    key: ValueKey('unid_$unidadeSelecionada'),
                     initialValue: unidadeSelecionada,
                     decoration: InputDecoration(
                       labelText: t.calculadora.unidade,
-                      border: const OutlineInputBorder(),
                     ),
                     items: ['mg', 'mcg', 'UI', 'mL']
                         .map((e) => DropdownMenuItem(value: e, child: Text(e)))
@@ -416,20 +434,21 @@ class _CalculadoraReconstituicaoEcraState
                 Expanded(
                   flex: 6,
                   child: DropdownButtonFormField<SyringeSize>(
-                    initialValue: seringaSelecionada,
+                    key: ValueKey(
+                      'ser_${seringaSelecionada}_${syringeOptions.length}',
+                    ),
+                    initialValue:
+                        syringeOptions.any((o) => o.value == seringaSelecionada)
+                        ? seringaSelecionada
+                        : null,
                     decoration: InputDecoration(
                       labelText: t.calculadora.seringa,
-                      border: const OutlineInputBorder(),
                     ),
                     items: syringeOptions,
                     onChanged: (val) {
                       if (val != null) {
-                        if (calcVolumeMl > val.maxMl) {
-                          setState(() {});
-                        } else {
-                          setState(() => seringaSelecionada = val);
-                          _recalcular();
-                        }
+                        setState(() => seringaSelecionada = val);
+                        _recalcular();
                       }
                     },
                   ),

@@ -205,7 +205,7 @@ class _SimuladorCiclosEcraState extends State<SimuladorCiclosEcra> {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
           children: [
             Text(t.simulador.subtitulo, style: AppTextStyles.pageTitle),
             const SizedBox(height: 16),
