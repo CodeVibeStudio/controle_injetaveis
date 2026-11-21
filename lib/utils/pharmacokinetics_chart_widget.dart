@@ -32,8 +32,8 @@ class _PharmacokineticsChartWidgetState
   @override
   void didUpdateWidget(covariant PharmacokineticsChartWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Recalcula se a lista de injeções mudar
-    if (oldWidget.injections != widget.injections) {
+    if (oldWidget.injections != widget.injections ||
+        oldWidget.simulationDays != widget.simulationDays) {
       _recalculate();
     }
   }
@@ -59,10 +59,28 @@ class _PharmacokineticsChartWidgetState
           );
         }
 
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+        if (snapshot.hasError) {
+          return SizedBox(
+            height: 220,
+            child: Center(
+              child: Text(
+                'Erro na simulação: ${snapshot.error}',
+                style: const TextStyle(color: AppColors.error),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const SizedBox(
-            height: 300,
-            child: Center(child: Text('Nenhum dado para simular.')),
+            height: 220,
+            child: Center(
+              child: Text(
+                'Nenhum dado para simular.',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
           );
         }
 
@@ -72,6 +90,11 @@ class _PharmacokineticsChartWidgetState
           if (d.releaseMg > maxRelease) maxRelease = d.releaseMg;
           return FlSpot(d.day.toDouble(), d.releaseMg);
         }).toList();
+
+        final double safeMaxY = maxRelease > 0 ? maxRelease * 1.2 : 10.0;
+        final double safeMaxX = widget.simulationDays > 0
+            ? widget.simulationDays.toDouble()
+            : 30.0;
 
         return AspectRatio(
           aspectRatio: 1.5,
@@ -85,10 +108,9 @@ class _PharmacokineticsChartWidgetState
             child: LineChart(
               LineChartData(
                 minX: 0,
-                maxX: widget.simulationDays.toDouble(),
+                maxX: safeMaxX,
                 minY: 0,
-                // Dá uma margem visual de 20% no topo do gráfico
-                maxY: maxRelease * 1.2,
+                maxY: safeMaxY,
                 gridData: const FlGridData(show: false),
                 titlesData: FlTitlesData(
                   topTitles: const AxisTitles(

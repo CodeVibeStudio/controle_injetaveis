@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../theme/app_theme.dart';
 import '../i18n/translations.g.dart';
 
@@ -23,11 +24,17 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
+  int _ferramentasKey = 0;
 
   void _onTap(int index) {
     if (_selectedIndex == index) return;
     HapticFeedback.selectionClick();
-    setState(() => _selectedIndex = index);
+    setState(() {
+      if (index == 2) {
+        _ferramentasKey++;
+      }
+      _selectedIndex = index;
+    });
   }
 
   @override
@@ -35,22 +42,20 @@ class _MainShellState extends State<MainShell> {
     final pages = [
       widget.inicioPage,
       widget.tratamentoPage,
-      widget.ferramentasPage,
+      KeyedSubtree(
+        key: ValueKey('ferramentas_$_ferramentasKey'),
+        child: widget.ferramentasPage,
+      ),
       widget.perfilPage,
     ];
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: pages,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: pages),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: AppColors.navBarBg,
-          border: Border(
-            top: BorderSide(color: AppColors.border, width: 1),
-          ),
+          border: Border(top: BorderSide(color: AppColors.border, width: 1)),
         ),
         child: SafeArea(
           top: false,

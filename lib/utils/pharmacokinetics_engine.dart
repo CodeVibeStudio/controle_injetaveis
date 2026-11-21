@@ -35,41 +35,39 @@ class DailyPlotData {
 
 // 2. LÓGICA MATEMÁTICA (Executada em Isolate para não travar a UI)
 class PharmacokineticsEngine {
+  static List<DailyPlotData> _runMath(
+    List<InjectionEvent> events,
+    int totalDays,
+  ) {
+    final List<DailyPlotData> plotData = [];
+
+    for (int t = 0; t <= totalDays; t++) {
+      double dailyRelease = 0.0;
+
+      for (var event in events) {
+        if (t >= event.day && event.compound.halfLifeDays > 0) {
+          final int daysSinceInjection = t - event.day;
+          final double k = math.ln2 / event.compound.halfLifeDays;
+          final double baseDose = event.doseMg * event.compound.esterWeight;
+          final double volumeAtDayStart =
+              baseDose * math.exp(-k * daysSinceInjection);
+          final double releaseToday = volumeAtDayStart * (1 - math.exp(-k));
+          dailyRelease += releaseToday;
+        }
+      }
+      plotData.add(DailyPlotData(day: t, releaseMg: dailyRelease));
+    }
+    return plotData;
+  }
+
   static Future<List<DailyPlotData>> calculateSimulation({
     required List<InjectionEvent> events,
     required int totalDays,
   }) async {
-    // Isolate.run atira o cálculo pesado para uma thread secundária
-    return Isolate.run(() {
-      List<DailyPlotData> plotData = [];
-
-      for (int t = 0; t <= totalDays; t++) {
-        double dailyRelease = 0.0;
-
-        for (var event in events) {
-          // Só calcula se a injeção já tiver ocorrido no dia 't'
-          if (t >= event.day) {
-            int daysSinceInjection = t - event.day;
-            
-            // k = ln(2) / meia-vida
-            double k = math.ln2 / event.compound.halfLifeDays;
-            
-            // Dose real = dose em mg * peso do éster (fração de hormônio ativo)
-            double baseDose = event.doseMg * event.compound.esterWeight;
-            
-            // V(t) = Dose Base * e^(-k * t)
-            double volumeAtDayStart = baseDose * math.exp(-k * daysSinceInjection);
-            
-            // Liberação no dia = V(t) * (1 - e^-k)
-            double releaseToday = volumeAtDayStart * (1 - math.exp(-k));
-            
-            // Aplica o Princípio da Superposição (soma de todas as injeções ativas)
-            dailyRelease += releaseToday;
-          }
-        }
-        plotData.add(DailyPlotData(day: t, releaseMg: dailyRelease));
-      }
-      return plotData;
-    });
+    try {
+      return await Isolate.run(() => _runMath(events, totalDays));
+    } catch (_) {
+      return _runMath(events, totalDays);
+    }
   }
 }

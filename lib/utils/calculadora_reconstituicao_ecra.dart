@@ -3,6 +3,7 @@ import 'pharmacokinetics_engine.dart';
 import 'pharmacokinetics_chart_widget.dart';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'dose_calculator.dart';
 import 'syringe_widget.dart';
@@ -27,6 +28,11 @@ class _CalculadoraReconstituicaoEcraState
   String? unidadeSelecionada;
   SyringeSize? seringaSelecionada;
 
+  final supabase = Supabase.instance.client;
+  List<String> listaSubstancias = [];
+  String substanciaSelecionada = '';
+  int _autocompleteKey = 0;
+
   double calcVolumeMl = 0.0;
   double calcDoseUi = 0.0;
   double doseMgFinal = 0.0;
@@ -36,10 +42,61 @@ class _CalculadoraReconstituicaoEcraState
   @override
   void initState() {
     super.initState();
+    _carregarCatalogo();
     volumeCtrl.addListener(_recalcular);
     concentracaoCtrl.addListener(_recalcular);
     doseSemanalCtrl.addListener(_recalcular);
     intervaloCtrl.addListener(_recalcular);
+  }
+
+  Future<void> _carregarCatalogo() async {
+    try {
+      final resposta = await supabase.rpc('obter_nomes_unicos');
+      final Set<String> nomes = {};
+      for (var item in resposta) {
+        String nome = item['nome'].toString();
+        if (nome.startsWith('Mix') || nome.startsWith('[Arquivado]')) continue;
+        if (nome.startsWith('[Oculto] ')) {
+          nome = nome.replaceFirst('[Oculto] ', '');
+        }
+        nomes.add(nome);
+      }
+      final listaOrdenada = nomes.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      if (mounted) {
+        setState(() => listaSubstancias = listaOrdenada);
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar catálogo na calculadora: $e');
+    }
+  }
+
+  Compound _obterCompostoParaGrafico(String nome) {
+    final n = nome.toLowerCase();
+    if (n.contains('cipionato')) {
+      return Compound(name: nome, esterWeight: 0.69, halfLifeDays: 5.0);
+    } else if (n.contains('propionato')) {
+      return Compound(name: nome, esterWeight: 0.80, halfLifeDays: 0.8);
+    } else if (n.contains('decanoato') || n.contains('deca')) {
+      return Compound(name: nome, esterWeight: 0.64, halfLifeDays: 7.0);
+    } else if (n.contains('undecilenato') || n.contains('boldenona')) {
+      return Compound(name: nome, esterWeight: 0.61, halfLifeDays: 14.0);
+    } else if (n.contains('acetato')) {
+      return Compound(name: nome, esterWeight: 0.87, halfLifeDays: 1.0);
+    } else if (n.contains('enantato')) {
+      return Compound(name: nome, esterWeight: 0.70, halfLifeDays: 4.5);
+    } else if (n.contains('tirzepatida') || n.contains('mounjaro')) {
+      return Compound(name: nome, esterWeight: 1.0, halfLifeDays: 5.0);
+    } else if (n.contains('semaglutida') || n.contains('ozempic')) {
+      return Compound(name: nome, esterWeight: 1.0, halfLifeDays: 7.0);
+    } else if (n.contains('retatrutida')) {
+      return Compound(name: nome, esterWeight: 1.0, halfLifeDays: 6.0);
+    }
+    return Compound(
+      name: nome.isEmpty ? 'Substância' : nome,
+      esterWeight: 1.0,
+      halfLifeDays: 3.0,
+    );
   }
 
   @override
@@ -57,6 +114,8 @@ class _CalculadoraReconstituicaoEcraState
     doseSemanalCtrl.clear();
     intervaloCtrl.clear();
     setState(() {
+      substanciaSelecionada = '';
+      _autocompleteKey++;
       unidadeSelecionada = null;
       seringaSelecionada = null;
       calcVolumeMl = 0.0;
@@ -321,6 +380,37 @@ class _CalculadoraReconstituicaoEcraState
               ),
             ),
             const SizedBox(height: 20),
+
+            Autocomplete<String>(
+              key: ValueKey('calc_sub_$_autocompleteKey'),
+              initialValue: TextEditingValue(text: substanciaSelecionada),
+              optionsBuilder: (TextEditingValue textEditingValue) {
+                if (textEditingValue.text.isEmpty) {
+                  return listaSubstancias;
+                }
+                return listaSubstancias.where(
+                  (opt) => opt.toLowerCase().contains(
+                    textEditingValue.text.toLowerCase(),
+                  ),
+                );
+              },
+              onSelected: (String selection) {
+                setState(() => substanciaSelecionada = selection);
+              },
+              fieldViewBuilder: (ctx, ctrl, focusNode, onSubmit) {
+                return TextFormField(
+                  controller: ctrl,
+                  focusNode: focusNode,
+                  decoration: const InputDecoration(
+                    labelText: 'Substância (Pesquisar...)',
+                    prefixIcon: Icon(Icons.search_rounded),
+                  ),
+                  onChanged: (val) =>
+                      setState(() => substanciaSelecionada = val),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
 
             Row(
               children: [
@@ -600,7 +690,9 @@ class _CalculadoraReconstituicaoEcraState
             ),
             const SizedBox(height: 4),
             Text(
-              t.calculadora.simulador_desc,
+              (doseMgFinal > 0 && intervaloCtrl.text.isNotEmpty)
+                  ? 'Simulação: $strDoseFinal de ${substanciaSelecionada.isEmpty ? "Substância" : substanciaSelecionada} a cada ${intervaloCtrl.text} dia(s) (35 dias)'
+                  : 'Preencha os campos acima para visualizar a curva de liberação.',
               style: const TextStyle(
                 fontSize: 13,
                 color: AppColors.textSecondary,
@@ -608,28 +700,46 @@ class _CalculadoraReconstituicaoEcraState
             ),
             const SizedBox(height: 16),
 
-            const PharmacokineticsChartWidget(
-              injections: [
-                InjectionEvent(
-                  day: 0,
-                  doseMg: 250,
-                  compound: Compound(
-                    name: 'Enantato',
-                    esterWeight: 0.70,
-                    halfLifeDays: 4.5,
-                  ),
-                ),
-                InjectionEvent(
-                  day: 7,
-                  doseMg: 250,
-                  compound: Compound(
-                    name: 'Enantato',
-                    esterWeight: 0.70,
-                    halfLifeDays: 4.5,
-                  ),
-                ),
-              ],
-              simulationDays: 30,
+            Builder(
+              builder: (context) {
+                final int intervalo =
+                    int.tryParse(intervaloCtrl.text.replaceAll(',', '.')) ?? 0;
+                if (doseMgFinal <= 0 || intervalo <= 0) {
+                  return Container(
+                    height: 160,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const Text(
+                      'Preencha os campos acima para gerar a curva de liberação.',
+                      style: TextStyle(color: AppColors.textMuted),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
+
+                final composto = _obterCompostoParaGrafico(
+                  substanciaSelecionada,
+                );
+                final List<InjectionEvent> eventosDinamicos = [];
+                for (int dia = 0; dia <= 28; dia += intervalo) {
+                  eventosDinamicos.add(
+                    InjectionEvent(
+                      day: dia,
+                      doseMg: doseMgFinal,
+                      compound: composto,
+                    ),
+                  );
+                }
+
+                return PharmacokineticsChartWidget(
+                  injections: eventosDinamicos,
+                  simulationDays: 35,
+                );
+              },
             ),
             const SizedBox(height: 32),
           ],

@@ -1,5 +1,6 @@
 // Ficheiro: utils/simulador_ciclos_ecra.dart
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'pharmacokinetics_engine.dart';
 import 'pharmacokinetics_chart_widget.dart';
@@ -90,16 +91,12 @@ final Map<String, List<Compound>> baseDeDadosCompostos = {
 };
 
 class CompoundRowState {
-  final TextEditingController doseCtrl = TextEditingController(text: '250');
-  String categoria = 'Esteroides/Hormônios Anabolizantes';
-  Compound composto;
-  int frequenciaDias = 7;
-  int semanaInicio = 1;
-  int semanaFim = 12;
-
-  CompoundRowState()
-    : composto =
-          baseDeDadosCompostos['Esteroides/Hormônios Anabolizantes']!.first;
+  final TextEditingController doseCtrl = TextEditingController();
+  String nomeComposto = '';
+  Compound? composto;
+  int? frequenciaDias;
+  int? semanaInicio;
+  int? semanaFim;
 
   void dispose() {
     doseCtrl.dispose();
@@ -114,15 +111,81 @@ class SimuladorCiclosEcra extends StatefulWidget {
 }
 
 class _SimuladorCiclosEcraState extends State<SimuladorCiclosEcra> {
+  final supabase = Supabase.instance.client;
   final nomeCicloCtrl = TextEditingController();
-  int duracaoCicloSemanas = 12;
+  int? duracaoCicloSemanas;
   DateTime dataInicio = DateTime.now();
+
+  List<String> listaSubstancias = [];
+  int _resetKey = 0;
 
   List<CompoundRowState> linhas = [CompoundRowState()];
 
   bool mostrarGrafico = false;
   List<InjectionEvent> eventosGerados = [];
   int diasTotaisSimulacao = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarCatalogo();
+  }
+
+  Future<void> _carregarCatalogo() async {
+    final Set<String> nomes = {};
+    for (var lista in baseDeDadosCompostos.values) {
+      for (var c in lista) {
+        nomes.add(c.name);
+      }
+    }
+    try {
+      final resposta = await supabase.rpc('obter_nomes_unicos');
+      for (var item in resposta) {
+        String nome = item['nome'].toString();
+        if (nome.startsWith('Mix') || nome.startsWith('[Arquivado]')) continue;
+        if (nome.startsWith('[Oculto] ')) {
+          nome = nome.replaceFirst('[Oculto] ', '');
+        }
+        nomes.add(nome);
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar catálogo no simulador: $e');
+    }
+    final listaOrdenada = nomes.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    if (mounted) {
+      setState(() => listaSubstancias = listaOrdenada);
+    }
+  }
+
+  Compound _resolverComposto(String nome) {
+    for (var lista in baseDeDadosCompostos.values) {
+      for (var c in lista) {
+        if (c.name.toLowerCase() == nome.toLowerCase()) return c;
+      }
+    }
+    final n = nome.toLowerCase();
+    if (n.contains('cipionato')) {
+      return Compound(name: nome, esterWeight: 0.69, halfLifeDays: 5.0);
+    } else if (n.contains('propionato')) {
+      return Compound(name: nome, esterWeight: 0.80, halfLifeDays: 0.8);
+    } else if (n.contains('decanoato') || n.contains('deca')) {
+      return Compound(name: nome, esterWeight: 0.64, halfLifeDays: 7.0);
+    } else if (n.contains('undecilenato') || n.contains('boldenona')) {
+      return Compound(name: nome, esterWeight: 0.61, halfLifeDays: 14.0);
+    } else if (n.contains('acetato')) {
+      return Compound(name: nome, esterWeight: 0.87, halfLifeDays: 1.0);
+    } else if (n.contains('enantato')) {
+      return Compound(name: nome, esterWeight: 0.70, halfLifeDays: 4.5);
+    } else if (n.contains('tirzepatida') || n.contains('mounjaro')) {
+      return Compound(name: nome, esterWeight: 1.0, halfLifeDays: 5.0);
+    } else if (n.contains('semaglutida') || n.contains('ozempic')) {
+      return Compound(name: nome, esterWeight: 1.0, halfLifeDays: 7.0);
+    } else if (n.contains('retatrutida')) {
+      return Compound(name: nome, esterWeight: 1.0, halfLifeDays: 6.0);
+    }
+    return Compound(name: nome, esterWeight: 1.0, halfLifeDays: 3.0);
+  }
 
   @override
   void dispose() {
@@ -156,7 +219,8 @@ class _SimuladorCiclosEcraState extends State<SimuladorCiclosEcra> {
     }
     setState(() {
       nomeCicloCtrl.clear();
-      duracaoCicloSemanas = 12;
+      duracaoCicloSemanas = null;
+      _resetKey++;
       linhas = [CompoundRowState()];
       mostrarGrafico = false;
     });
@@ -164,31 +228,49 @@ class _SimuladorCiclosEcraState extends State<SimuladorCiclosEcra> {
 
   void _gerarTrama() {
     FocusScope.of(context).unfocus();
+    final int duracao = duracaoCicloSemanas ?? 12;
     List<InjectionEvent> eventos = [];
 
-    int duracaoTotalDias = (duracaoCicloSemanas * 7) + 28;
+    int duracaoTotalDias = (duracao * 7) + 28;
 
     for (var linha in linhas) {
       double dose =
           double.tryParse(linha.doseCtrl.text.replaceAll(',', '.')) ?? 0.0;
-      if (dose <= 0) continue;
-
-      int diaInicio = (linha.semanaInicio - 1) * 7;
-      int diaFim = (linha.semanaFim * 7) - 1;
-
-      if (diaFim > (duracaoCicloSemanas * 7)) {
-        diaFim = duracaoCicloSemanas * 7;
+      if (dose <= 0 ||
+          linha.nomeComposto.trim().isEmpty ||
+          linha.frequenciaDias == null ||
+          linha.semanaInicio == null ||
+          linha.semanaFim == null) {
+        continue;
       }
 
-      for (int dia = diaInicio; dia <= diaFim; dia += linha.frequenciaDias) {
-        eventos.add(
-          InjectionEvent(day: dia, doseMg: dose, compound: linha.composto),
-        );
+      final composto = linha.composto ?? _resolverComposto(linha.nomeComposto);
+      int diaInicio = (linha.semanaInicio! - 1) * 7;
+      int diaFim = (linha.semanaFim! * 7) - 1;
+
+      if (diaFim > (duracao * 7)) {
+        diaFim = duracao * 7;
+      }
+
+      for (int dia = diaInicio; dia <= diaFim; dia += linha.frequenciaDias!) {
+        eventos.add(InjectionEvent(day: dia, doseMg: dose, compound: composto));
       }
     }
 
+    if (eventos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Verifique a dose e o intervalo de semanas (início deve ser menor ou igual ao fim).',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     setState(() {
-      eventosGerados = eventos;
+      eventosGerados = List<InjectionEvent>.from(eventos);
       diasTotaisSimulacao = duracaoTotalDias;
       mostrarGrafico = true;
     });
@@ -295,80 +377,51 @@ class _SimuladorCiclosEcraState extends State<SimuladorCiclosEcra> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: TextFormField(
-                              controller: linha.doseCtrl,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              decoration: InputDecoration(
-                                labelText: t.simulador.dose,
-                                border: const OutlineInputBorder(),
-                              ),
-                              onChanged: (_) => mostrarGrafico = false,
+                      Autocomplete<String>(
+                        key: ValueKey('sim_sub_${_resetKey}_$index'),
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          if (textEditingValue.text.isEmpty) {
+                            return listaSubstancias;
+                          }
+                          return listaSubstancias.where(
+                            (opt) => opt.toLowerCase().contains(
+                              textEditingValue.text.toLowerCase(),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 7,
-                            child: DropdownButtonFormField<String>(
-                              initialValue: linha.categoria,
-                              isExpanded: true,
-                              decoration: InputDecoration(
-                                labelText: t.simulador.categoria,
-                                border: const OutlineInputBorder(),
-                              ),
-                              items: baseDeDadosCompostos.keys.map((cat) {
-                                return DropdownMenuItem(
-                                  value: cat,
-                                  child: Text(
-                                    cat,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() {
-                                    linha.categoria = val;
-                                    linha.composto =
-                                        baseDeDadosCompostos[val]!.first;
-                                    mostrarGrafico = false;
-                                  });
-                                }
-                              },
+                          );
+                        },
+                        onSelected: (String selection) {
+                          setState(() {
+                            linha.nomeComposto = selection;
+                            linha.composto = _resolverComposto(selection);
+                            mostrarGrafico = false;
+                          });
+                        },
+                        fieldViewBuilder: (ctx, ctrl, focusNode, onSubmit) {
+                          return TextFormField(
+                            controller: ctrl,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: t.simulador.selecione,
+                              prefixIcon: const Icon(Icons.search_rounded),
                             ),
-                          ),
-                        ],
+                            onChanged: (val) {
+                              linha.nomeComposto = val;
+                              linha.composto = _resolverComposto(val);
+                              mostrarGrafico = false;
+                            },
+                          );
+                        },
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<Compound>(
-                        initialValue: linha.composto,
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                          labelText: t.simulador.selecione,
-                          border: const OutlineInputBorder(),
+                      TextFormField(
+                        controller: linha.doseCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
                         ),
-                        items: baseDeDadosCompostos[linha.categoria]!.map((
-                          comp,
-                        ) {
-                          return DropdownMenuItem(
-                            value: comp,
-                            child: Text(comp.name),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() {
-                              linha.composto = val;
-                              mostrarGrafico = false;
-                            });
-                          }
-                        },
+                        decoration: InputDecoration(
+                          labelText: t.simulador.dose,
+                        ),
+                        onChanged: (_) => mostrarGrafico = false,
                       ),
                       const SizedBox(height: 16),
                       const Divider(),
@@ -431,7 +484,7 @@ class _SimuladorCiclosEcraState extends State<SimuladorCiclosEcra> {
                               ),
                               items:
                                   List.generate(
-                                    duracaoCicloSemanas,
+                                    duracaoCicloSemanas ?? 24,
                                     (i) => i + 1,
                                   ).map((s) {
                                     return DropdownMenuItem(
@@ -453,7 +506,9 @@ class _SimuladorCiclosEcraState extends State<SimuladorCiclosEcra> {
                           Expanded(
                             child: DropdownButtonFormField<int>(
                               initialValue:
-                                  linha.semanaFim > duracaoCicloSemanas
+                                  (linha.semanaFim != null &&
+                                      duracaoCicloSemanas != null &&
+                                      linha.semanaFim! > duracaoCicloSemanas!)
                                   ? duracaoCicloSemanas
                                   : linha.semanaFim,
                               decoration: InputDecoration(
@@ -462,7 +517,7 @@ class _SimuladorCiclosEcraState extends State<SimuladorCiclosEcra> {
                               ),
                               items:
                                   List.generate(
-                                    duracaoCicloSemanas,
+                                    duracaoCicloSemanas ?? 24,
                                     (i) => i + 1,
                                   ).map((s) {
                                     return DropdownMenuItem(

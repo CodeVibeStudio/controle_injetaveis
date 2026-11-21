@@ -57,7 +57,7 @@ class _SyringePainter extends CustomPainter {
       ..strokeWidth = 1.8;
 
     final paintLiquid = Paint()
-      ..color = AppColors.primary.withValues(alpha: 0.45)
+      ..color = Colors.white.withValues(alpha: 0.92)
       ..style = PaintingStyle.fill;
 
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
@@ -148,25 +148,32 @@ class _SyringePainter extends CustomPainter {
       minorTickStep = 10;
     }
 
+    final double liquidEndX = liquidStartX + (liquidDrawWidth * fillPercentage);
+
     for (int i = 0; i <= sizeConfig.maxUnits; i++) {
       if (i % minorTickStep != 0 && i % majorTickStep != 0) continue;
 
       double x = liquidStartX + (i / sizeConfig.maxUnits) * liquidDrawWidth;
-
       bool isMajorTick = i % majorTickStep == 0;
+      bool isInsideLiquid = fillPercentage > 0 && x <= liquidEndX;
+
+      final paintTick = Paint()
+        ..color = isInsideLiquid ? Colors.black87 : AppColors.textSecondary
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isMajorTick ? 1.5 : 1.0;
 
       // Traços Superiores
       canvas.drawLine(
         Offset(x, startY),
         Offset(x, startY + (isMajorTick ? 8 : 4)),
-        paintOutline..strokeWidth = isMajorTick ? 1.5 : 1.0,
+        paintTick,
       );
 
       // Traços Inferiores
       canvas.drawLine(
         Offset(x, startY + syringeHeight),
         Offset(x, startY + syringeHeight - (isMajorTick ? 8 : 4)),
-        paintOutline..strokeWidth = isMajorTick ? 1.5 : 1.0,
+        paintTick,
       );
 
       if (isMajorTick && i > 0) {
@@ -177,6 +184,9 @@ class _SyringePainter extends CustomPainter {
         }
 
         double textOffsetAdjustment = (i == sizeConfig.maxUnits) ? 8.0 : 6.0;
+        final Color textColor = isInsideLiquid
+            ? Colors.black
+            : AppColors.textPrimary;
 
         _drawText(
           canvas,
@@ -185,6 +195,7 @@ class _SyringePainter extends CustomPainter {
           x - textOffsetAdjustment,
           startY + 10,
           8,
+          color: textColor,
         );
         _drawText(
           canvas,
@@ -193,6 +204,7 @@ class _SyringePainter extends CustomPainter {
           x - textOffsetAdjustment + 2,
           startY + 24,
           8,
+          color: textColor,
         );
       }
     }
@@ -204,12 +216,13 @@ class _SyringePainter extends CustomPainter {
     String text,
     double x,
     double y,
-    double fontSize,
-  ) {
+    double fontSize, {
+    Color color = AppColors.textPrimary,
+  }) {
     painter.text = TextSpan(
       text: text,
       style: TextStyle(
-        color: AppColors.textPrimary,
+        color: color,
         fontSize: fontSize,
         fontWeight: FontWeight.w700,
       ),
