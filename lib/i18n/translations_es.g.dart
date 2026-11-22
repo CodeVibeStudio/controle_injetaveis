@@ -468,9 +468,22 @@ class _Translations$exames$es extends Translations$exames$pt {
 	@override String get item6_desc => 'No pause ni retrase las inyecciones en la app. El examen debe reflejar la cinética hormonal real.';
 	@override String get btn_confirmar => 'CONFIRMAR CHECKLIST';
 	@override String get painel_titulo => 'Sugerencia de Laboratorio';
-	@override String get painel_subtitulo => 'A continuación se muestra la lista personalizada generada por el algoritmo. Programe su fecha de recolección para iniciar la preparación.';
+	@override String get painel_subtitulo => 'Lista personalizada cruzando sexo biológico, edad, peso y protocolo activo.';
 	@override String get btn_agendar => 'PROGRAMAR FECHA DE RECOLECCIÓN';
 	@override String get btn_ja_fiz => 'YA HICE LA RECOLECCIÓN';
+	@override String get btn_copiar_medico => 'COPIAR LISTA PARA EL MÉDICO';
+	@override String get btn_enviar_email => 'ENVIAR A MI CORREO';
+	@override String get msg_selecione_bloco => 'Seleccione al menos un bloque de exámenes.';
+	@override String get email_assunto => 'Sugerencia de Exámenes - Control de Inyectables';
+	@override String get msg_copiado => '¡Lista copiada! Péguela en un mensaje o llévela a su consulta.';
+	@override String get aviso_clinico => 'Aviso: Sugerencia informativa para discusión médica. No sustituye la evaluación profesional; su médico puede ajustar los intervalos.';
+	@override String get sec_laboratoriais => 'Laboratorio';
+	@override String get sec_protocolo => 'Específicos del Protocolo';
+	@override String get sec_ponderal => 'Perfil Ponderal y Metabólico';
+	@override String get sec_cardiologicos => 'Cardiológicos';
+	@override String get sec_imagem => 'Imagen y Tamizaje';
+	@override String get primeiro_exame => '1er Examen';
+	@override String get periodicidade => 'Periodicidad';
 	@override late final _Translations$exames$nomes$es nomes = _Translations$exames$nomes$es._(_root);
 }
 
@@ -769,9 +782,22 @@ extension on TranslationsEs {
 			'exames.item6_desc' => 'No pause ni retrase las inyecciones en la app. El examen debe reflejar la cinética hormonal real.',
 			'exames.btn_confirmar' => 'CONFIRMAR CHECKLIST',
 			'exames.painel_titulo' => 'Sugerencia de Laboratorio',
-			'exames.painel_subtitulo' => 'A continuación se muestra la lista personalizada generada por el algoritmo. Programe su fecha de recolección para iniciar la preparación.',
+			'exames.painel_subtitulo' => 'Lista personalizada cruzando sexo biológico, edad, peso y protocolo activo.',
 			'exames.btn_agendar' => 'PROGRAMAR FECHA DE RECOLECCIÓN',
 			'exames.btn_ja_fiz' => 'YA HICE LA RECOLECCIÓN',
+			'exames.btn_copiar_medico' => 'COPIAR LISTA PARA EL MÉDICO',
+			'exames.btn_enviar_email' => 'ENVIAR A MI CORREO',
+			'exames.msg_selecione_bloco' => 'Seleccione al menos un bloque de exámenes.',
+			'exames.email_assunto' => 'Sugerencia de Exámenes - Control de Inyectables',
+			'exames.msg_copiado' => '¡Lista copiada! Péguela en un mensaje o llévela a su consulta.',
+			'exames.aviso_clinico' => 'Aviso: Sugerencia informativa para discusión médica. No sustituye la evaluación profesional; su médico puede ajustar los intervalos.',
+			'exames.sec_laboratoriais' => 'Laboratorio',
+			'exames.sec_protocolo' => 'Específicos del Protocolo',
+			'exames.sec_ponderal' => 'Perfil Ponderal y Metabólico',
+			'exames.sec_cardiologicos' => 'Cardiológicos',
+			'exames.sec_imagem' => 'Imagen y Tamizaje',
+			'exames.primeiro_exame' => '1er Examen',
+			'exames.periodicidade' => 'Periodicidad',
 			'exames.nomes.hemo' => 'Hemograma Completo',
 			'exames.nomes.marcadores' => 'Marcadores Inflamatorios (PCR y Ferritina)',
 			'exames.nomes.lipidico' => 'Perfil Lipídico (Colesterol Total, HDL, LDL, VLDL, Triglicéridos)',

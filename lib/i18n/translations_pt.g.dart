@@ -928,14 +928,53 @@ class Translations$exames$pt {
 	/// pt: 'Sugestão de Laboratório'
 	String get painel_titulo => 'Sugestão de Laboratório';
 
-	/// pt: 'Abaixo está a lista gerada de forma personalizada pelo algoritmo. Agende a data da sua coleta para iniciar o protocolo de preparação.'
-	String get painel_subtitulo => 'Abaixo está a lista gerada de forma personalizada pelo algoritmo. Agende a data da sua coleta para iniciar o protocolo de preparação.';
+	/// pt: 'Lista personalizada cruzando sexo biológico, idade, peso e protocolo ativo.'
+	String get painel_subtitulo => 'Lista personalizada cruzando sexo biológico, idade, peso e protocolo ativo.';
 
 	/// pt: 'AGENDAR DATA DA COLETA'
 	String get btn_agendar => 'AGENDAR DATA DA COLETA';
 
 	/// pt: 'JÁ FIZ A COLETA NO LABORATÓRIO'
 	String get btn_ja_fiz => 'JÁ FIZ A COLETA NO LABORATÓRIO';
+
+	/// pt: 'COPIAR LISTA PARA O MÉDICO'
+	String get btn_copiar_medico => 'COPIAR LISTA PARA O MÉDICO';
+
+	/// pt: 'ENVIAR PARA MEU E-MAIL'
+	String get btn_enviar_email => 'ENVIAR PARA MEU E-MAIL';
+
+	/// pt: 'Selecione pelo menos um bloco de exames.'
+	String get msg_selecione_bloco => 'Selecione pelo menos um bloco de exames.';
+
+	/// pt: 'Sugestão de Exames - Controle de Injetáveis'
+	String get email_assunto => 'Sugestão de Exames - Controle de Injetáveis';
+
+	/// pt: 'Lista copiada! Cole no WhatsApp ou leve na consulta.'
+	String get msg_copiado => 'Lista copiada! Cole no WhatsApp ou leve na consulta.';
+
+	/// pt: 'Aviso: Sugestão informativa para discussão médica. Não substitui prescrição profissional; intervalos podem ser ajustados pelo seu médico.'
+	String get aviso_clinico => 'Aviso: Sugestão informativa para discussão médica. Não substitui prescrição profissional; intervalos podem ser ajustados pelo seu médico.';
+
+	/// pt: 'Laboratoriais'
+	String get sec_laboratoriais => 'Laboratoriais';
+
+	/// pt: 'Específicos do Protocolo'
+	String get sec_protocolo => 'Específicos do Protocolo';
+
+	/// pt: 'Perfil Ponderal e Metabólico'
+	String get sec_ponderal => 'Perfil Ponderal e Metabólico';
+
+	/// pt: 'Cardiológicos'
+	String get sec_cardiologicos => 'Cardiológicos';
+
+	/// pt: 'Imagem e Rastreamento'
+	String get sec_imagem => 'Imagem e Rastreamento';
+
+	/// pt: '1º Exame'
+	String get primeiro_exame => '1º Exame';
+
+	/// pt: 'Periodicidade'
+	String get periodicidade => 'Periodicidade';
 
 	late final Translations$exames$nomes$pt nomes = Translations$exames$nomes$pt.internal(_root);
 }
@@ -1285,9 +1324,22 @@ extension on Translations {
 			'exames.item6_desc' => 'Não pause ou atrase as injeções no app. O exame deve refletir a cinética hormonal real do corpo.',
 			'exames.btn_confirmar' => 'CONFIRMAR CHECKLIST',
 			'exames.painel_titulo' => 'Sugestão de Laboratório',
-			'exames.painel_subtitulo' => 'Abaixo está a lista gerada de forma personalizada pelo algoritmo. Agende a data da sua coleta para iniciar o protocolo de preparação.',
+			'exames.painel_subtitulo' => 'Lista personalizada cruzando sexo biológico, idade, peso e protocolo ativo.',
 			'exames.btn_agendar' => 'AGENDAR DATA DA COLETA',
 			'exames.btn_ja_fiz' => 'JÁ FIZ A COLETA NO LABORATÓRIO',
+			'exames.btn_copiar_medico' => 'COPIAR LISTA PARA O MÉDICO',
+			'exames.btn_enviar_email' => 'ENVIAR PARA MEU E-MAIL',
+			'exames.msg_selecione_bloco' => 'Selecione pelo menos um bloco de exames.',
+			'exames.email_assunto' => 'Sugestão de Exames - Controle de Injetáveis',
+			'exames.msg_copiado' => 'Lista copiada! Cole no WhatsApp ou leve na consulta.',
+			'exames.aviso_clinico' => 'Aviso: Sugestão informativa para discussão médica. Não substitui prescrição profissional; intervalos podem ser ajustados pelo seu médico.',
+			'exames.sec_laboratoriais' => 'Laboratoriais',
+			'exames.sec_protocolo' => 'Específicos do Protocolo',
+			'exames.sec_ponderal' => 'Perfil Ponderal e Metabólico',
+			'exames.sec_cardiologicos' => 'Cardiológicos',
+			'exames.sec_imagem' => 'Imagem e Rastreamento',
+			'exames.primeiro_exame' => '1º Exame',
+			'exames.periodicidade' => 'Periodicidade',
 			'exames.nomes.hemo' => 'Hemograma Completo',
 			'exames.nomes.marcadores' => 'Marcadores Inflamatórios (PCR e Ferritina)',
 			'exames.nomes.lipidico' => 'Perfil Lipídico (Colesterol Total, HDL, LDL, VLDL, Triglicerídeos)',

@@ -21,7 +21,8 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'utils/calculadora_reconstituicao_ecra.dart';
-import 'utils/simulador_ciclos_ecra.dart'; // 👇 AQUI ESTÁ O IMPORT CORRETO
+import 'utils/simulador_ciclos_ecra.dart';
+import 'utils/lab_exams_engine.dart';
 
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -631,6 +632,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
 
   DateTime? proximaDataExame;
   List<String> listaExamesSugeridos = [];
+  Map<SecaoExame, List<ExameSugerido>> examesAgrupados = {};
   int diasParaExame = 999;
   bool exigeExames = false;
 
@@ -775,9 +777,10 @@ class _DashboardEcraState extends State<DashboardEcra> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: AppColors.border),
       ),
       builder: (context) {
         return StatefulBuilder(
@@ -791,34 +794,38 @@ class _DashboardEcraState extends State<DashboardEcra> {
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.rule_folder,
-                          color: Colors.orange[800],
-                          size: 32,
+                        const Icon(
+                          Icons.rule_folder_rounded,
+                          color: AppColors.warning,
+                          size: 28,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            t.exames.checklist_titulo, // 👇 Traduzido
+                            t.exames.checklist_titulo,
                             style: const TextStyle(
                               fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: AppColors.textSecondary,
+                          ),
                           onPressed: () => Navigator.pop(context),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      t.exames.checklist_subtitulo, // 👇 Traduzido
+                      t.exames.checklist_subtitulo,
                       style: const TextStyle(
-                        color: Colors.black54,
-                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                        fontSize: 13.5,
+                        height: 1.4,
                       ),
                     ),
                     const Divider(height: 24),
@@ -826,85 +833,139 @@ class _DashboardEcraState extends State<DashboardEcra> {
                       child: ListView(
                         children: [
                           CheckboxListTile(
-                            activeColor: Colors.green,
+                            activeColor: AppColors.success,
+                            checkColor: AppColors.primaryDarkText,
+                            contentPadding: EdgeInsets.zero,
                             title: Text(
                               t.exames.item1_tit,
                               style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 14,
+                                color: AppColors.textPrimary,
                               ),
-                            ), // 👇 Traduzido
-                            subtitle: Text(t.exames.item1_desc), // 👇 Traduzido
+                            ),
+                            subtitle: Text(
+                              t.exames.item1_desc,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
                             value: cienteJejum,
                             onChanged: (val) =>
                                 setStateSheet(() => cienteJejum = val!),
                           ),
                           CheckboxListTile(
-                            activeColor: Colors.green,
+                            activeColor: AppColors.success,
+                            checkColor: AppColors.primaryDarkText,
+                            contentPadding: EdgeInsets.zero,
                             title: Text(
                               t.exames.item2_tit,
                               style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 14,
+                                color: AppColors.textPrimary,
                               ),
                             ),
-                            subtitle: Text(t.exames.item2_desc),
+                            subtitle: Text(
+                              t.exames.item2_desc,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
                             value: cienteTreino,
                             onChanged: (val) =>
                                 setStateSheet(() => cienteTreino = val!),
                           ),
                           CheckboxListTile(
-                            activeColor: Colors.green,
+                            activeColor: AppColors.success,
+                            checkColor: AppColors.primaryDarkText,
+                            contentPadding: EdgeInsets.zero,
                             title: Text(
                               t.exames.item3_tit,
                               style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 14,
+                                color: AppColors.textPrimary,
                               ),
                             ),
-                            subtitle: Text(t.exames.item3_desc),
+                            subtitle: Text(
+                              t.exames.item3_desc,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
                             value: cienteProstata,
                             onChanged: (val) =>
                                 setStateSheet(() => cienteProstata = val!),
                           ),
                           CheckboxListTile(
-                            activeColor: Colors.green,
+                            activeColor: AppColors.success,
+                            checkColor: AppColors.primaryDarkText,
+                            contentPadding: EdgeInsets.zero,
                             title: Text(
                               t.exames.item4_tit,
                               style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 14,
+                                color: AppColors.textPrimary,
                               ),
                             ),
-                            subtitle: Text(t.exames.item4_desc),
+                            subtitle: Text(
+                              t.exames.item4_desc,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
                             value: cienteFigado,
                             onChanged: (val) =>
                                 setStateSheet(() => cienteFigado = val!),
                           ),
                           CheckboxListTile(
-                            activeColor: Colors.green,
+                            activeColor: AppColors.success,
+                            checkColor: AppColors.primaryDarkText,
+                            contentPadding: EdgeInsets.zero,
                             title: Text(
                               t.exames.item5_tit,
                               style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 14,
+                                color: AppColors.textPrimary,
                               ),
                             ),
-                            subtitle: Text(t.exames.item5_desc),
+                            subtitle: Text(
+                              t.exames.item5_desc,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
                             value: cienteHorario,
                             onChanged: (val) =>
                                 setStateSheet(() => cienteHorario = val!),
                           ),
                           CheckboxListTile(
-                            activeColor: Colors.green,
+                            activeColor: AppColors.success,
+                            checkColor: AppColors.primaryDarkText,
+                            contentPadding: EdgeInsets.zero,
                             title: Text(
                               t.exames.item6_tit,
                               style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 14,
+                                color: AppColors.textPrimary,
                               ),
                             ),
-                            subtitle: Text(t.exames.item6_desc),
+                            subtitle: Text(
+                              t.exames.item6_desc,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
                             value: cienteFidelidade,
                             onChanged: (val) =>
                                 setStateSheet(() => cienteFidelidade = val!),
@@ -913,56 +974,47 @@ class _DashboardEcraState extends State<DashboardEcra> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          try {
-                            await supabase
-                                .from('agendamento_exames')
-                                .update({
-                                  'ciente_jejum': cienteJejum,
-                                  'ciente_treino': cienteTreino,
-                                  'ciente_prostata': cienteProstata,
-                                  'ciente_figado': cienteFigado,
-                                  'ciente_horario': cienteHorario,
-                                  'ciente_fidelidade': cienteFidelidade,
-                                })
-                                .eq('id', agendamentoAtivo!['id']);
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          await supabase
+                              .from('agendamento_exames')
+                              .update({
+                                'ciente_jejum': cienteJejum,
+                                'ciente_treino': cienteTreino,
+                                'ciente_prostata': cienteProstata,
+                                'ciente_figado': cienteFigado,
+                                'ciente_horario': cienteHorario,
+                                'ciente_fidelidade': cienteFidelidade,
+                              })
+                              .eq('id', agendamentoAtivo!['id']);
 
-                            if (mounted) {
-                              Navigator.pop(context);
-                              _verificarAgendamentoAtivo();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Protocolo guardado com sucesso!',
-                                  ),
-                                  backgroundColor: Colors.green,
+                          if (mounted) {
+                            Navigator.pop(context);
+                            _verificarAgendamentoAtivo();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Protocolo guardado com sucesso!',
                                 ),
-                              );
-                            }
-                          } catch (e) {
-                            ScaffoldMessenger.of(
-                              context,
-                            ).showSnackBar(SnackBar(content: Text('Erro: $e')));
+                                backgroundColor: AppColors.success,
+                              ),
+                            );
                           }
-                        },
-                        icon: const Icon(Icons.verified, color: Colors.white),
-                        label: Text(
-                          t.exames.btn_confirmar, // 👇 Traduzido
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[700],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Erro: $e'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.verified_rounded),
+                      label: Text(t.exames.btn_confirmar),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: AppColors.primaryDarkText,
                       ),
                     ),
                   ],
@@ -1148,80 +1200,72 @@ class _DashboardEcraState extends State<DashboardEcra> {
         idade = DateTime.now().year - nascimento.year;
       }
 
+      final double? pesoKg = perfil != null && perfil['peso'] != null
+          ? double.tryParse(perfil['peso'].toString())
+          : null;
+
       final tratamentos = await supabase
           .from('medicamentos')
-          .select('categoria_clinica, data_inicio')
+          .select('nome, categoria_clinica, data_inicio')
           .order('data_inicio', ascending: false);
 
-      if (tratamentos.isEmpty) {
+      final ativos = tratamentos
+          .where((m) => !m['nome'].toString().startsWith('[Arquivado]'))
+          .toList();
+
+      if (ativos.isEmpty) {
         setState(() => exigeExames = false);
         return;
       }
 
-      bool isHormonal = false;
-      bool isMetabolico = false;
       DateTime inicioMaisRecente = DateTime.parse(
-        tratamentos.last['data_inicio'].toString(),
+        ativos.last['data_inicio'].toString(),
+      );
+      final List<String> nomesAtivos = [];
+
+      for (var med in ativos) {
+        DateTime dt = DateTime.parse(med['data_inicio'].toString());
+        if (dt.isAfter(inicioMaisRecente)) inicioMaisRecente = dt;
+        nomesAtivos.add(med['nome'].toString());
+      }
+
+      final inputClinico = PerfilClinicoInput(
+        sexo: genero == 'Feminino'
+            ? SexoBiologico.feminino
+            : SexoBiologico.masculino,
+        idade: idade,
+        pesoKg: pesoKg,
+        nomesMedicamentosAtivos: nomesAtivos,
       );
 
-      for (var med in tratamentos) {
-        String cat = med['categoria_clinica'].toString();
-        DateTime dt = DateTime.parse(med['data_inicio'].toString());
-
-        if (dt.isAfter(inicioMaisRecente)) inicioMaisRecente = dt;
-
-        if (cat.contains('Testosterona') ||
-            cat.contains('DHT') ||
-            cat.contains('19-Nor') ||
-            cat.contains('Mix')) {
-          isHormonal = true;
-        } else if (cat.contains('GLP-1')) {
-          isMetabolico = true;
-        }
-      }
-
-      if (!isHormonal && !isMetabolico) {
-        setState(() => exigeExames = false);
-        return;
-      }
-
-      Set<String> exames = {
-        t.exames.nomes.hemo,
-        t.exames.nomes.marcadores,
-        t.exames.nomes.lipidico,
-        t.exames.nomes.figado,
-        t.exames.nomes.rim,
-        t.exames.nomes.cpk,
-      };
-
-      if (isHormonal) {
-        exames.addAll([
-          t.exames.nomes.testo,
-          t.exames.nomes.e2,
-          t.exames.nomes.shbg,
-          t.exames.nomes.dht,
-          t.exames.nomes.prolactina,
-          t.exames.nomes.tireoide,
-        ]);
-        if (genero == 'Masculino' && idade >= 40) {
-          exames.add(t.exames.nomes.psa);
-        }
-      }
-
-      if (isMetabolico || isHormonal) {
-        exames.addAll([
-          t.exames.nomes.glicemia,
-          t.exames.nomes.insulina,
-          t.exames.nomes.hba1c,
-        ]);
-      }
+      final recomendacoesBase = LabExamsEngine.gerarRecomendacoes(inputClinico);
 
       final historico = await supabase
           .from('historico_exames')
           .select()
           .eq('user_id', userId)
-          .order('data_exame', ascending: false)
-          .limit(1);
+          .order('data_exame', ascending: false);
+
+      // Mapeia a data mais recente em que cada exame foi realizado
+      final Map<String, DateTime> ultimaColetaPorId = {};
+      for (final reg in historico) {
+        final dt = DateTime.tryParse(reg['data_exame'].toString());
+        if (dt == null) continue;
+        final feitos = reg['exames_realizados'];
+        if (feitos is List) {
+          for (final id in feitos) {
+            final idStr = id.toString();
+            if (!ultimaColetaPorId.containsKey(idStr)) {
+              ultimaColetaPorId[idStr] = dt;
+            }
+          }
+        }
+      }
+
+      final recomendacoes = LabExamsEngine.filtrarPendentes(
+        recomendacoesBase,
+        ultimaColetaPorId,
+      );
 
       DateTime dataAlvo;
       if (historico.isEmpty) {
@@ -1230,7 +1274,7 @@ class _DashboardEcraState extends State<DashboardEcra> {
         DateTime ultimo = DateTime.parse(
           historico.first['data_exame'].toString(),
         );
-        dataAlvo = ultimo.add(const Duration(days: 120));
+        dataAlvo = ultimo.add(const Duration(days: 90)); // 3 meses depois
       }
 
       if (dataAlvo.isBefore(DateTime.now())) {
@@ -1240,7 +1284,10 @@ class _DashboardEcraState extends State<DashboardEcra> {
       setState(() {
         exigeExames = true;
         proximaDataExame = dataAlvo;
-        listaExamesSugeridos = exames.toList();
+        examesAgrupados = recomendacoes;
+        listaExamesSugeridos = recomendacoes.values
+            .expand((l) => l.map((e) => e.nome))
+            .toList();
 
         DateTime hoje = DateTime(
           DateTime.now().year,
@@ -1255,13 +1302,14 @@ class _DashboardEcraState extends State<DashboardEcra> {
     }
   }
 
-  Future<void> _registarExameFeito() async {
+  Future<void> _registarExameFeito([List<String>? idsRealizados]) async {
     try {
       final userId = supabase.auth.currentUser!.id;
       await supabase.from('historico_exames').insert({
         'user_id': userId,
         'data_exame': DateTime.now().toIso8601String().split('T')[0],
         'categoria_alvo': 'Painel Automático',
+        'exames_realizados': idsRealizados ?? [],
       });
 
       Navigator.pop(context);
@@ -1339,6 +1387,70 @@ class _DashboardEcraState extends State<DashboardEcra> {
   }
 
   void _abrirPainelExames() {
+    final titulosSecao = {
+      SecaoExame.laboratoriais: (
+        t.exames.sec_laboratoriais,
+        Icons.science_rounded,
+      ),
+      SecaoExame.especificosProtocolo: (
+        t.exames.sec_protocolo,
+        Icons.vaccines_rounded,
+      ),
+      SecaoExame.perfilPonderal: (
+        t.exames.sec_ponderal,
+        Icons.monitor_weight_rounded,
+      ),
+      SecaoExame.cardiologicos: (
+        t.exames.sec_cardiologicos,
+        Icons.favorite_rounded,
+      ),
+      SecaoExame.imagemRastreamento: (
+        t.exames.sec_imagem,
+        Icons.medical_information_rounded,
+      ),
+    };
+
+    final Set<SecaoExame> secoesSelecionadas = SecaoExame.values
+        .where((s) => (examesAgrupados[s] ?? []).isNotEmpty)
+        .toSet();
+
+    Map<SecaoExame, List<ExameSugerido>> filtrarSelecionados() {
+      return {
+        for (final s in SecaoExame.values)
+          if (secoesSelecionadas.contains(s)) s: examesAgrupados[s] ?? [],
+      };
+    }
+
+    Future<void> enviarPorEmail() async {
+      if (secoesSelecionadas.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(t.exames.msg_selecione_bloco),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+        return;
+      }
+      final emailUsuario = supabase.auth.currentUser?.email ?? '';
+      final corpo = LabExamsEngine.gerarTextoParaMedico(filtrarSelecionados());
+      final Uri emailUri = Uri(
+        scheme: 'mailto',
+        path: emailUsuario,
+        query:
+            'subject=${Uri.encodeComponent(t.exames.email_assunto)}&body=${Uri.encodeComponent(corpo)}',
+      );
+      if (!await launchUrl(emailUri, mode: LaunchMode.externalApplication)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Não foi possível abrir o aplicativo de e-mail.'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1348,82 +1460,237 @@ class _DashboardEcraState extends State<DashboardEcra> {
         side: BorderSide(color: AppColors.border),
       ),
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.biotech_rounded,
-                      color: AppColors.primary,
-                      size: 28,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        t.exames.painel_titulo,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  t.exames.painel_subtitulo,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ...listaExamesSugeridos.map(
-                  (exame) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.check_circle_outline_rounded,
-                          color: AppColors.success,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            exame,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+        return StatefulBuilder(
+          builder: (context, setStateSheet) {
+            return SafeArea(
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.90,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.biotech_rounded,
+                            color: AppColors.primary,
+                            size: 26,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              t.exames.painel_titulo,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.copy_rounded,
+                              color: AppColors.primary,
+                            ),
+                            tooltip: t.exames.btn_copiar_medico,
+                            onPressed: () {
+                              if (secoesSelecionadas.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(t.exames.msg_selecione_bloco),
+                                    backgroundColor: AppColors.warning,
+                                  ),
+                                );
+                                return;
+                              }
+                              final texto = LabExamsEngine.gerarTextoParaMedico(
+                                filtrarSelecionados(),
+                              );
+                              Clipboard.setData(ClipboardData(text: texto));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(t.exames.msg_copiado),
+                                  backgroundColor: AppColors.success,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        t.exames.painel_subtitulo,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                          height: 1.35,
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: ListView(
+                          children: [
+                            ...SecaoExame.values.map((secao) {
+                              final itens = examesAgrupados[secao] ?? [];
+                              if (itens.isEmpty) return const SizedBox.shrink();
+                              final info = titulosSecao[secao]!;
+                              final bool selecionado = secoesSelecionadas
+                                  .contains(secao);
+                              return Card(
+                                color: AppColors.surfaceInner,
+                                margin: const EdgeInsets.only(bottom: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: selecionado
+                                        ? AppColors.borderHighlight
+                                        : AppColors.border,
+                                  ),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Theme(
+                                  data: Theme.of(
+                                    context,
+                                  ).copyWith(dividerColor: Colors.transparent),
+                                  child: ExpansionTile(
+                                    initiallyExpanded: false,
+                                    leading: Checkbox(
+                                      value: selecionado,
+                                      activeColor: AppColors.primary,
+                                      checkColor: AppColors.primaryDarkText,
+                                      onChanged: (val) {
+                                        setStateSheet(() {
+                                          if (val == true) {
+                                            secoesSelecionadas.add(secao);
+                                          } else {
+                                            secoesSelecionadas.remove(secao);
+                                          }
+                                        });
+                                      },
+                                    ),
+                                    title: Row(
+                                      children: [
+                                        Icon(
+                                          info.$2,
+                                          color: AppColors.primary,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            '${info.$1} (${itens.length})',
+                                            style: const TextStyle(
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    children: itens.map((ex) {
+                                      return Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          16,
+                                          4,
+                                          16,
+                                          10,
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Padding(
+                                              padding: EdgeInsets.only(top: 2),
+                                              child: Icon(
+                                                Icons
+                                                    .check_circle_outline_rounded,
+                                                color: AppColors.success,
+                                                size: 18,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Text(
+                                                ex.nome,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13.5,
+                                                  color: AppColors.textPrimary,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              );
+                            }),
+                            Container(
+                              margin: const EdgeInsets.only(top: 4, bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.warningBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppColors.warning.withValues(
+                                    alpha: 0.4,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                t.exames.aviso_clinico,
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.warning,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: enviarPorEmail,
+                        icon: const Icon(Icons.email_outlined),
+                        label: Text(t.exames.btn_enviar_email),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: _agendarExameFuturo,
+                        icon: const Icon(Icons.edit_calendar_rounded, size: 20),
+                        label: Text(t.exames.btn_agendar),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          final idsFeitos = filtrarSelecionados().values
+                              .expand((l) => l.map((e) => e.id))
+                              .toList();
+                          _registarExameFeito(idsFeitos);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.success,
+                          side: BorderSide(
+                            color: AppColors.success.withValues(alpha: 0.6),
+                          ),
+                        ),
+                        icon: const Icon(
+                          Icons.check_circle_outline_rounded,
+                          size: 20,
+                        ),
+                        label: Text(t.exames.btn_ja_fiz),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: _agendarExameFuturo,
-                  icon: const Icon(Icons.edit_calendar_rounded),
-                  label: Text(t.exames.btn_agendar),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: _registarExameFeito,
-                  icon: const Icon(Icons.history_rounded),
-                  label: Text(t.exames.btn_ja_fiz),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -1432,6 +1699,96 @@ class _DashboardEcraState extends State<DashboardEcra> {
   String _formatarData(String dataIso) {
     final partes = dataIso.split('-');
     return '${partes[2]}/${partes[1]}/${partes[0]}';
+  }
+
+  Widget _buildCardExames() {
+    return Card(
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: agendamentoAtivo != null
+              ? AppColors.border
+              : (diasParaExame <= 0
+                    ? AppColors.error.withValues(alpha: 0.6)
+                    : (diasParaExame <= 15
+                          ? AppColors.warning.withValues(alpha: 0.6)
+                          : AppColors.border)),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  agendamentoAtivo != null
+                      ? Icons.event_available_rounded
+                      : Icons.biotech_rounded,
+                  color: agendamentoAtivo != null
+                      ? AppColors.primary
+                      : (diasParaExame <= 0
+                            ? AppColors.error
+                            : (diasParaExame <= 15
+                                  ? AppColors.warning
+                                  : AppColors.success)),
+                  size: 24,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    agendamentoAtivo != null
+                        ? t.dashboard_alertas.coleta_agendada
+                        : (diasParaExame <= 0
+                              ? 'Exames Atrasados'
+                              : (diasParaExame <= 15
+                                    ? 'Exames Próximos'
+                                    : 'Check-up de Biomarcadores')),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              agendamentoAtivo != null
+                  ? t.dashboard_alertas.texto_exames(
+                      dias: agendamentoAtivo!['dias_restantes'],
+                      data:
+                          '${(agendamentoAtivo!['data_obj'] as DateTime).day.toString().padLeft(2, '0')}/${(agendamentoAtivo!['data_obj'] as DateTime).month.toString().padLeft(2, '0')}',
+                    )
+                  : (diasParaExame <= 0
+                        ? 'A sua janela ideal de exames de controle já começou! Veja o que solicitar ao seu médico.'
+                        : 'Próxima coleta sugerida em $diasParaExame dias (${proximaDataExame!.day.toString().padLeft(2, '0')}/${proximaDataExame!.month.toString().padLeft(2, '0')}).'),
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _abrirPainelExames,
+                child: Text(
+                  agendamentoAtivo != null
+                      ? t.dashboard_alertas.btn_ver_painel
+                      : 'VER PAINEL SUGERIDO',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -1556,107 +1913,13 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                   ),
                                 ),
                               ),
-                            if (exigeExames && proximaDataExame != null)
-                              Card(
-                                color: AppColors.surface,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                  side: BorderSide(
-                                    color: agendamentoAtivo != null
-                                        ? AppColors.border
-                                        : (diasParaExame <= 0
-                                              ? AppColors.error.withValues(
-                                                  alpha: 0.6,
-                                                )
-                                              : (diasParaExame <= 15
-                                                    ? AppColors.warning
-                                                          .withValues(
-                                                            alpha: 0.6,
-                                                          )
-                                                    : AppColors.border)),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(18.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            agendamentoAtivo != null
-                                                ? Icons.event_available_rounded
-                                                : Icons.biotech_rounded,
-                                            color: agendamentoAtivo != null
-                                                ? AppColors.primary
-                                                : (diasParaExame <= 0
-                                                      ? AppColors.error
-                                                      : (diasParaExame <= 15
-                                                            ? AppColors.warning
-                                                            : AppColors
-                                                                  .success)),
-                                            size: 24,
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Expanded(
-                                            child: Text(
-                                              agendamentoAtivo != null
-                                                  ? t
-                                                        .dashboard_alertas
-                                                        .coleta_agendada
-                                                  : (diasParaExame <= 0
-                                                        ? 'Exames Atrasados'
-                                                        : (diasParaExame <= 15
-                                                              ? 'Exames Próximos'
-                                                              : 'Check-up de Biomarcadores')),
-                                              style: const TextStyle(
-                                                fontSize: 17,
-                                                fontWeight: FontWeight.w700,
-                                                color: AppColors.textPrimary,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        agendamentoAtivo != null
-                                            ? t.dashboard_alertas.texto_exames(
-                                                dias:
-                                                    agendamentoAtivo!['dias_restantes'],
-                                                data:
-                                                    '${(agendamentoAtivo!['data_obj'] as DateTime).day.toString().padLeft(2, '0')}/${(agendamentoAtivo!['data_obj'] as DateTime).month.toString().padLeft(2, '0')}',
-                                              )
-                                            : (diasParaExame <= 0
-                                                  ? 'A sua janela ideal de exames de controle já começou! Veja o que solicitar ao seu médico.'
-                                                  : 'Próxima coleta sugerida em $diasParaExame dias (${proximaDataExame!.day.toString().padLeft(2, '0')}/${proximaDataExame!.month.toString().padLeft(2, '0')}).'),
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: AppColors.textSecondary,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 14),
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: OutlinedButton(
-                                          onPressed: _abrirPainelExames,
-                                          child: Text(
-                                            agendamentoAtivo != null
-                                                ? t
-                                                      .dashboard_alertas
-                                                      .btn_ver_painel
-                                                : 'VER PAINEL SUGERIDO',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            if (exigeExames) const SizedBox(height: 16),
+                            if (exigeExames &&
+                                proximaDataExame != null &&
+                                agendamentoAtivo == null &&
+                                diasParaExame <= 15) ...[
+                              _buildCardExames(),
+                              const SizedBox(height: 16),
+                            ],
                             Card(
                               color: AppColors.surfaceHighlight,
                               shape: RoundedRectangleBorder(
@@ -1866,6 +2129,13 @@ class _DashboardEcraState extends State<DashboardEcra> {
                                 ),
                               ),
                             ),
+                            if (exigeExames &&
+                                proximaDataExame != null &&
+                                (agendamentoAtivo != null ||
+                                    diasParaExame > 15)) ...[
+                              const SizedBox(height: 12),
+                              _buildCardExames(),
+                            ],
                           ],
                         ),
                       ),
