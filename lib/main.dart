@@ -65,14 +65,26 @@ Future<void> agendarNotificacao(
     android: androidDetails,
   );
 
-  await flutterLocalNotificationsPlugin.zonedSchedule(
-    id: id,
-    title: titulo,
-    body: corpo,
-    scheduledDate: dataHoraDisparo,
-    notificationDetails: platformDetails,
-    androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-  );
+  try {
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      id: id,
+      title: titulo,
+      body: corpo,
+      scheduledDate: dataHoraDisparo,
+      notificationDetails: platformDetails,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
+  } catch (_) {
+    // Fallback automático caso o Android bloqueie alarmes exatos
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      id: id,
+      title: titulo,
+      body: corpo,
+      scheduledDate: dataHoraDisparo,
+      notificationDetails: platformDetails,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+    );
+  }
 }
 
 // ==========================================================
@@ -80,8 +92,6 @@ Future<void> agendarNotificacao(
 // ==========================================================
 Future<void> atualizarAlarmesNativos() async {
   try {
-    await flutterLocalNotificationsPlugin.cancelAll();
-
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
 
@@ -95,6 +105,11 @@ Future<void> atualizarAlarmesNativos() async {
         .order('data_aplicacao', ascending: true)
         .limit(60);
 
+    // Só limpa os alarmes antigos depois de garantir que a busca funcionou
+    await flutterLocalNotificationsPlugin.cancelAll();
+
+    final agora = DateTime.now();
+
     for (var dose in pendentes) {
       DateTime dataBase = DateTime.parse(dose['data_aplicacao'].toString());
 
@@ -103,8 +118,8 @@ Future<void> atualizarAlarmesNativos() async {
           dose['medicamentos']['hora_aplicacao'] != null) {
         horaStr = dose['medicamentos']['hora_aplicacao'].toString();
       }
-      int h = int.parse(horaStr.split(':')[0]);
-      int m = int.parse(horaStr.split(':')[1]);
+      int h = int.tryParse(horaStr.split(':')[0]) ?? 8;
+      int m = int.tryParse(horaStr.split(':')[1]) ?? 0;
 
       DateTime dataHoraExata = DateTime(
         dataBase.year,
@@ -114,8 +129,13 @@ Future<void> atualizarAlarmesNativos() async {
         m,
       );
 
-      if (dataHoraExata.isAfter(DateTime.now())) {
-        int idNotificacao = dose['id'].hashCode;
+      final bool ehHoje =
+          dataBase.year == agora.year &&
+          dataBase.month == agora.month &&
+          dataBase.day == agora.day;
+
+      if (dataHoraExata.isAfter(agora) || ehHoje) {
+        int idNotificacao = dose['id'].hashCode & 0x7FFFFFFF;
         String nomeMed = dose['medicamentos']?['nome'] ?? 'Medicamento';
 
         await agendarNotificacao(
