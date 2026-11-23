@@ -60,6 +60,8 @@ class TranslationsEs extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$exames$es exames = _Translations$exames$es._(_root);
 	@override late final _Translations$complementos$es complementos = _Translations$complementos$es._(_root);
 	@override late final _Translations$navegacao$es navegacao = _Translations$navegacao$es._(_root);
+	@override late final _Translations$evolucao$es evolucao = _Translations$evolucao$es._(_root);
+	@override late final _Translations$cronograma_modal$es cronograma_modal = _Translations$cronograma_modal$es._(_root);
 }
 
 // Path: notificacoes
@@ -514,6 +516,71 @@ class _Translations$navegacao$es extends Translations$navegacao$pt {
 	@override String get perfil => 'Perfil';
 }
 
+// Path: evolucao
+class _Translations$evolucao$es extends Translations$evolucao$pt {
+	_Translations$evolucao$es._(TranslationsEs root) : this._root = root, super.internal(root);
+
+	final TranslationsEs _root; // ignore: unused_field
+
+	// Translations
+	@override String get titulo => 'Evolución Clínica';
+	@override String get card_subtitulo => 'Historial de exámenes, alertas, bioimpedancia y gráficos.';
+	@override String get aba_alertas => 'Alertas';
+	@override String get aba_tabela => 'Tabla';
+	@override String get aba_graficos => 'Gráficos';
+	@override String get btn_registrar => 'Registrar';
+	@override String get btn_salvar => 'GUARDAR REGISTRO';
+	@override String get modal_novo => 'Nuevo Registro Clínico';
+	@override String get modal_editar => 'Editar Registro Clínico';
+	@override String get tipo_sangue => 'Análisis de Sangre';
+	@override String get tipo_corpo => 'Bioimpedancia / Medidas';
+	@override String get data_registro => 'Fecha del Registro';
+	@override String get instrucao_laudo => 'Complete solo los marcadores presentes en su informe:';
+	@override String get obs_opcional => 'Observaciones (opcional)';
+	@override String get sem_resultados => 'Aún no hay resultados registrados';
+	@override String get sem_resultados_desc => 'Toque el botón de abajo para registrar su primer análisis de sangre o bioimpedancia y seguir su evolución.';
+	@override String get tudo_na_faixa => 'Último Examen: Todo en Rango';
+	@override String get ultima_bio => 'Última Bioimpedancia';
+	@override String get historico_titulo => 'Historial de Registros';
+	@override String get sem_categoria => 'Sin registros en esta categoría.';
+	@override String get escolha_marcador => 'Seleccione el Marcador';
+	@override String get sem_dados_marcador => 'No hay datos registrados para este marcador.';
+	@override String get tooltip_email => 'Enviar informe a mi correo';
+	@override String get tooltip_copiar => 'Copiar informe para el médico';
+	@override String get msg_copiado => '¡Informe copiado! Péguelo en un mensaje o llévelo a su consulta.';
+	@override String get msg_salvo => '¡Registro guardado con éxito!';
+	@override String get msg_excluido => '¡Registro eliminado con éxito!';
+	@override String get excluir_titulo => 'Eliminar Registro';
+	@override String get excluir_desc => '¿Está seguro de que desea eliminar este registro clínico? Esta acción no se puede deshacer.';
+	@override String get btn_excluir => 'Eliminar';
+}
+
+// Path: cronograma_modal
+class _Translations$cronograma_modal$es extends Translations$cronograma_modal$pt {
+	_Translations$cronograma_modal$es._(TranslationsEs root) : this._root = root, super.internal(root);
+
+	final TranslationsEs _root; // ignore: unused_field
+
+	// Translations
+	@override String get titulo => 'Período del Cronograma';
+	@override String frasco_atual({required Object vol}) => 'Frasco actual (${vol} mL)';
+	@override String frasco_novo({required Object vol}) => 'Frasco nuevo (${vol} mL)';
+	@override String get op_frasco => 'Frasco entero';
+	@override String get op_frasco_sub => 'Hasta agotar el saldo';
+	@override String get op_semanas => 'Por Semanas';
+	@override String get op_semanas_sub => 'Ej: 4 u 8 semanas';
+	@override String get op_meses => 'Por Meses';
+	@override String get op_meses_sub => 'Ej: 3 meses';
+	@override String get op_injecoes => 'Por Inyecciones';
+	@override String get op_injecoes_sub => 'Cant. exacta de dosis';
+	@override String get lbl_semanas => 'Semanas';
+	@override String get lbl_meses => 'Meses';
+	@override String get lbl_injecoes => 'Inyecciones';
+	@override String get btn_gerar_uma => 'GENERAR 1 APLICACIÓN';
+	@override String btn_gerar_varias({required Object qtd}) => 'GENERAR ${qtd} APLICACIONES';
+	@override String get btn_informe_qtd => 'INGRESE LA CANTIDAD';
+}
+
 // Path: exames.nomes
 class _Translations$exames$nomes$es extends Translations$exames$nomes$pt {
 	_Translations$exames$nomes$es._(TranslationsEs root) : this._root = root, super.internal(root);
@@ -823,6 +890,53 @@ extension on TranslationsEs {
 			'navegacao.tratamento' => 'Tratamiento',
 			'navegacao.ferramentas' => 'Herramientas',
 			'navegacao.perfil' => 'Perfil',
+			'evolucao.titulo' => 'Evolución Clínica',
+			'evolucao.card_subtitulo' => 'Historial de exámenes, alertas, bioimpedancia y gráficos.',
+			'evolucao.aba_alertas' => 'Alertas',
+			'evolucao.aba_tabela' => 'Tabla',
+			'evolucao.aba_graficos' => 'Gráficos',
+			'evolucao.btn_registrar' => 'Registrar',
+			'evolucao.btn_salvar' => 'GUARDAR REGISTRO',
+			'evolucao.modal_novo' => 'Nuevo Registro Clínico',
+			'evolucao.modal_editar' => 'Editar Registro Clínico',
+			'evolucao.tipo_sangue' => 'Análisis de Sangre',
+			'evolucao.tipo_corpo' => 'Bioimpedancia / Medidas',
+			'evolucao.data_registro' => 'Fecha del Registro',
+			'evolucao.instrucao_laudo' => 'Complete solo los marcadores presentes en su informe:',
+			'evolucao.obs_opcional' => 'Observaciones (opcional)',
+			'evolucao.sem_resultados' => 'Aún no hay resultados registrados',
+			'evolucao.sem_resultados_desc' => 'Toque el botón de abajo para registrar su primer análisis de sangre o bioimpedancia y seguir su evolución.',
+			'evolucao.tudo_na_faixa' => 'Último Examen: Todo en Rango',
+			'evolucao.ultima_bio' => 'Última Bioimpedancia',
+			'evolucao.historico_titulo' => 'Historial de Registros',
+			'evolucao.sem_categoria' => 'Sin registros en esta categoría.',
+			'evolucao.escolha_marcador' => 'Seleccione el Marcador',
+			'evolucao.sem_dados_marcador' => 'No hay datos registrados para este marcador.',
+			'evolucao.tooltip_email' => 'Enviar informe a mi correo',
+			'evolucao.tooltip_copiar' => 'Copiar informe para el médico',
+			'evolucao.msg_copiado' => '¡Informe copiado! Péguelo en un mensaje o llévelo a su consulta.',
+			'evolucao.msg_salvo' => '¡Registro guardado con éxito!',
+			'evolucao.msg_excluido' => '¡Registro eliminado con éxito!',
+			'evolucao.excluir_titulo' => 'Eliminar Registro',
+			'evolucao.excluir_desc' => '¿Está seguro de que desea eliminar este registro clínico? Esta acción no se puede deshacer.',
+			'evolucao.btn_excluir' => 'Eliminar',
+			'cronograma_modal.titulo' => 'Período del Cronograma',
+			'cronograma_modal.frasco_atual' => ({required Object vol}) => 'Frasco actual (${vol} mL)',
+			'cronograma_modal.frasco_novo' => ({required Object vol}) => 'Frasco nuevo (${vol} mL)',
+			'cronograma_modal.op_frasco' => 'Frasco entero',
+			'cronograma_modal.op_frasco_sub' => 'Hasta agotar el saldo',
+			'cronograma_modal.op_semanas' => 'Por Semanas',
+			'cronograma_modal.op_semanas_sub' => 'Ej: 4 u 8 semanas',
+			'cronograma_modal.op_meses' => 'Por Meses',
+			'cronograma_modal.op_meses_sub' => 'Ej: 3 meses',
+			'cronograma_modal.op_injecoes' => 'Por Inyecciones',
+			'cronograma_modal.op_injecoes_sub' => 'Cant. exacta de dosis',
+			'cronograma_modal.lbl_semanas' => 'Semanas',
+			'cronograma_modal.lbl_meses' => 'Meses',
+			'cronograma_modal.lbl_injecoes' => 'Inyecciones',
+			'cronograma_modal.btn_gerar_uma' => 'GENERAR 1 APLICACIÓN',
+			'cronograma_modal.btn_gerar_varias' => ({required Object qtd}) => 'GENERAR ${qtd} APLICACIONES',
+			'cronograma_modal.btn_informe_qtd' => 'INGRESE LA CANTIDAD',
 			_ => null,
 		};
 	}

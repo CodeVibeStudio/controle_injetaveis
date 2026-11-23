@@ -62,6 +62,8 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$exames$pt exames = Translations$exames$pt.internal(_root);
 	late final Translations$complementos$pt complementos = Translations$complementos$pt.internal(_root);
 	late final Translations$navegacao$pt navegacao = Translations$navegacao$pt.internal(_root);
+	late final Translations$evolucao$pt evolucao = Translations$evolucao$pt.internal(_root);
+	late final Translations$cronograma_modal$pt cronograma_modal = Translations$cronograma_modal$pt.internal(_root);
 }
 
 // Path: notificacoes
@@ -1024,6 +1026,165 @@ class Translations$navegacao$pt {
 	String get perfil => 'Perfil';
 }
 
+// Path: evolucao
+class Translations$evolucao$pt {
+	Translations$evolucao$pt.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// pt: 'Evolução Clínica'
+	String get titulo => 'Evolução Clínica';
+
+	/// pt: 'Histórico de exames, alertas, bioimpedância e gráficos.'
+	String get card_subtitulo => 'Histórico de exames, alertas, bioimpedância e gráficos.';
+
+	/// pt: 'Alertas'
+	String get aba_alertas => 'Alertas';
+
+	/// pt: 'Tabela'
+	String get aba_tabela => 'Tabela';
+
+	/// pt: 'Gráficos'
+	String get aba_graficos => 'Gráficos';
+
+	/// pt: 'Registrar'
+	String get btn_registrar => 'Registrar';
+
+	/// pt: 'SALVAR REGISTRO'
+	String get btn_salvar => 'SALVAR REGISTRO';
+
+	/// pt: 'Novo Registro Clínico'
+	String get modal_novo => 'Novo Registro Clínico';
+
+	/// pt: 'Editar Registro Clínico'
+	String get modal_editar => 'Editar Registro Clínico';
+
+	/// pt: 'Exame de Sangue'
+	String get tipo_sangue => 'Exame de Sangue';
+
+	/// pt: 'Bioimpedância / Medidas'
+	String get tipo_corpo => 'Bioimpedância / Medidas';
+
+	/// pt: 'Data do Registro'
+	String get data_registro => 'Data do Registro';
+
+	/// pt: 'Preencha apenas os marcadores presentes no seu laudo:'
+	String get instrucao_laudo => 'Preencha apenas os marcadores presentes no seu laudo:';
+
+	/// pt: 'Observações (opcional)'
+	String get obs_opcional => 'Observações (opcional)';
+
+	/// pt: 'Nenhum resultado registrado ainda'
+	String get sem_resultados => 'Nenhum resultado registrado ainda';
+
+	/// pt: 'Toque no botão abaixo para registrar seu primeiro exame de sangue ou bioimpedância e acompanhar sua evolução.'
+	String get sem_resultados_desc => 'Toque no botão abaixo para registrar seu primeiro exame de sangue ou bioimpedância e acompanhar sua evolução.';
+
+	/// pt: 'Último Exame: Tudo na Faixa'
+	String get tudo_na_faixa => 'Último Exame: Tudo na Faixa';
+
+	/// pt: 'Última Bioimpedância'
+	String get ultima_bio => 'Última Bioimpedância';
+
+	/// pt: 'Histórico de Registros'
+	String get historico_titulo => 'Histórico de Registros';
+
+	/// pt: 'Sem registros nesta categoria.'
+	String get sem_categoria => 'Sem registros nesta categoria.';
+
+	/// pt: 'Escolha o Marcador para Visualizar'
+	String get escolha_marcador => 'Escolha o Marcador para Visualizar';
+
+	/// pt: 'Nenhum dado registrado para este marcador.'
+	String get sem_dados_marcador => 'Nenhum dado registrado para este marcador.';
+
+	/// pt: 'Enviar relatório para meu e-mail'
+	String get tooltip_email => 'Enviar relatório para meu e-mail';
+
+	/// pt: 'Copiar relatório para o médico'
+	String get tooltip_copiar => 'Copiar relatório para o médico';
+
+	/// pt: 'Relatório copiado! Cole no WhatsApp ou leve na consulta.'
+	String get msg_copiado => 'Relatório copiado! Cole no WhatsApp ou leve na consulta.';
+
+	/// pt: 'Registro salvo com sucesso!'
+	String get msg_salvo => 'Registro salvo com sucesso!';
+
+	/// pt: 'Registro excluído com sucesso!'
+	String get msg_excluido => 'Registro excluído com sucesso!';
+
+	/// pt: 'Excluir Registro'
+	String get excluir_titulo => 'Excluir Registro';
+
+	/// pt: 'Tem certeza que deseja excluir este registro clínico? Esta ação não pode ser desfeita.'
+	String get excluir_desc => 'Tem certeza que deseja excluir este registro clínico? Esta ação não pode ser desfeita.';
+
+	/// pt: 'Excluir'
+	String get btn_excluir => 'Excluir';
+}
+
+// Path: cronograma_modal
+class Translations$cronograma_modal$pt {
+	Translations$cronograma_modal$pt.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// pt: 'Período do Cronograma'
+	String get titulo => 'Período do Cronograma';
+
+	/// pt: 'Frasco atual ($vol mL)'
+	String frasco_atual({required Object vol}) => 'Frasco atual (${vol} mL)';
+
+	/// pt: 'Frasco novo ($vol mL)'
+	String frasco_novo({required Object vol}) => 'Frasco novo (${vol} mL)';
+
+	/// pt: 'Frasco inteiro'
+	String get op_frasco => 'Frasco inteiro';
+
+	/// pt: 'Até acabar o saldo'
+	String get op_frasco_sub => 'Até acabar o saldo';
+
+	/// pt: 'Por Semanas'
+	String get op_semanas => 'Por Semanas';
+
+	/// pt: 'Ex: 4 ou 8 semanas'
+	String get op_semanas_sub => 'Ex: 4 ou 8 semanas';
+
+	/// pt: 'Por Meses'
+	String get op_meses => 'Por Meses';
+
+	/// pt: 'Ex: 3 meses'
+	String get op_meses_sub => 'Ex: 3 meses';
+
+	/// pt: 'Por Injeções'
+	String get op_injecoes => 'Por Injeções';
+
+	/// pt: 'Qtd. exata de doses'
+	String get op_injecoes_sub => 'Qtd. exata de doses';
+
+	/// pt: 'Semanas'
+	String get lbl_semanas => 'Semanas';
+
+	/// pt: 'Meses'
+	String get lbl_meses => 'Meses';
+
+	/// pt: 'Injeções'
+	String get lbl_injecoes => 'Injeções';
+
+	/// pt: 'GERAR 1 APLICAÇÃO'
+	String get btn_gerar_uma => 'GERAR 1 APLICAÇÃO';
+
+	/// pt: 'GERAR $qtd APLICAÇÕES'
+	String btn_gerar_varias({required Object qtd}) => 'GERAR ${qtd} APLICAÇÕES';
+
+	/// pt: 'INFORME A QUANTIDADE'
+	String get btn_informe_qtd => 'INFORME A QUANTIDADE';
+}
+
 // Path: exames.nomes
 class Translations$exames$nomes$pt {
 	Translations$exames$nomes$pt.internal(this._root);
@@ -1365,6 +1526,53 @@ extension on Translations {
 			'navegacao.tratamento' => 'Tratamento',
 			'navegacao.ferramentas' => 'Ferramentas',
 			'navegacao.perfil' => 'Perfil',
+			'evolucao.titulo' => 'Evolução Clínica',
+			'evolucao.card_subtitulo' => 'Histórico de exames, alertas, bioimpedância e gráficos.',
+			'evolucao.aba_alertas' => 'Alertas',
+			'evolucao.aba_tabela' => 'Tabela',
+			'evolucao.aba_graficos' => 'Gráficos',
+			'evolucao.btn_registrar' => 'Registrar',
+			'evolucao.btn_salvar' => 'SALVAR REGISTRO',
+			'evolucao.modal_novo' => 'Novo Registro Clínico',
+			'evolucao.modal_editar' => 'Editar Registro Clínico',
+			'evolucao.tipo_sangue' => 'Exame de Sangue',
+			'evolucao.tipo_corpo' => 'Bioimpedância / Medidas',
+			'evolucao.data_registro' => 'Data do Registro',
+			'evolucao.instrucao_laudo' => 'Preencha apenas os marcadores presentes no seu laudo:',
+			'evolucao.obs_opcional' => 'Observações (opcional)',
+			'evolucao.sem_resultados' => 'Nenhum resultado registrado ainda',
+			'evolucao.sem_resultados_desc' => 'Toque no botão abaixo para registrar seu primeiro exame de sangue ou bioimpedância e acompanhar sua evolução.',
+			'evolucao.tudo_na_faixa' => 'Último Exame: Tudo na Faixa',
+			'evolucao.ultima_bio' => 'Última Bioimpedância',
+			'evolucao.historico_titulo' => 'Histórico de Registros',
+			'evolucao.sem_categoria' => 'Sem registros nesta categoria.',
+			'evolucao.escolha_marcador' => 'Escolha o Marcador para Visualizar',
+			'evolucao.sem_dados_marcador' => 'Nenhum dado registrado para este marcador.',
+			'evolucao.tooltip_email' => 'Enviar relatório para meu e-mail',
+			'evolucao.tooltip_copiar' => 'Copiar relatório para o médico',
+			'evolucao.msg_copiado' => 'Relatório copiado! Cole no WhatsApp ou leve na consulta.',
+			'evolucao.msg_salvo' => 'Registro salvo com sucesso!',
+			'evolucao.msg_excluido' => 'Registro excluído com sucesso!',
+			'evolucao.excluir_titulo' => 'Excluir Registro',
+			'evolucao.excluir_desc' => 'Tem certeza que deseja excluir este registro clínico? Esta ação não pode ser desfeita.',
+			'evolucao.btn_excluir' => 'Excluir',
+			'cronograma_modal.titulo' => 'Período do Cronograma',
+			'cronograma_modal.frasco_atual' => ({required Object vol}) => 'Frasco atual (${vol} mL)',
+			'cronograma_modal.frasco_novo' => ({required Object vol}) => 'Frasco novo (${vol} mL)',
+			'cronograma_modal.op_frasco' => 'Frasco inteiro',
+			'cronograma_modal.op_frasco_sub' => 'Até acabar o saldo',
+			'cronograma_modal.op_semanas' => 'Por Semanas',
+			'cronograma_modal.op_semanas_sub' => 'Ex: 4 ou 8 semanas',
+			'cronograma_modal.op_meses' => 'Por Meses',
+			'cronograma_modal.op_meses_sub' => 'Ex: 3 meses',
+			'cronograma_modal.op_injecoes' => 'Por Injeções',
+			'cronograma_modal.op_injecoes_sub' => 'Qtd. exata de doses',
+			'cronograma_modal.lbl_semanas' => 'Semanas',
+			'cronograma_modal.lbl_meses' => 'Meses',
+			'cronograma_modal.lbl_injecoes' => 'Injeções',
+			'cronograma_modal.btn_gerar_uma' => 'GERAR 1 APLICAÇÃO',
+			'cronograma_modal.btn_gerar_varias' => ({required Object qtd}) => 'GERAR ${qtd} APLICAÇÕES',
+			'cronograma_modal.btn_informe_qtd' => 'INFORME A QUANTIDADE',
 			_ => null,
 		};
 	}

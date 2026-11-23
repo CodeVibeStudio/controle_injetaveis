@@ -23,6 +23,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'utils/calculadora_reconstituicao_ecra.dart';
 import 'utils/simulador_ciclos_ecra.dart';
 import 'utils/lab_exams_engine.dart';
+import 'utils/evolucao_clinica_ecra.dart';
 
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -2156,6 +2157,52 @@ class _DashboardEcraState extends State<DashboardEcra> {
                               const SizedBox(height: 12),
                               _buildCardExames(),
                             ],
+                            const SizedBox(height: 12),
+                            Card(
+                              color: AppColors.surface,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: const BorderSide(color: AppColors.border),
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 8,
+                                ),
+                                leading: const CircleAvatar(
+                                  backgroundColor: AppColors.navPillActive,
+                                  child: Icon(
+                                    Icons.analytics_rounded,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                title: Text(
+                                  t.evolucao.titulo,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  t.evolucao.card_subtitulo,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                trailing: const Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: AppColors.primary,
+                                ),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const EvolucaoClinicaEcra(),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -2881,13 +2928,22 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
               children: [
                 Expanded(
                   child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Cancelar'),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Cancelar', maxLines: 1),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
                     onPressed: () {
                       setState(() {
                         regioesSelecionadasList = tempSelecionados;
@@ -2895,7 +2951,10 @@ class _FormularioMedicamentoEcraState extends State<FormularioMedicamentoEcra> {
                       });
                       Navigator.pop(ctx);
                     },
-                    child: const Text('CONFIRMAR'),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('CONFIRMAR', maxLines: 1),
+                    ),
                   ),
                 ),
               ],
@@ -4776,129 +4835,393 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
     final TextEditingController customCtrl = TextEditingController();
     final int intervaloDias =
         int.tryParse(widget.medicamento['intervalo_dias'].toString()) ?? 7;
+    final bool isMix = widget.medicamento['nome'].toString().startsWith('Mix');
 
-    await showDialog(
+    // Calcula volume total do frasco e desconta o que já foi aplicado
+    final double volTotal = isMix
+        ? 0.0
+        : (widget.medicamento['volume_frasco_ml'] as num).toDouble() *
+              (widget.medicamento['quantidade_ampolas'] as num).toInt();
+
+    double volUsado = 0.0;
+    if (!isMix) {
+      try {
+        final aplicadas = await supabase
+            .from('cronograma')
+            .select('dose_ajustada')
+            .eq('medicamento_id', widget.medicamento['id'])
+            .eq('status_aplicado', true);
+
+        final regexUi = RegExp(r'([\d,.]+)\s*UI');
+        for (final item in aplicadas) {
+          final txt = item['dose_ajustada']?.toString() ?? '';
+          for (final match in regexUi.allMatches(txt)) {
+            final ui = double.tryParse(match.group(1)!.replaceAll(',', '.'));
+            if (ui != null) volUsado += (ui / 100.0);
+          }
+        }
+      } catch (e) {
+        debugPrint('Erro ao calcular saldo do frasco: $e');
+      }
+    }
+
+    final double volRestante = (volTotal - volUsado).clamp(0.0, volTotal);
+    bool usarFrascoNovo = volUsado <= 0 || volRestante < 0.05;
+
+    // Calcula volume por dose atual para a prévia instantânea
+    final double doseSemanal = (widget.medicamento['dose_semanal'] as num)
+        .toDouble();
+    final double concentracao =
+        (widget.medicamento['concentracao_mg_ml'] as num).toDouble();
+    final String tipoFreq =
+        widget.medicamento['tipo_frequencia'] ?? 'intervalo';
+    final int qtdDiasSemana =
+        (widget.medicamento['dias_semana']?.toString().isNotEmpty ?? false)
+        ? widget.medicamento['dias_semana'].toString().split(',').length
+        : 1;
+    final double fator = (tipoFreq == 'dias_semana')
+        ? (doseSemanal / qtdDiasSemana)
+        : (intervaloDias == 3
+              ? (doseSemanal / 2)
+              : ((doseSemanal / 7) * intervaloDias));
+    final double volPorDose = concentracao > 0 ? (fator / concentracao) : 0.1;
+
+    if (!mounted) return;
+
+    await showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: AppColors.border),
+      ),
       builder: (ctx) {
         return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(Icons.date_range, color: Color(0xFF1E3A8A)),
-                  SizedBox(width: 8),
-                  Text(
-                    'Período do Cronograma',
-                    style: TextStyle(fontSize: 18, color: Color(0xFF1E3A8A)),
-                  ),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    RadioListTile<int>(
-                      title: const Text('Até acabar o frasco'),
-                      value: 0,
-                      groupValue: opcaoSelecionada,
-                      activeColor: Colors.green,
-                      onChanged: (val) => setStateDialog(() {
-                        opcaoSelecionada = val!;
-                        customCtrl.clear();
-                      }),
+          builder: (context, setStateSheet) {
+            final double volDisponivel = usarFrascoNovo
+                ? volTotal
+                : volRestante;
+            final int maxDosesFrasco = isMix
+                ? 20
+                : (volDisponivel / volPorDose).floor().clamp(1, 500);
+
+            int? calcularLimite() {
+              if (opcaoSelecionada == 0) return null;
+              final valor = int.tryParse(customCtrl.text) ?? 0;
+              if (valor <= 0) return 0;
+              if (opcaoSelecionada == 1) {
+                return ((valor * 7) / intervaloDias).floor().clamp(1, 500);
+              } else if (opcaoSelecionada == 2) {
+                return ((valor * 30) / intervaloDias).floor().clamp(1, 500);
+              }
+              return valor;
+            }
+
+            final int? limPreview = calcularLimite();
+            final int dosesPrevistas = (limPreview == null)
+                ? maxDosesFrasco
+                : (limPreview == 0
+                      ? 0
+                      : (limPreview > maxDosesFrasco && !isMix
+                            ? maxDosesFrasco
+                            : limPreview));
+
+            Widget buildCardOpcao({
+              required int index,
+              required IconData icone,
+              required String titulo,
+              required String subtitulo,
+            }) {
+              final bool sel = opcaoSelecionada == index;
+              return Expanded(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => setStateSheet(() {
+                    opcaoSelecionada = index;
+                    customCtrl.clear();
+                  }),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: sel
+                          ? AppColors.surfaceHighlight
+                          : AppColors.surfaceInner,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: sel ? AppColors.primary : AppColors.border,
+                        width: sel ? 1.5 : 1,
+                      ),
                     ),
-                    RadioListTile<int>(
-                      title: const Text('Por Semanas'),
-                      subtitle: const Text('Ex: 8 Semanas de ciclo'),
-                      value: 1,
-                      groupValue: opcaoSelecionada,
-                      activeColor: Colors.orange,
-                      onChanged: (val) => setStateDialog(() {
-                        opcaoSelecionada = val!;
-                        customCtrl.clear();
-                      }),
-                    ),
-                    RadioListTile<int>(
-                      title: const Text('Por Meses'),
-                      subtitle: const Text('Ex: 3 Meses (90 dias)'),
-                      value: 2,
-                      groupValue: opcaoSelecionada,
-                      activeColor: Colors.blue,
-                      onChanged: (val) => setStateDialog(() {
-                        opcaoSelecionada = val!;
-                        customCtrl.clear();
-                      }),
-                    ),
-                    RadioListTile<int>(
-                      title: const Text('Por Qtd. de Injeções'),
-                      value: 3,
-                      groupValue: opcaoSelecionada,
-                      activeColor: Colors.purple,
-                      onChanged: (val) => setStateDialog(() {
-                        opcaoSelecionada = val!;
-                        customCtrl.clear();
-                      }),
-                    ),
-                    if (opcaoSelecionada != 0)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 24,
-                          right: 24,
-                          top: 8,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          icone,
+                          size: 20,
+                          color: sel ? AppColors.primary : AppColors.textMuted,
                         ),
-                        child: TextField(
-                          controller: customCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: opcaoSelecionada == 1
-                                ? 'Quantas semanas?'
-                                : (opcaoSelecionada == 2
-                                      ? 'Quantos meses?'
-                                      : 'Quantas injeções?'),
-                            border: const OutlineInputBorder(),
+                        const SizedBox(height: 8),
+                        Text(
+                          titulo,
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: sel
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary,
                           ),
                         ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitulo,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            void alterarContador(int delta) {
+              final atual = int.tryParse(customCtrl.text) ?? 0;
+              final novo = (atual + delta).clamp(1, 365);
+              setStateSheet(() => customCtrl.text = novo.toString());
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 12,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            t.cronograma_modal.titulo,
+                            style: const TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: AppColors.textSecondary,
+                          ),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Seletor limpo de saldo do frasco (só aparece se já houver doses aplicadas)
+                    if (!isMix && volUsado > 0) ...[
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceInner,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: volRestante >= 0.05
+                                    ? () => setStateSheet(
+                                        () => usarFrascoNovo = false,
+                                      )
+                                    : null,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: !usarFrascoNovo
+                                        ? AppColors.navPillActive
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    t.cronograma_modal.frasco_atual(
+                                      vol: volRestante
+                                          .toStringAsFixed(2)
+                                          .replaceAll('.', ','),
+                                    ),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: !usarFrascoNovo
+                                          ? AppColors.primary
+                                          : AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () =>
+                                    setStateSheet(() => usarFrascoNovo = true),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: usarFrascoNovo
+                                        ? AppColors.navPillActive
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    t.cronograma_modal.frasco_novo(
+                                      vol: volTotal
+                                          .toStringAsFixed(1)
+                                          .replaceAll('.', ','),
+                                    ),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: usarFrascoNovo
+                                          ? AppColors.primary
+                                          : AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+
+                    // Grade simétrica 2x2 de cards
+                    Row(
+                      children: [
+                        buildCardOpcao(
+                          index: 0,
+                          icone: Icons.water_drop_outlined,
+                          titulo: t.cronograma_modal.op_frasco,
+                          subtitulo: t.cronograma_modal.op_frasco_sub,
+                        ),
+                        const SizedBox(width: 10),
+                        buildCardOpcao(
+                          index: 1,
+                          icone: Icons.view_week_outlined,
+                          titulo: t.cronograma_modal.op_semanas,
+                          subtitulo: t.cronograma_modal.op_semanas_sub,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        buildCardOpcao(
+                          index: 2,
+                          icone: Icons.calendar_month_outlined,
+                          titulo: t.cronograma_modal.op_meses,
+                          subtitulo: t.cronograma_modal.op_meses_sub,
+                        ),
+                        const SizedBox(width: 10),
+                        buildCardOpcao(
+                          index: 3,
+                          icone: Icons.vaccines_outlined,
+                          titulo: t.cronograma_modal.op_injecoes,
+                          subtitulo: t.cronograma_modal.op_injecoes_sub,
+                        ),
+                      ],
+                    ),
+
+                    if (opcaoSelecionada != 0) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          IconButton.filledTonal(
+                            onPressed: () => alterarContador(-1),
+                            icon: const Icon(Icons.remove_rounded),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: customCtrl,
+                              textAlign: TextAlign.center,
+                              keyboardType: TextInputType.number,
+                              onChanged: (_) => setStateSheet(() {}),
+                              decoration: InputDecoration(
+                                labelText: opcaoSelecionada == 1
+                                    ? t.cronograma_modal.lbl_semanas
+                                    : (opcaoSelecionada == 2
+                                          ? t.cronograma_modal.lbl_meses
+                                          : t.cronograma_modal.lbl_injecoes),
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          IconButton.filledTonal(
+                            onPressed: () => alterarContador(1),
+                            icon: const Icon(Icons.add_rounded),
+                          ),
+                        ],
+                      ),
+                    ],
+
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: dosesPrevistas <= 0
+                          ? null
+                          : () {
+                              final lim = calcularLimite();
+                              Navigator.pop(ctx);
+                              gerarDoses(
+                                limite: lim,
+                                volumeDisponivelMl: isMix
+                                    ? null
+                                    : volDisponivel,
+                              );
+                            },
+                      child: Text(
+                        dosesPrevistas > 0
+                            ? (dosesPrevistas == 1
+                                  ? t.cronograma_modal.btn_gerar_uma
+                                  : t.cronograma_modal.btn_gerar_varias(
+                                      qtd: dosesPrevistas,
+                                    ))
+                            : t.cronograma_modal.btn_informe_qtd,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text(
-                    'CANCELAR',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                  ),
-                  onPressed: () {
-                    int? limiteDeInjecoes;
-                    if (opcaoSelecionada != 0) {
-                      int valor = int.tryParse(customCtrl.text) ?? 0;
-                      if (valor <= 0) return;
-                      if (opcaoSelecionada == 1) {
-                        int totalDias = valor * 7;
-                        limiteDeInjecoes = (totalDias / intervaloDias).floor();
-                      } else if (opcaoSelecionada == 2) {
-                        int totalDias = valor * 30;
-                        limiteDeInjecoes = (totalDias / intervaloDias).floor();
-                      } else if (opcaoSelecionada == 3) {
-                        limiteDeInjecoes = valor;
-                      }
-                      if (limiteDeInjecoes == 0) limiteDeInjecoes = 1;
-                    }
-                    Navigator.pop(ctx);
-                    gerarDoses(limite: limiteDeInjecoes);
-                  },
-                  child: const Text(
-                    'GERAR',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
             );
           },
         );
@@ -4906,7 +5229,7 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
     );
   }
 
-  Future<void> gerarDoses({int? limite}) async {
+  Future<void> gerarDoses({int? limite, double? volumeDisponivelMl}) async {
     setState(() => carregando = true);
     try {
       String textoDoseAjustada = widget.medicamento['detalhes_dose'] ?? '';
@@ -4949,8 +5272,9 @@ class _CronogramaEcraState extends State<CronogramaEcra> {
       int totalDoses = 20;
       if (!widget.medicamento['nome'].toString().startsWith('Mix')) {
         double volTotal =
-            (widget.medicamento['volume_frasco_ml'] as num).toDouble() *
-            (widget.medicamento['quantidade_ampolas'] as num).toInt();
+            volumeDisponivelMl ??
+            ((widget.medicamento['volume_frasco_ml'] as num).toDouble() *
+                (widget.medicamento['quantidade_ampolas'] as num).toInt());
         totalDoses = (volTotal / volumeMl).floor();
         if (totalDoses < 1) totalDoses = 1;
       }
